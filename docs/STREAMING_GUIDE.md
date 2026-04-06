@@ -1,4 +1,4 @@
-# Guía de Streaming
+# Guía de Streaming — MelodyBox
 
 ## Cómo funciona
 

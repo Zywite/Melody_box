@@ -1,18 +1,18 @@
-# Manual de Usuario — Spotify Local
+# Manual de Usuario — MelodyBox
 
 ## 1. Primeros pasos
 
 ### Iniciar el servidor
 
 ```bash
-python start_server.py
+python scripts/start_server.py
 ```
 
 Verás este mensaje:
 
 ```
 ==================================================
-  Spotify Local
+  MelodyBox
 ==================================================
   Server:   http://localhost:8001
   API Docs: http://localhost:8001/docs

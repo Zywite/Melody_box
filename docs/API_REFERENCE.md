@@ -1,4 +1,4 @@
-# Referencia de API — Spotify Local
+# Referencia de API — MelodyBox
 
 **Base URL:** `http://localhost:8001`
 **Autenticación:** Bearer Token (JWT)

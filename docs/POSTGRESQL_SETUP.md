@@ -1,4 +1,4 @@
-# 🚀 Instalación y Configuración de PostgreSQL
+# 🚀 Instalación y Configuración de PostgreSQL — MelodyBox
 
 ## Opción 1: Windows (Recomendado)
 

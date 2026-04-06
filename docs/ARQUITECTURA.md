@@ -1,8 +1,8 @@
-# Arquitectura — Spotify Local
+# Arquitectura — MelodyBox
 
 ## Visión general
 
-Spotify Local es una aplicación web cliente-servidor para reproducir audio y video en una red local. El backend expone una API REST y sirve el frontend estático. La comunicación es HTTP sobre la red local, permitiendo que cualquier dispositivo conectado acceda al contenido.
+MelodyBox es una aplicación web cliente-servidor para reproducir audio y video en una red local. El backend expone una API REST y sirve el frontend estático. La comunicación es HTTP sobre la red local, permitiendo que cualquier dispositivo conectado acceda al contenido.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -31,8 +31,8 @@ Spotify Local es una aplicación web cliente-servidor para reproducir audio y vi
 ## Estructura del proyecto
 
 ```
-Proyect Spotofy/
-├── backend/
+MelodyBox/
+├── src/                     # Backend
 │   ├── app/
 │   │   ├── core/
 │   │   │   ├── config.py        # Configuración con pydantic-settings
@@ -53,19 +53,25 @@ Proyect Spotofy/
 │   │   │   └── playlist_service.py  # Lógica de playlists
 │   │   ├── schemas.py           # Schemas Pydantic (DTOs)
 │   │   └── main.py              # FastAPI app, middleware, routers
-│   ├── requirements.txt
-│   └── .env
-├── frontend/
-│   ├── index.html               # SPA con 5 páginas
+│   ├── .env                     # Configuración (no incluir en git)
+│   └── music_storage/          # Archivos subidos
+├── public/                     # Frontend
+│   ├── index.html              # SPA con 5 páginas
 │   └── static/
-│       ├── css/style.css        # Diseño dark theme
+│       ├── css/style.css       # Diseño dark theme con glassmorphism
 │       └── js/
-│           ├── api.js           # Cliente HTTP (SpotifyAPI)
-│           ├── player.js        # Reproductor (MusicPlayer)
-│           └── app.js           # Lógica UI (app.js)
-├── music_storage/               # Archivos subidos
-├── start_server.py              # Script de inicio
-└── run_server.bat               # Script Windows
+│           ├── api.js          # Cliente HTTP
+│           ├── player.js       # Reproductor (MusicPlayer)
+│           └── app.js          # Lógica UI
+├── docs/                       # Documentación
+├── scripts/                    # Scripts de utilidad
+│   ├── start_server.py         # Script de inicio
+│   ├── run_server.bat          # Script Windows
+│   └── run_server.sh           # Script Linux/Mac
+├── .gitignore                  # Archivos a ignorar
+├── .env.example                # Ejemplo de configuración
+├── requirements.txt            # Dependencias Python
+└── README.md                   # Documentación principal
 ```
 
 ---
