@@ -1,11 +1,52 @@
 <template>
   <div class="home-view">
     <header class="page-header">
-      <div>
-        <h1 class="text-3xl font-bold">Bienvenido de nuevo</h1>
-        <p class="text-[var(--text-secondary)]">{{ authStore.username }}</p>
+      <div class="welcome-section">
+        <h1 class="header-title">Bienvenido de nuevo</h1>
+        <p class="header-subtitle">{{ authStore.username }}</p>
       </div>
     </header>
+
+    <section class="stats-section">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <Music :size="20" />
+          </div>
+          <div class="stat-info">
+            <p class="stat-value">{{ libraryStore.songs.length }}</p>
+            <p class="stat-label">Canciones</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon video">
+            <Video :size="20" />
+          </div>
+          <div class="stat-info">
+            <p class="stat-value">{{ videoCount }}</p>
+            <p class="stat-label">Videos</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <ListMusic :size="20" />
+          </div>
+          <div class="stat-info">
+            <p class="stat-value">{{ libraryStore.playlists.length }}</p>
+            <p class="stat-label">Playlists</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon favorite">
+            <Heart :size="20" />
+          </div>
+          <div class="stat-info">
+            <p class="stat-value">{{ libraryStore.favorites.length }}</p>
+            <p class="stat-label">Favoritas</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section v-if="recentSongs.length" class="mt-8">
       <h2 class="section-title">Reproducidas recientemente</h2>
@@ -47,14 +88,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useLibraryStore } from '@/stores/library'
 import { usePlayerStore } from '@/stores/player'
 import SongCard from '@/components/common/SongCard.vue'
 import PlaylistCard from '@/components/common/PlaylistCard.vue'
-import { Music2 } from 'lucide-vue-next'
+import { Music2, Music, Video, ListMusic, Heart } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -62,6 +103,10 @@ const libraryStore = useLibraryStore()
 const playerStore = usePlayerStore()
 
 const recentSongs = ref([])
+
+const videoCount = computed(() => {
+  return libraryStore.songs.filter(s => s.media_type === 'video').length
+})
 
 onMounted(async () => {
   await Promise.all([
