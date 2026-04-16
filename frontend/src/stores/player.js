@@ -26,6 +26,7 @@ export const usePlayerStore = defineStore('player', () => {
   })
   const showVideoFlyout = ref(false)
   const showModeSelector = ref(false)
+  const showQueue = ref(false)
   const progress = computed(() => duration.value ? (currentTime.value / duration.value) * 100 : 0)
 
   function initAudio(element) {
@@ -282,6 +283,10 @@ export const usePlayerStore = defineStore('player', () => {
     showModeSelector.value = false
   }
 
+  function toggleQueue() {
+    showQueue.value = !showQueue.value
+  }
+
   return {
     currentSong,
     playlist,
@@ -298,6 +303,7 @@ export const usePlayerStore = defineStore('player', () => {
     progress,
     shuffle,
     repeat,
+    showQueue,
     initAudio,
     setPlaylist,
     play,
@@ -318,6 +324,7 @@ export const usePlayerStore = defineStore('player', () => {
     closeVideoFlyout,
     toggleVideoFlyout,
     setVideoElement,
-    closeModeSelector
+    closeModeSelector,
+    toggleQueue
   }
 })

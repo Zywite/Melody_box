@@ -24,6 +24,7 @@
     <ToastContainer />
     <VideoFlyout v-if="playerStore.showVideoFlyout && playerStore.isVideo && playerStore.currentSong" />
     <ModeSelector v-if="playerStore.showModeSelector" />
+    <QueuePanel v-if="playerStore.showQueue" @close="playerStore.toggleQueue" />
   </div>
 </template>
 
@@ -37,6 +38,7 @@ import MobileNav from '@/components/layout/MobileNav.vue'
 import ToastContainer from '@/components/layout/ToastContainer.vue'
 import VideoFlyout from '@/components/player/VideoFlyout.vue'
 import ModeSelector from '@/components/player/ModeSelector.vue'
+import QueuePanel from '@/components/player/QueuePanel.vue'
 
 const authStore = useAuthStore()
 const playerStore = usePlayerStore()

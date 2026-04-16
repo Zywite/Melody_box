@@ -80,7 +80,12 @@
 
       <!-- Controles extra -->
       <div class="player-extra">
-        <button class="extra-btn" title="Cola">
+        <button 
+          @click="playerStore.toggleQueue" 
+          class="extra-btn" 
+          :class="{ active: playerStore.showQueue }"
+          title="Cola"
+        >
           <ListMusic :size="18" />
         </button>
         <div class="volume-wrapper">
@@ -425,6 +430,10 @@ function addToPlaylist() {
 .extra-btn:hover {
   color: var(--text-primary);
   background: var(--bg-tertiary);
+}
+
+.extra-btn.active {
+  color: var(--accent-primary);
 }
 
 .volume-wrapper {
