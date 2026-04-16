@@ -22,12 +22,19 @@ export const useLibraryStore = defineStore('library', () => {
   const videoCount = computed(() => songs.value.filter(s => s.media_type === 'video').length)
   const playlistCount = computed(() => playlists.value.length)
 
-  async function fetchSongs() {
+  async function fetchSongs(page = 1, limit = 50, append = false) {
     if (!authStore.isAuthenticated) return
     isLoading.value = true
     error.value = null
     try {
-      songs.value = await api.getSongs()
+      const newSongs = await api.getSongs(page, limit)
+      if (append) {
+        const existingIds = new Set(songs.value.map(s => s.id))
+        const uniqueNewSongs = newSongs.filter(s => !existingIds.has(s.id))
+        songs.value = [...songs.value, ...uniqueNewSongs]
+      } else {
+        songs.value = newSongs
+      }
     } catch (e) {
       error.value = e.message
     } finally {

@@ -62,6 +62,15 @@
           @toggle-favorite="toggleFavorite"
         />
       </div>
+      <div v-if="hasMoreSongs && !isLoading" class="load-more-container">
+        <button @click="loadMore" class="load-more-btn">
+          <Plus :size="18" />
+          Cargar más
+        </button>
+      </div>
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+      </div>
       <div v-else class="empty-state">
         <Music :size="48" class="opacity-30" />
         <h3 class="text-xl font-semibold mt-4">Sin canciones</h3>
@@ -138,6 +147,7 @@ import { useRouter } from 'vue-router'
 import { useLibraryStore } from '@/stores/library'
 import { usePlayerStore } from '@/stores/player'
 import { useToast } from '@/composables/useToast'
+import api from '@/composables/useApi'
 import SongCard from '@/components/common/SongCard.vue'
 import PlaylistCard from '@/components/common/PlaylistCard.vue'
 import CreatePlaylistModal from '@/components/common/CreatePlaylistModal.vue'
@@ -151,6 +161,9 @@ const toast = useToast()
 const activeTab = ref('songs')
 const showCreatePlaylist = ref(false)
 const songFilter = ref('all')
+const isLoading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(50)
 
 const filteredSongs = computed(() => {
   if (songFilter.value === 'all') {
@@ -158,6 +171,23 @@ const filteredSongs = computed(() => {
   }
   return libraryStore.songs.filter(song => song.media_type === songFilter.value)
 })
+
+const hasMoreSongs = computed(() => {
+  return filteredSongs.value.length >= currentPage.value * pageSize.value
+})
+
+async function loadMore() {
+  isLoading.value = true
+  currentPage.value++
+  try {
+    await libraryStore.fetchSongs(currentPage.value, pageSize.value)
+  } catch (e) {
+    toast.error('Error', 'No se pudieron cargar más canciones')
+    currentPage.value--
+  } finally {
+    isLoading.value = false
+  }
+}
 
 const favorites = computed(() => {
   return libraryStore.favorites

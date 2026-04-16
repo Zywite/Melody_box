@@ -61,8 +61,8 @@ export default {
     localStorage.removeItem('token')
   },
 
-  async getSongs() {
-    return api.get('/songs')
+  async getSongs(page = 1, limit = 50) {
+    return api.get(`/songs?skip=${(page - 1) * limit}&limit=${limit}`)
   },
 
   async getSong(songId) {
