@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     ALLOWED_VIDEO_EXTENSIONS: str = "mp4,mkv,avi,webm,mov"
     
     # CORS
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8000"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8001"
     
     class Config:
         env_file = ".env"

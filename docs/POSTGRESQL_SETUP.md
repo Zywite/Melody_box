@@ -81,5 +81,5 @@ cd backend
 python -m app.main
 ```
 
-El servidor estará en: http://localhost:8000
-API docs: http://localhost:8000/docs
+El servidor estará en: http://localhost:8001
+API docs: http://localhost:8001/docs

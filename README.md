@@ -19,7 +19,7 @@ Un reproductor de música y video para red local, construido con FastAPI.
 | Capa | Tecnología |
 |---|---|
 | Backend | FastAPI, SQLAlchemy, JWT, bcrypt |
-| Frontend | HTML5, CSS3, JavaScript vanilla |
+| Frontend | Vue 3 + Vite + Tailwind CSS |
 | Base de datos | PostgreSQL (recomendado) / SQLite |
 | Servidor | Uvicorn (ASGI) |
 
@@ -40,13 +40,19 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows
 source .venv/bin/activate       # Linux/Mac
 
-# 3. Instalar dependencias
+# 3. Instalar dependencias del backend
 pip install -r requirements.txt
 
 # 4. Copiar y configurar .env
 copy .env.example src/.env
 # Editar src/.env con tu configuración
+
+# 5. Instalar dependencias del frontend
+cd frontend
+npm install
 ```
+
+> **Nota:** El frontend se sirve desde el backend en producción. Para desarrollo, puedes ejecutar `npm run dev` en la carpeta `frontend` y conectar al backend en `http://localhost:8001`.
 
 ## Inicio rápido
 
@@ -98,23 +104,24 @@ MelodyBox/
 │   │   ├── schemas.py       # Schemas Pydantic
 │   │   └── main.py          # App principal
 │   └── .env                 # Configuración (no incluir en git)
-├── public/                  # Frontend
-│   ├── index.html
-│   └── static/
-│       ├── css/style.css
-│       └── js/              # api.js, player.js, app.js
+├── frontend/                # Frontend Vue 3 + Vite + Tailwind
+│   ├── src/
+│   │   ├── assets/          # Estilos, imágenes
+│   │   ├── components/      # Componentes Vue
+│   │   ├── composables/     # Composables Vue
+│   │   ├── stores/          # Pinia stores
+│   │   ├── views/           # Vistas
+│   │   └── router/          # Vue Router
+│   ├── package.json
+│   └── vite.config.js
 ├── docs/                    # Documentación
 │   ├── MANUAL_USUARIO.md
 │   ├── API_REFERENCE.md
 │   ├── ARQUITECTURA.md
 │   ├── POSTGRESQL_SETUP.md
-│   └── STREAMING_GUIDE.md
+│   ├── STREAMING_GUIDE.md
+│   └── SRS.pdf              # Especificación de requisitos
 ├── scripts/                 # Scripts de utilidad
-│   ├── start_server.py
-│   ├── run_server.bat
-│   ├── run_server.sh
-│   ├── setup_db.sql
-│   └── validate_setup.py
 ├── music_storage/           # Archivos subidos
 ├── .gitignore
 ├── .env.example

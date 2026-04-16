@@ -14,15 +14,15 @@ Verás este mensaje:
 ==================================================
   MelodyBox
 ==================================================
-  Server:   http://localhost:8000
-  API Docs: http://localhost:8000/docs
+  Server:   http://localhost:8001
+  API Docs: http://localhost:8001/docs
   Press Ctrl+C to stop
 ==================================================
 ```
 
 ### Abrir la aplicación
 
-En tu navegador ve a: **http://localhost:8000**
+En tu navegador ve a: **http://localhost:8001**
 
 ---
 
@@ -180,7 +180,7 @@ Ve a **"Playlists"** en el menú lateral.
 
 ```bash
 # Ejemplo con curl
-curl -X POST http://localhost:8000/playlists/{playlist_id}/songs \
+curl -X POST http://localhost:8001/playlists/{playlist_id}/songs \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
   -d '{"song_id": "{song_id}"}'
@@ -191,7 +191,7 @@ curl -X POST http://localhost:8000/playlists/{playlist_id}/songs \
 > Se hace desde la API.
 
 ```bash
-curl -X DELETE http://localhost:8000/playlists/{playlist_id} \
+curl -X DELETE http://localhost:8001/playlists/{playlist_id} \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -203,17 +203,17 @@ curl -X DELETE http://localhost:8000/playlists/{playlist_id} \
 
 ```bash
 # Agregar a favoritos
-curl -X POST http://localhost:8000/favorites \
+curl -X POST http://localhost:8001/favorites \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
   -d '{"song_id": "{song_id}"}'
 
 # Ver favoritos
-curl http://localhost:8000/favorites \
+curl http://localhost:8001/favorites \
   -H "Authorization: Bearer {token}"
 
 # Quitar de favoritos
-curl -X DELETE http://localhost:8000/favorites/{song_id} \
+curl -X DELETE http://localhost:8001/favorites/{song_id} \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -227,7 +227,7 @@ curl -X DELETE http://localhost:8000/favorites/{song_id} \
    - Linux/Mac: `ip addr` o `ifconfig`
 3. En el otro dispositivo, abre el navegador y ve a:
    ```
-   http://TU_IP:8000
+   http://TU_IP:8001
    ```
 4. Regístrate o inicia sesión normalmente
 
