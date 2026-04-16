@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query, Header, Form
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.config import settings
 from app.services.song_service import SongService
 from app.schemas import SongResponse
+from app.routes.dependencies import get_current_user
+from app.models import User
 import os
 from pathlib import Path
 
@@ -23,15 +25,18 @@ MIME_TYPES = {
     "mov": "video/quicktime",
 }
 
+
 @router.get("", response_model=list[SongResponse])
 def get_all_songs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     songs = SongService.get_all_songs(db, skip, limit)
     return songs
 
+
 @router.get("/search", response_model=list[SongResponse])
 def search_songs(q: str = Query(..., min_length=1), db: Session = Depends(get_db)):
     songs = SongService.search_songs(db, q)
     return songs
+
 
 @router.get("/{song_id}", response_model=SongResponse)
 def get_song(song_id: str, db: Session = Depends(get_db)):
@@ -39,6 +44,7 @@ def get_song(song_id: str, db: Session = Depends(get_db)):
     if not song:
         raise HTTPException(status_code=404, detail="Canción no encontrada")
     return song
+
 
 @router.get("/{song_id}/stream")
 def stream_song(song_id: str, db: Session = Depends(get_db)):
@@ -58,29 +64,16 @@ def stream_song(song_id: str, db: Session = Depends(get_db)):
         "Cache-Control": "public, max-age=3600"
     })
 
+
 @router.post("/upload")
 async def upload_song(
     file: UploadFile = File(...),
     title: str = Form(...),
     artist: str = Form(...),
     album: str = Form(""),
-    authorization: str = Header(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Token requerido")
-
-    try:
-        token = authorization.replace("Bearer ", "")
-        from app.core.security import decode_token
-        payload = decode_token(token)
-        if not payload:
-            raise HTTPException(status_code=401, detail="Token inválido")
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token inválido")
-
     if not file.filename:
         raise HTTPException(status_code=400, detail="Nombre de archivo requerido")
 
@@ -147,11 +140,13 @@ async def upload_song(
             os.remove(file_path)
         raise HTTPException(status_code=500, detail=f"Error al subir el archivo: {str(e)}")
 
-@router.delete("/{song_id}")
-def delete_song(song_id: str, authorization: str = Header(None), db: Session = Depends(get_db)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Token requerido")
 
+@router.delete("/{song_id}")
+def delete_song(
+    song_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     song = SongService.get_song(db, song_id)
     if not song:
         raise HTTPException(status_code=404, detail="Canción no encontrada")

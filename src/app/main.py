@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
 from app.core.config import settings
 from app.core.database import engine, Base
 
-# Importar modelos ANTES de crear tablas
 from app.models import User, Song, Playlist, PlaylistSong, Favorite
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,6 +16,7 @@ async def lifespan(app: FastAPI):
     print("MelodyBox iniciando...")
     yield
     print("MelodyBox detenido")
+
 
 app = FastAPI(
     title=settings.API_TITLE,
@@ -32,25 +33,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+BASE_DIR = Path(__file__).parent.parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
+PUBLIC_DIR = BASE_DIR / "public"
+MUSIC_DIR = BASE_DIR / "src" / "music_storage"
+
+
 @app.get("/")
 async def root():
-    # From src/app/main.py -> project root (3 levels up) -> public/
-    frontend_path = Path(__file__).parent.parent.parent / "public" / "index.html"
-    if frontend_path.exists():
-        return FileResponse(frontend_path)
+    index_path = FRONTEND_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
     return {
         "name": "MelodyBox",
         "version": settings.API_VERSION,
         "status": "running"
     }
 
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
-frontend_static_path = Path(__file__).parent.parent.parent / "public" / "static"
-if frontend_static_path.exists():
-    app.mount("/static", StaticFiles(directory=str(frontend_static_path)), name="static")
+
+if FRONTEND_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets"), html=True), name="frontend-assets")
+
+if MUSIC_DIR.exists():
+    app.mount("/music", StaticFiles(directory=str(MUSIC_DIR)), name="music-storage")
+
+if PUBLIC_DIR.exists():
+    static_path = PUBLIC_DIR / "static"
+    if static_path.exists():
+        app.mount("/static", StaticFiles(directory=str(static_path)), name="public-static")
 
 from app.routes import auth, songs, playlists, favorites
 
@@ -58,6 +74,18 @@ app.include_router(auth.router)
 app.include_router(songs.router)
 app.include_router(playlists.router)
 app.include_router(favorites.router)
+
+@app.get("/{path:path}")
+async def serve_spa(path: str):
+    """Serve index.html for any non-API route (SPA fallback)"""
+    # Exclude static assets, media files, and API routes
+    if path.startswith(('assets/', 'static/', 'music/', 'favicon')):
+        return {"error": "Not found"}
+    
+    index_path = FRONTEND_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {"error": "Not found"}
 
 if __name__ == "__main__":
     import uvicorn

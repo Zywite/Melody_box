@@ -3,7 +3,7 @@ from typing import Optional
 from pathlib import Path
 import os
 
-# Project root is 2 levels up from src/app/core/config.py
+# Project root is 3 levels up from src/app/core/config.py -> src -> project root
 BASE_DIR = Path(__file__).parents[2]
 
 class Settings(BaseSettings):

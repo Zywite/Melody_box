@@ -76,6 +76,7 @@ class FavoriteResponse(BaseModel):
     user_id: str
     song_id: str
     added_at: Optional[datetime]
+    song: Optional[dict] = None
 
     class Config:
         from_attributes = True
