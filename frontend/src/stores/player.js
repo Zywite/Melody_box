@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 export const usePlayerStore = defineStore('player', () => {
   const currentSong = ref(null)
   const playlist = ref([])
+  const originalPlaylist = ref([])
   const currentIndex = ref(-1)
   const isPlaying = ref(false)
   const volume = ref(0.7)
@@ -11,6 +12,9 @@ export const usePlayerStore = defineStore('player', () => {
   const duration = ref(0)
   const isMuted = ref(false)
   const prevVolume = ref(0.7)
+  
+  const shuffle = ref(false)
+  const repeat = ref('none') // 'none', 'one', 'all'
 
   const audio = ref(null)
   const videoElement = ref(null)
@@ -44,24 +48,73 @@ export const usePlayerStore = defineStore('player', () => {
     }
   }
 
+  function getShuffledIndex() {
+    if (playlist.value.length <= 1) return currentIndex.value
+    let newIndex
+    do {
+      newIndex = Math.floor(Math.random() * playlist.value.length)
+    } while (newIndex === currentIndex.value && playlist.value.length > 1)
+    return newIndex
+  }
+
   function playNext() {
-    if (currentIndex.value < playlist.value.length - 1) {
+    if (repeat.value === 'one') {
+      if (audio.value) {
+        audio.value.currentTime = 0
+        audio.value.play().catch(e => console.error('Play error:', e))
+      }
+      return
+    }
+    
+    if (shuffle.value) {
+      currentIndex.value = getShuffledIndex()
+    } else if (currentIndex.value < playlist.value.length - 1) {
       currentIndex.value++
-      play(playlist.value[currentIndex.value])
+    } else if (repeat.value === 'all') {
+      currentIndex.value = 0
     } else {
       isPlaying.value = false
+      return
     }
+    play(playlist.value[currentIndex.value])
   }
 
   function playPrev() {
-    if (currentIndex.value > 0) {
-      currentIndex.value--
-      play(playlist.value[currentIndex.value])
+    if (currentTime.value > 3) {
+      currentTime.value = 0
+      if (audio.value) audio.value.currentTime = 0
+      return
     }
+    if (shuffle.value) {
+      currentIndex.value = getShuffledIndex()
+    } else if (currentIndex.value > 0) {
+      currentIndex.value--
+    } else if (repeat.value === 'all') {
+      currentIndex.value = playlist.value.length - 1
+    } else {
+      currentTime.value = 0
+      if (audio.value) audio.value.currentTime = 0
+      return
+    }
+    play(playlist.value[currentIndex.value])
+  }
+
+  function toggleShuffle() {
+    shuffle.value = !shuffle.value
+    if (shuffle.value && originalPlaylist.value.length === 0) {
+      originalPlaylist.value = [...playlist.value]
+    }
+  }
+
+  function toggleRepeat() {
+    const modes = ['none', 'all', 'one']
+    const currentModeIndex = modes.indexOf(repeat.value)
+    repeat.value = modes[(currentModeIndex + 1) % modes.length]
   }
 
   function setPlaylist(list, startIndex = 0) {
     playlist.value = list
+    originalPlaylist.value = [...list]
     currentIndex.value = startIndex
     if (list.length > 0) {
       play(list[startIndex])
@@ -74,9 +127,11 @@ export const usePlayerStore = defineStore('player', () => {
 
     if (songList && songList.length > 0) {
       playlist.value = songList
+      originalPlaylist.value = [...songList]
       currentIndex.value = songList.findIndex(s => s.id === song.id)
     } else if (playlist.value.length === 0) {
       playlist.value = [song]
+      originalPlaylist.value = [song]
       currentIndex.value = 0
     } else {
       currentIndex.value = playlist.value.findIndex(s => s.id === song.id)
@@ -241,6 +296,8 @@ export const usePlayerStore = defineStore('player', () => {
     showVideoFlyout,
     showModeSelector,
     progress,
+    shuffle,
+    repeat,
     initAudio,
     setPlaylist,
     play,
@@ -256,6 +313,8 @@ export const usePlayerStore = defineStore('player', () => {
     seek,
     playNext,
     playPrev,
+    toggleShuffle,
+    toggleRepeat,
     closeVideoFlyout,
     toggleVideoFlyout,
     setVideoElement,

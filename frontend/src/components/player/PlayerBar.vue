@@ -33,6 +33,14 @@
       <!-- Controles centrales -->
       <div class="player-controls">
         <div class="control-buttons">
+          <button 
+            @click="playerStore.toggleShuffle" 
+            class="control-btn small" 
+            :class="{ active: playerStore.shuffle }"
+            title="Aleatorio"
+          >
+            <Shuffle :size="16" stroke-width="2.5" />
+          </button>
           <button @click="playerStore.playPrev" class="control-btn" title="Anterior">
             <SkipBack :size="18" stroke-width="2.5" />
           </button>
@@ -46,6 +54,15 @@
           </button>
           <button @click="playerStore.playNext" class="control-btn" title="Siguiente">
             <SkipForward :size="18" stroke-width="2.5" />
+          </button>
+          <button 
+            @click="playerStore.toggleRepeat" 
+            class="control-btn small" 
+            :class="{ active: playerStore.repeat !== 'none' }"
+            :title="repeatTitle"
+          >
+            <Repeat v-if="playerStore.repeat === 'none' || playerStore.repeat === 'all'" :size="16" stroke-width="2.5" />
+            <Repeat1 v-else :size="16" stroke-width="2.5" />
           </button>
         </div>
 
@@ -95,7 +112,7 @@ import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
 import api from '@/composables/useApi'
-import { SkipBack, Play, Pause, SkipForward, Heart, ListMusic, VolumeX, Volume2, Volume1, Music2 } from 'lucide-vue-next'
+import { SkipBack, Play, Pause, SkipForward, Heart, ListMusic, VolumeX, Volume2, Volume1, Music2, Shuffle, Repeat, Repeat1 } from 'lucide-vue-next'
 
 const playerStore = usePlayerStore()
 const libraryStore = useLibraryStore()
@@ -104,6 +121,15 @@ const toast = useToast()
 const isFavorite = computed(() => {
   if (!playerStore.currentSong) return false
   return libraryStore.favorites.some(f => f.song_id === playerStore.currentSong.id)
+})
+
+const repeatTitle = computed(() => {
+  const modes = {
+    'none': 'Repetir: Desactivado',
+    'all': 'Repetir: Todo',
+    'one': 'Repetir: Una'
+  }
+  return modes[playerStore.repeat] || 'Repetir'
 })
 
 function formatTime(seconds) {
@@ -284,6 +310,14 @@ function addToPlaylist() {
 .control-btn:hover {
   color: var(--text-primary);
   transform: scale(1.1);
+}
+
+.control-btn.small {
+  padding: 6px;
+}
+
+.control-btn.small.active {
+  color: var(--accent-primary);
 }
 
 .play-btn {
