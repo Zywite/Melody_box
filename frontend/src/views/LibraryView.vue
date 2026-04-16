@@ -1,7 +1,8 @@
 <template>
   <div class="library-view">
     <header class="page-header">
-      <h1 class="text-3xl font-bold">Tu biblioteca</h1>
+      <h1 class="header-title">Tu biblioteca</h1>
+      <p class="header-subtitle">Gestiona tu colección de música</p>
     </header>
 
     <div class="library-tabs">
@@ -26,9 +27,32 @@
     </div>
 
     <div v-if="activeTab === 'songs'">
-      <div v-if="libraryStore.songs.length" class="song-list mt-4">
+      <div class="filter-row">
+        <button 
+          :class="['filter-btn', { active: songFilter === 'all' }]"
+          @click="songFilter = 'all'"
+        >
+          Todo
+        </button>
+        <button 
+          :class="['filter-btn', { active: songFilter === 'audio' }]"
+          @click="songFilter = 'audio'"
+        >
+          <Music :size="16" />
+          Audio
+        </button>
+        <button 
+          :class="['filter-btn', { active: songFilter === 'video' }]"
+          @click="songFilter = 'video'"
+        >
+          <Video :size="16" />
+          Video
+        </button>
+      </div>
+      
+      <div v-if="filteredSongs.length" class="song-list mt-4">
         <SongCard
-          v-for="song in libraryStore.songs"
+          v-for="song in filteredSongs"
           :key="song.id"
           :song="song"
           :show-artist="true"
@@ -117,7 +141,7 @@ import { useToast } from '@/composables/useToast'
 import SongCard from '@/components/common/SongCard.vue'
 import PlaylistCard from '@/components/common/PlaylistCard.vue'
 import CreatePlaylistModal from '@/components/common/CreatePlaylistModal.vue'
-import { Music, ListMusic, Heart, Plus, MoreHorizontal } from 'lucide-vue-next'
+import { Music, ListMusic, Heart, Plus, MoreHorizontal, Video } from 'lucide-vue-next'
 
 const router = useRouter()
 const libraryStore = useLibraryStore()
@@ -126,6 +150,14 @@ const toast = useToast()
 
 const activeTab = ref('songs')
 const showCreatePlaylist = ref(false)
+const songFilter = ref('all')
+
+const filteredSongs = computed(() => {
+  if (songFilter.value === 'all') {
+    return libraryStore.songs
+  }
+  return libraryStore.songs.filter(song => song.media_type === songFilter.value)
+})
 
 const favorites = computed(() => {
   return libraryStore.favorites
