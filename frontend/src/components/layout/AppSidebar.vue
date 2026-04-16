@@ -66,18 +66,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useApi } from '@/composables/useApi'
+import api from '@/composables/useApi'
 import { Music2, Home, Search, Library, ListMusic, Upload, LogOut } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { fetchApi } = useApi()
-
 const playlists = ref([])
 
 async function loadPlaylists() {
   try {
-    const data = await fetchApi('/playlists')
+    const data = await api.getPlaylists()
     playlists.value = data || []
   } catch (e) {
     console.error('Failed to load playlists', e)
