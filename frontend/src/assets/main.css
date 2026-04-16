@@ -339,6 +339,34 @@
   .stagger-2 { animation-delay: 0.2s; }
   .stagger-3 { animation-delay: 0.3s; }
   .stagger-4 { animation-delay: 0.4s; }
+
+  /* Header de página */
+  .page-header {
+    @apply flex flex-col gap-2 mb-6;
+  }
+
+  .header-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  .header-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* Contenedor de búsqueda */
+  .search-container {
+    @apply mb-6;
+  }
+
+  .search-view {
+    @apply flex flex-col;
+  }
 }
 
 @layer utilities {

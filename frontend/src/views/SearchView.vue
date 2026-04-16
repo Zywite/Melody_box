@@ -1,11 +1,12 @@
 <template>
   <div class="search-view">
     <header class="page-header">
-      <h1 class="text-3xl font-bold">Buscar</h1>
+      <h1 class="header-title">Buscar</h1>
+      <p class="header-subtitle">Encuentra tu música favorita</p>
     </header>
 
-    <div class="search-container mt-6">
-      <SearchInput v-model="searchQuery" @search="handleSearch" placeholder="Buscar canciones, artistas..." />
+    <div class="search-container">
+      <SearchInput v-model="searchQuery" @search="handleSearch" placeholder="Buscar canciones, artistas o álbumes..." />
     </div>
 
     <div v-if="isLoading" class="loading-state">

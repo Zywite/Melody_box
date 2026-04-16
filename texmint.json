@@ -1,0 +1,55 @@
+{
+    "name": "MelodyBox SRS",
+    "root": "docs/SRS.tex",
+    "texlab": {
+        "build": {
+            "args": [
+                "-interaction=nonstopmode",
+                "-halt-on-error",
+                "-file-line-error",
+                "${ROOT}"
+            ],
+            "executable": "pdflatex",
+            "onSave": true,
+            "outputDirectory": "docs"
+        }
+    },
+    "latex-workshop": {
+        "latex.autoBuild.run": "onSave",
+        "latex.recipes": [
+            {
+                "name": "pdflatex × 2",
+                "tools": [
+                    "pdflatex-first",
+                    "pdflatex-second"
+                ]
+            }
+        ],
+        "latex.tools": [
+            {
+                "command": "pdflatex",
+                "args": [
+                    "-interaction=nonstopmode",
+                    "-halt-on-error",
+                    "-file-line-error",
+                    "-output-directory=docs",
+                    "%DOC%"
+                ],
+                "name": "pdflatex-first"
+            },
+            {
+                "command": "pdflatex",
+                "args": [
+                    "-interaction=nonstopmode",
+                    "-halt-on-error",
+                    "-file-line-error",
+                    "-output-directory=docs",
+                    "%DOC%"
+                ],
+                "name": "pdflatex-second"
+            }
+        ],
+        "latex-workshop.latex.autoClean.run": "onBuilt",
+        "latex-workshop.view.pdf.viewer": "tab"
+    }
+}
