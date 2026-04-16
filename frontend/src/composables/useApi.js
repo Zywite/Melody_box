@@ -134,6 +134,20 @@ export default {
     return `${API_BASE_URL}/songs/${mediaId}/stream`
   },
 
+  async youtubeSearch(query, limit = 10) {
+    return api.get(`/youtube/search?q=${encodeURIComponent(query)}&limit=${limit}`)
+  },
+
+  async youtubeDownload(videoId, format, quality, title = null, artist = null) {
+    return api.post('/youtube/download', {
+      video_id: videoId,
+      format,
+      quality,
+      title,
+      artist
+    })
+  },
+
   getBaseUrl() {
     return API_BASE_URL
   }

@@ -68,12 +68,13 @@ if PUBLIC_DIR.exists():
     if static_path.exists():
         app.mount("/static", StaticFiles(directory=str(static_path)), name="public-static")
 
-from app.routes import auth, songs, playlists, favorites
+from app.routes import auth, songs, playlists, favorites, youtube
 
 app.include_router(auth.router)
 app.include_router(songs.router)
 app.include_router(playlists.router)
 app.include_router(favorites.router)
+app.include_router(youtube.router)
 
 @app.get("/{path:path}")
 async def serve_spa(path: str):

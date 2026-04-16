@@ -83,3 +83,20 @@ class FavoriteResponse(BaseModel):
 
 class SongAddRequest(BaseModel):
     song_id: str
+
+
+class YouTubeSearchResult(BaseModel):
+    video_id: str
+    title: str
+    channel: str
+    thumbnail: str
+    duration: int
+    views: Optional[int] = None
+
+
+class YouTubeDownloadRequest(BaseModel):
+    video_id: str
+    format: str = "m4a"
+    quality: str = "320"
+    title: Optional[str] = None
+    artist: Optional[str] = None
