@@ -46,23 +46,34 @@ MelodyBox/
 │   │   │   ├── auth.py          # /auth/register, /auth/login
 │   │   │   ├── songs.py         # /songs (CRUD + upload + stream)
 │   │   │   ├── playlists.py     # /playlists (CRUD + songs)
-│   │   │   └── favorites.py     # /favorites (CRUD)
+│   │   │   ├── favorites.py     # /favorites (CRUD)
+│   │   │   └── dependencies.py  # Dependencias compartidas de auth
 │   │   ├── services/
 │   │   │   ├── user_service.py      # Lógica de usuarios
 │   │   │   ├── song_service.py      # Lógica de canciones
 │   │   │   └── playlist_service.py  # Lógica de playlists
 │   │   ├── schemas.py           # Schemas Pydantic (DTOs)
-│   │   └── main.py              # FastAPI app, middleware, routers
+│   │   └── main.py              # FastAPI app, middleware, routers, SPA fallback
 │   ├── .env                     # Configuración (no incluir en git)
 │   └── music_storage/          # Archivos subidos
-├── public/                     # Frontend
-│   ├── index.html              # SPA con 5 páginas
-│   └── static/
-│       ├── css/style.css       # Diseño dark theme con glassmorphism
-│       └── js/
-│           ├── api.js          # Cliente HTTP
-│           ├── player.js       # Reproductor (MusicPlayer)
-│           └── app.js          # Lógica UI
+├── frontend/                   # Frontend Vue 3 + Vite + Tailwind
+│   ├── src/
+│   │   ├── assets/
+│   │   │   └── main.css         # Estilos globales, variables CSS, glassmorphism
+│   │   ├── components/
+│   │   │   ├── common/          # SongCard, PlaylistCard, SearchInput, etc.
+│   │   │   ├── layout/          # AppSidebar, MobileNav, ToastContainer
+│   │   │   └── player/          # PlayerBar, VideoFlyout, ModeSelector
+│   │   ├── composables/        # useApi.js, useToast.js
+│   │   ├── stores/              # Pinia stores (auth, library, player)
+│   │   ├── views/               # Vue components (HomeView, SearchView, etc.)
+│   │   ├── router/              # Vue Router config
+│   │   ├── App.vue
+│   │   └── main.js
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── tailwind.config.js
 ├── docs/                       # Documentación
 ├── scripts/                    # Scripts de utilidad
 │   ├── start_server.py         # Script de inicio
@@ -318,38 +329,61 @@ def get_all_songs(..., db: Session = Depends(get_db)):
 
 ---
 
-### 6. Facade — `api.js`
+### 6. Facade — Composables en Vue 3
 
-Una clase que envuelve todas las operaciones HTTP del frontend.
+El frontend usa composables de Vue para encapsular la lógica de la API.
 
 ```javascript
-// frontend/static/js/api.js
-class SpotifyAPI {
-    constructor(baseUrl = API_BASE_URL) {
-        this.baseUrl = baseUrl;
-        this.token = localStorage.getItem('token');
-    }
+// frontend/src/composables/useApi.js
+import { ref } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 
-    async request(endpoint, options = {}) {
-        // Maneja headers, token, errores en un solo lugar
-        const headers = { 'Content-Type': 'application/json' };
-        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-        // ...
+export function useApi() {
+  const authStore = useAuthStore()
+  
+  async function fetchApi(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json' }
+    if (authStore.token) {
+      headers['Authorization'] = `Bearer ${authStore.token}`
     }
-
-    async getSongs() { return this.request('/songs'); }
-    async login(email, password) { /* ... */ }
-    async uploadSong(file, title, artist, album) { /* ... */ }
+    // Handle errors, retries for 401, etc.
+  }
+  
+  return { fetchApi }
 }
-
-const api = new SpotifyAPI();  // Instancia global
 ```
 
-**Ventaja:** El resto del frontend no necesita conocer detalles de HTTP.
+**Ventaja:** Lógica reutilizable entre componentes Vue.
 
 ---
 
-### 7. Strategy — MIME types por extensión
+### 7. Observer — Pinia Stores
+
+El frontend usa Pinia para state management. Los stores reaccionan a cambios y actualizan la UI automáticamente.
+
+```javascript
+// frontend/src/stores/player.js
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+export const usePlayerStore = defineStore('player', () => {
+  const currentSong = ref(null)
+  const isPlaying = ref(false)
+  
+  function playSong(song, queue) {
+    currentSong.value = song
+    isPlaying.value = true
+  }
+  
+  return { currentSong, isPlaying, playSong }
+})
+```
+
+**Ventaja:** La UI se actualiza automáticamente cuando cambia el estado del reproductor.
+
+---
+
+### 8. Strategy — MIME types por extensión
 
 El tipo de contenido se determina dinámicamente según la extensión del archivo.
 
@@ -378,36 +412,26 @@ def stream_song(song_id: str, db: Session = Depends(get_db)):
 
 ---
 
-### 8. Observer — Event listeners del reproductor
+### 9. Observer — Event listeners del reproductor
 
 El reproductor reacciona a eventos del elemento audio/video.
 
 ```javascript
-// frontend/static/js/player.js
-class MusicPlayer {
-    constructor() {
-        this.audio = new Audio();
-        this.audio.addEventListener('ended', () => this.nextSong());
-        this.audio.addEventListener('timeupdate', () => this.updateProgress());
-        this.audio.addEventListener('loadedmetadata', () => this.updateDuration());
-    }
-
-    updateProgress() {
-        const pct = (this.audio.currentTime / this.audio.duration) * 100;
-        document.getElementById('progress-fill').style.width = pct + '%';
-    }
-}
+// frontend/src/stores/player.js
+const audio = new Audio()
+audio.addEventListener('ended', () => playerStore.playNext())
+audio.addEventListener('timeupdate', () => playerStore.updateProgress())
 ```
 
 ---
 
-### 9. MVC (Model-View-Controller)
+### 10. MVC (Model-View-Controller)
 
 | Capa | Implementación |
 |---|---|
-| **Model** | Modelos SQLAlchemy (`User`, `Song`, `Playlist`) |
-| **View** | `index.html` + `style.css` (renderizado en el navegador) |
-| **Controller** | Routes FastAPI (`auth.py`, `songs.py`) + `app.js` (lógica UI) |
+| **Model** | Modelos SQLAlchemy + Pinia Stores |
+| **View** | Componentes Vue 3 (.vue) |
+| **Controller** | Routes FastAPI + Composables |
 
 ---
 
