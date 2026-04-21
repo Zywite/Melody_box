@@ -27,7 +27,12 @@ export const usePlayerStore = defineStore('player', () => {
   const showVideoFlyout = ref(false)
   const showModeSelector = ref(false)
   const showQueue = ref(false)
-  const progress = computed(() => duration.value ? (currentTime.value / duration.value) * 100 : 0)
+  const progress = computed(() => {
+    if (!duration.value || duration.value <= 0 || !isFinite(duration.value) || isNaN(duration.value)) {
+      return 0
+    }
+    return (currentTime.value / duration.value) * 100
+  })
 
   function initAudio(element) {
     audio.value = element
@@ -44,8 +49,11 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function updateDuration() {
-    if (audio.value && audio.value.duration && isFinite(audio.value.duration)) {
-      duration.value = audio.value.duration
+    if (audio.value && audio.value.duration && isFinite(audio.value.duration) && !isNaN(audio.value.duration)) {
+      const dur = audio.value.duration
+      if (dur > 0 && dur < 86400) { // Validar duración razonable (0-24 horas)
+        duration.value = dur
+      }
     }
   }
 

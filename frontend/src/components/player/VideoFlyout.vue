@@ -111,7 +111,10 @@ const volume = computed(() => playerStore.volume)
 const isMuted = computed(() => playerStore.isMuted)
 
 const progress = computed(() => {
-  return duration.value ? (currentTime.value / duration.value) * 100 : 0
+  if (!duration.value || duration.value <= 0 || !isFinite(duration.value) || isNaN(duration.value)) {
+    return 0
+  }
+  return (currentTime.value / duration.value) * 100
 })
 
 function close() {
