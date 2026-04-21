@@ -183,74 +183,179 @@ Cliente → POST /auth/login
 
 ## Patrones de diseño
 
-### 1. Singleton — `config.py`
-
-Una única instancia de configuración compartida en toda la aplicación.
-
-```python
-# backend/app/core/config.py
-class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite:///./spotify_local.db"
-    SECRET_KEY: str = "tu-clave-secreta"
-    # ... más configuraciones
-
-settings = Settings()  # Instancia única, importada donde se necesite
-```
-
-Se importa como `from app.core.config import settings` en cualquier módulo — siempre es el mismo objeto.
+En esta sección se documentan los patrones de diseño utilizados en el proyecto, con ejemplos prácticos del código real.
 
 ---
 
-### 2. Service Layer — `services/`
+### 1. Singleton
 
-La lógica de negocio está separada de los endpoints HTTP. Los routes delegan a servicios.
+**Propósito:** Garantizar una única instancia de configuración compartida en toda la aplicación.
+
+**Implementación:** La clase `Settings` se instancia una sola vez y se importa como módulo singleton.
 
 ```python
-# backend/app/services/song_service.py
+# src/app/core/config.py
+from pydantic_settings import BaseSettings
+from pathlib import Path
+import os
+
+BASE_DIR = Path(__file__).parents[2]
+
+class Settings(BaseSettings):
+    DATABASE_URL: str = "sqlite:///./spotify_local.db"
+    SECRET_KEY: str = "tu-clave-secreta-cambiar-en-produccion"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    MUSIC_STORAGE_PATH: str = str(BASE_DIR / "music_storage")
+    ALLOWED_AUDIO_EXTENSIONS: str = "mp3,wav,flac,ogg,m4a"
+    ALLOWED_VIDEO_EXTENSIONS: str = "mp4,mkv,avi,webm,mov"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8001"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+# Instancia única global
+settings = Settings()
+```
+
+**Uso:** Se importa en cualquier módulo y siempre devuelve la misma instancia.
+
+```python
+# En cualquier archivo del proyecto
+from app.core.config import settings
+
+print(settings.DATABASE_URL)  # sqlite:///./spotify_local.db
+print(settings.MUSIC_STORAGE_PATH)  # Ruta absoluta a music_storage
+```
+
+**Ventaja:** Configuración centralizada, carga desde `.env`, valor consistente en toda la aplicación.
+
+---
+
+### 2. Service Layer (Capa de Servicio)
+
+**Propósito:** Separar la lógica de negocio de los endpoints HTTP.
+
+**Implementación:** Clases con métodos estáticos que contienen toda la lógica de negocio.
+
+```python
+# src/app/services/song_service.py
+from sqlalchemy.orm import Session
+from app.models import Song
+import os
+import uuid
+from pathlib import Path
+
 class SongService:
     @staticmethod
-    def create_song(db, title, artist, file_path, duration, album, media_type):
-        db_song = Song(id=str(uuid.uuid4()), title=title, ...)
+    def create_song(db: Session, title: str, artist: str, file_path: str, 
+                    duration: float, album: str = None, media_type: str = "audio"):
+        """Crear una nueva canción en la base de datos."""
+        db_song = Song(
+            id=str(uuid.uuid4()),
+            title=title,
+            artist=artist,
+            album=album,
+            duration=duration,
+            file_path=file_path,
+            media_type=media_type
+        )
         db.add(db_song)
         db.commit()
         db.refresh(db_song)
         return db_song
 
     @staticmethod
-    def get_song(db, song_id):
+    def get_song(db: Session, song_id: str):
+        """Obtener una canción por su ID."""
         return db.query(Song).filter(Song.id == song_id).first()
+
+    @staticmethod
+    def get_all_songs(db: Session, skip: int = 0, limit: int = 100):
+        """Obtener todas las canciones con paginación."""
+        return db.query(Song).offset(skip).limit(limit).all()
+
+    @staticmethod
+    def search_songs(db: Session, query: str):
+        """Buscar canciones por título, artista o álbum."""
+        return db.query(Song).filter(
+            (Song.title.ilike(f"%{query}%")) |
+            (Song.artist.ilike(f"%{query}%")) |
+            (Song.album.ilike(f"%{query}%"))
+        ).all()
+
+    @staticmethod
+    def delete_song(db: Session, song_id: str):
+        """Eliminar una canción y su archivo físico."""
+        song = db.query(Song).filter(Song.id == song_id).first()
+        if song:
+            if os.path.exists(song.file_path):
+                os.remove(song.file_path)
+            db.delete(song)
+            db.commit()
+        return song
 ```
 
+**Uso en el endpoint:** El route solo delega al servicio.
+
 ```python
-# backend/app/routes/songs.py
+# src/app/routes/songs.py
 @router.post("/upload")
 async def upload_song(...):
-    # El endpoint solo valida y delega
+    # El endpoint solo valida entrada y delega al servicio
     song = SongService.create_song(db, title, artist, file_path, duration, album, media_type)
     return {"id": song.id, "title": song.title, ...}
 ```
 
-**Ventaja:** La lógica de negocio es reutilizable y testeable independientemente de FastAPI.
+**Ventajas:**
+- Lógica de negocio reutilizable desde cualquier endpoint
+- Testeable independientemente de FastAPI
+- Código más limpio y mantenible
 
 ---
 
-### 3. Repository — `services/`
+### 3. Repository
 
-Los servicios encapsulan el acceso a datos. Los routes no hacen queries directas.
+**Propósito:** Encapsular el acceso a datos, los routes no hacen queries SQL directas.
+
+**Implementación:** Servicios que contienen todas las operaciones de base de datos.
 
 ```python
-# backend/app/services/user_service.py
+# src/app/services/user_service.py
+from sqlalchemy.orm import Session
+from app.models import User
+from app.core.security import get_password_hash, verify_password
+import uuid
+
 class UserService:
     @staticmethod
-    def get_user_by_email(db, email):
+    def create_user(db: Session, username: str, email: str, password: str):
+        """Crear un nuevo usuario."""
+        db_user = User(
+            id=str(uuid.uuid4()),
+            username=username,
+            email=email,
+            hashed_password=get_password_hash(password)
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+
+    @staticmethod
+    def get_user_by_email(db: Session, email: str):
+        """Buscar usuario por email."""
         return db.query(User).filter(User.email == email).first()
 
     @staticmethod
-    def get_user_by_id(db, user_id):
+    def get_user_by_id(db: Session, user_id: str):
+        """Buscar usuario por ID."""
         return db.query(User).filter(User.id == user_id).first()
 
     @staticmethod
-    def verify_user_password(db, email, password):
+    def verify_user_password(db: Session, email: str, password: str):
+        """Verificar credenciales del usuario."""
         user = UserService.get_user_by_email(db, email)
         if not user:
             return None
@@ -259,107 +364,180 @@ class UserService:
         return user
 ```
 
+**Uso en autenticación:**
+
 ```python
-# backend/app/routes/auth.py
+# src/app/routes/auth.py
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = UserService.verify_user_password(db, user.email, user.password)
     if not db_user:
         raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
-    # ...
+    # ... crear token JWT
 ```
 
 ---
 
-### 4. Dependency Injection — `Depends()`
+### 4. Dependency Injection (Inyección de Dependencias)
 
-FastAPI inyecta dependencias automáticamente en cada endpoint.
+**Propósito:** FastAPI maneja automáticamente el ciclo de vida de las dependencias.
+
+**Implementación:** Función generadora con `yield` que se ejecuta antes y después de cada request.
 
 ```python
-# backend/app/core/database.py
+# src/app/core/database.py
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
+    """Inyección de sesión de base de datos."""
     db = SessionLocal()
     try:
-        yield db
+        yield db  # Se pasa la sesión al endpoint
     finally:
-        db.close()  # Se ejecuta al terminar la request
+        db.close()  # Siempre se cierra, incluso si hay error
 ```
 
+**Uso en endpoints:**
+
 ```python
-# backend/app/routes/songs.py
+# src/app/routes/songs.py
 @router.get("", response_model=list[SongResponse])
 def get_all_songs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Cada request recibe su propia sesión de BD."""
     songs = SongService.get_all_songs(db, skip, limit)
     return songs
 ```
 
-**Ventaja:** Cada request recibe su propia sesión de BD que se cierra automáticamente.
+**Ventajas:**
+- Cada request tiene su propia sesión
+- Se cierra automáticamente (no memory leaks)
+- Código limpio sin gestión manual de conexiones
 
 ---
 
-### 5. DTO (Data Transfer Object) — `schemas.py`
+### 5. DTO (Data Transfer Object)
 
-Los schemas Pydantic separan la capa API de los modelos de base de datos.
+**Propósito:** Separar la capa API de los modelos de base de datos.
+
+**Implementación:** Schemas Pydantic que definen qué campos se exponen.
 
 ```python
-# backend/app/schemas.py
+# src/app/schemas.py
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
+
 class SongResponse(BaseModel):
     id: str
     title: str
     artist: str
-    album: Optional[str]
-    duration: float
-    media_type: Optional[str] = "audio"
+    album: Optional[str] = None
+    duration: Optional[float] = None
+    media_type: str = "audio"
     created_at: datetime
 
     class Config:
-        from_attributes = True  # Convierte ORM objects a dict
+        from_attributes = True  # Convierte ORM → dict automáticamente
 ```
+
+**Uso:**
 
 ```python
-# backend/app/routes/songs.py
-@router.get("", response_model=list[SongResponse])  # FastAPI serializa automáticamente
-def get_all_songs(..., db: Session = Depends(get_db)):
-    return SongService.get_all_songs(db, skip, limit)  # Retorna objetos ORM
+# src/app/routes/songs.py
+@router.get("", response_model=list[SongResponse])
+def get_all_songs(db: Session = Depends(get_db)):
+    songs = SongService.get_all_songs(db, skip, limit)
+    # FastAPI serializa automáticamente los objetos ORM a SongResponse
+    return songs
 ```
 
-**Ventaja:** Control total sobre qué campos se exponen y validación automática de tipos.
+**Ventajas:**
+- Control total sobre qué campos se exponen al cliente
+- Validación automática de tipos
+- Separación clara entre DB y API
 
 ---
 
-### 6. Facade — Composables en Vue 3
+### 6. Facade (Fachada)
 
-El frontend usa composables de Vue para encapsular la lógica de la API.
+**Propósito:** Encapsular lógica compleja tras una interfaz simple.
+
+**Implementación:** Composables de Vue que abstraen llamadas HTTP.
 
 ```javascript
 // frontend/src/composables/useApi.js
-import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
 export function useApi() {
   const authStore = useAuthStore()
-  
+
   async function fetchApi(endpoint, options = {}) {
     const headers = { 'Content-Type': 'application/json' }
     if (authStore.token) {
       headers['Authorization'] = `Bearer ${authStore.token}`
     }
-    // Handle errors, retries for 401, etc.
+
+    const response = await fetch(endpoint, {
+      ...options,
+      headers: { ...headers, ...options.headers }
+    })
+
+    if (response.status === 401) {
+      authStore.logout()
+      throw new Error('Sesión expirada')
+    }
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Error de servidor')
+    }
+
+    return response.json()
   }
-  
+
   return { fetchApi }
 }
 ```
 
-**Ventaja:** Lógica reutilizable entre componentes Vue.
+**Uso en stores:**
+
+```javascript
+// frontend/src/stores/library.js
+import { defineStore } from 'pinia'
+import api from '@/composables/useApi'
+
+export const useLibraryStore = defineStore('library', () => {
+  async function fetchSongs() {
+    return await api.fetchApi('/songs')
+  }
+
+  async function uploadSong(file, title, artist, album) {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('title', title)
+    formData.append('artist', artist)
+    if (album) formData.append('album', album)
+    return await api.fetchApi('/songs/upload', {
+      method: 'POST',
+      body: formData
+    })
+  }
+})
+```
+
+**Ventaja:** Lógica HTTP reutilizable, manejo centralizado de errores y autenticación.
 
 ---
 
-### 7. Observer — Pinia Stores
+### 7. Observer (Observador)
 
-El frontend usa Pinia para state management. Los stores reaccionan a cambios y actualizan la UI automáticamente.
+**Propósito:** El estado reactivo actualiza la UI automáticamente cuando cambia.
+
+**Implementación:** Pinia stores con refs y computed properties.
 
 ```javascript
 // frontend/src/stores/player.js
@@ -367,28 +545,70 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export const usePlayerStore = defineStore('player', () => {
+  // Estado reactivo
   const currentSong = ref(null)
   const isPlaying = ref(false)
-  
-  function playSong(song, queue) {
+  const volume = ref(0.7)
+
+  // Computed: se actualiza automáticamente cuando cambia currentSong
+  const isVideo = computed(() => {
+    if (!currentSong.value) return false
+    return currentSong.value.media_type === 'video'
+  })
+
+  // Acciones que modifican el estado
+  function play(song) {
     currentSong.value = song
     isPlaying.value = true
   }
-  
-  return { currentSong, isPlaying, playSong }
+
+  function pause() {
+    isPlaying.value = false
+  }
+
+  return {
+    currentSong,
+    isPlaying,
+    isVideo,
+    volume,
+    play,
+    pause
+  }
 })
 ```
 
-**Ventaja:** La UI se actualiza automáticamente cuando cambia el estado del reproductor.
+**Uso en componentes Vue:**
+
+```vue
+<!-- En cualquier componente -->
+<script setup>
+import { usePlayerStore } from '@/stores/player'
+const playerStore = usePlayerStore()
+</script>
+
+<template>
+  <!-- Se actualiza automáticamente cuando cambia isPlaying -->
+  <button @click="playerStore.pause()" v-if="playerStore.isPlaying">
+    ⏸ Pausar
+  </button>
+  <button @click="playerStore.play(song)" v-else>
+    ▶ Reproducir
+  </button>
+</template>
+```
 
 ---
 
-### 8. Strategy — MIME types por extensión
+### 8. Strategy (Estrategia)
 
-El tipo de contenido se determina dinámicamente según la extensión del archivo.
+**Propósito:** Cambiar comportamiento dinámicamente según el contexto.
+
+**Implementación:** Diccionario de MIME types por extensión.
 
 ```python
-# backend/app/routes/songs.py
+# src/app/routes/songs.py
+from pathlib import Path
+
 MIME_TYPES = {
     "mp3": "audio/mpeg",
     "wav": "audio/wav",
@@ -405,33 +625,104 @@ MIME_TYPES = {
 @router.get("/{song_id}/stream")
 def stream_song(song_id: str, db: Session = Depends(get_db)):
     song = SongService.get_song(db, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Canción no encontrada")
+
+    # Strategy: elegir MIME type según extensión del archivo
     ext = Path(song.file_path).suffix.lower().lstrip(".")
     media_type = MIME_TYPES.get(ext, "application/octet-stream")
-    return FileResponse(song.file_path, media_type=media_type)
+
+    return FileResponse(
+        song.file_path,
+        media_type=media_type,
+        headers={"Accept-Ranges": "bytes"}
+    )
 ```
+
+**Ventaja:** Agregar nuevos formatos sin modificar la lógica existente.
 
 ---
 
-### 9. Observer — Event listeners del reproductor
+### 9. Observer — Event Listeners
 
-El reproductor reacciona a eventos del elemento audio/video.
+**Propósito:** El reproductor reacciona a eventos del navegador.
+
+**Implementación:** Listeners en elementos audio/video.
 
 ```javascript
 // frontend/src/stores/player.js
-const audio = new Audio()
-audio.addEventListener('ended', () => playerStore.playNext())
-audio.addEventListener('timeupdate', () => playerStore.updateProgress())
+function initAudio(element) {
+  audio.value = element
+  audio.value.volume = volume.value
+
+  // Cuando termina la canción, reproducir siguiente
+  audio.value.addEventListener('ended', playNext)
+
+  // Actualizar progreso
+  audio.value.addEventListener('timeupdate', updateTime)
+
+  // Cuando carga metadata, obtener duración
+  audio.value.addEventListener('loadedmetadata', updateDuration)
+}
+
+function updateTime() {
+  if (audio.value && audio.value.currentTime) {
+    currentTime.value = audio.value.currentTime
+  }
+}
+
+function updateDuration() {
+  if (audio.value && audio.value.duration && isFinite(audio.value.duration)) {
+    duration.value = audio.value.duration
+  }
+}
 ```
 
 ---
 
 ### 10. MVC (Model-View-Controller)
 
-| Capa | Implementación |
-|---|---|
-| **Model** | Modelos SQLAlchemy + Pinia Stores |
-| **View** | Componentes Vue 3 (.vue) |
-| **Controller** | Routes FastAPI + Composables |
+**Propósito:** Separación clara de responsabilidades.
+
+| Capa | Implementación | Ejemplo |
+|------|----------------|--------|
+| **Model** | Modelos SQLAlchemy + Pinia Stores | `Song`, `Playlist`, `usePlayerStore` |
+| **View** | Componentes Vue (.vue) | `HomeView.vue`, `PlayerBar.vue` |
+| **Controller** | Routes FastAPI + Composables | `songs.py`, `useApi.js` |
+
+**Flujo típico:**
+```
+Usuario → Vue Component → Composables → API Fetch → FastAPI Route → Service → Model → DB
+     ↑                                                            ↓
+     └──────────────────── UI actualizada ← Store reactivo ←─────────────┘
+```
+
+---
+
+### Resumen de patrones
+
+| Patrón | Propósito | Ubicación |
+|--------|----------|-----------|
+| Singleton | Configuración única | `app/core/config.py` |
+| Service Layer | Lógica de negocio | `app/services/*.py` |
+| Repository | Acceso a datos | `app/services/*.py` |
+| Dependency Injection | Ciclo de vida de dependencias | `app/core/database.py` |
+| DTO | Transferencia de datos API ↔ DB | `app/schemas.py` |
+| Facade | Interfaz simple para API | `frontend/src/composables/useApi.js` |
+| Observer | UI reactiva | `frontend/src/stores/*.js` |
+| Strategy | Comportamiento dinámico | `app/routes/songs.py` |
+| Observer Events | Respuesta a eventos | `frontend/src/stores/player.js` |
+| MVC | Separación de responsabilidades | Proyecto completo |
+
+---
+
+## Referencia de API
+
+La documentación completa de todos los endpoints de la APIREST está disponible en:
+
+- **Archivo:** `docs/API_REFERENCE.md`
+- **Swagger UI:** `http://localhost:8001/docs`
+- **ReDoc:** `http://localhost:8001/redoc`
 
 ---
 

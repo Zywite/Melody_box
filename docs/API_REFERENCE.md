@@ -1,39 +1,62 @@
 # Referencia de API — MelodyBox
 
+API REST para el reproductor de música local.
+
 **Base URL:** `http://localhost:8001`
+**Versión:** 1.0.0
 **Autenticación:** Bearer Token (JWT)
 
 ---
 
-## Endpoints públicos
+## Tabla de contenido
 
-### Health Check
+1. [Autenticación](#1-autenticación)
+   - [Registro](#registro)
+   - [Login](#login)
+   - [Obtener token](#obtener-el-token)
+2. [Canciones](#2-canciones)
+   - [Listar](#listar-canciones)
+   - [Buscar](#buscar-canciones)
+   - [Obtener una](#obtener-una-canción)
+   - [Reproducir (stream)](#reproducir-stream)
+   - [Subir](#subir-archivo)
+   - [Eliminar](#eliminar-canción)
+3. [Playlists](#3-playlists)
+   - [Listar](#listar-playlists)
+   - [Crear](#crear-playlist)
+   - [Obtener detalles](#obtener-detalles)
+   - [Agregar canción](#agregar-canción)
+   - [Quitar canción](#quitar-canción)
+   - [Eliminar playlist](#eliminar-playlist)
+4. [Favoritos](#4-favoritos)
+   - [Listar](#listar-favoritos)
+   - [Agregar](#agregar-a-favoritos)
+   - [Quitar](#quitar-de-favoritos)
+5. [Códigos de respuesta](#5-códigos-de-respuesta)
+6. [Documentación interactiva](#6-documentación-interactiva)
 
-```
-GET /health
-```
+---
 
-**Respuesta:**
-```json
-{ "status": "healthy" }
-```
-
-### Root
-
-```
-GET /
-```
-
-Devuelve el `index.html` del frontend.
+## 1. Autenticación
 
 ### Registro
+
+Crea un nuevo usuario en el sistema.
 
 ```
 POST /auth/register
 Content-Type: application/json
 ```
 
-**Body:**
+**Parámetros (body):**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|----------|-------------|
+| `username` | string | Sí | Nombre de usuario (único) |
+| `email` | string | Sí | Correo electrónico (único) |
+| `password` | string | Sí | Contraseña |
+
+**Ejemplo de request:**
 ```json
 {
   "username": "miusuario",
@@ -42,31 +65,43 @@ Content-Type: application/json
 }
 ```
 
-**Respuesta 200:**
+**Respuesta (201):**
 ```json
 {
-  "id": "a1b2c3d4-...",
+  "id": "a1b2c3d4-e5f6-...",
   "username": "miusuario",
   "email": "mi@email.com",
   "is_active": true,
-  "created_at": "2026-04-05T00:00:00"
+  "created_at": "2026-04-21T10:30:00"
 }
 ```
 
 **Errores:**
-| Código | Detalle |
-|---|---|
+
+| Código | Descripción |
+|--------|-------------|
 | 400 | El email ya está registrado |
 | 400 | El nombre de usuario ya existe |
 
+---
+
 ### Login
+
+Inicia sesión y obtiene un token JWT.
 
 ```
 POST /auth/login
 Content-Type: application/json
 ```
 
-**Body:**
+**Parámetros (body):**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|----------|-------------|
+| `email` | string | Sí | Correo electrónico registrado |
+| `password` | string | Sí | Contraseña del usuario |
+
+**Ejemplo de request:**
 ```json
 {
   "email": "mi@email.com",
@@ -74,100 +109,200 @@ Content-Type: application/json
 }
 ```
 
-**Respuesta 200:**
+**Respuesta (200):**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "token_type": "bearer",
   "username": "miusuario"
 }
 ```
 
 **Errores:**
-| Código | Detalle |
-|---|---|
+
+| Código | Descripción |
+|--------|-------------|
 | 401 | Email o contraseña incorrectos |
 
 ---
 
-## Endpoints de canciones
+### Obtener el token
+
+El flujo para autenticarse:
+
+1. Llama a `POST /auth/login` con credenciales
+2. Copia el valor de `access_token` de la respuesta
+3. Incluye el token en el header `Authorization` de las demás peticiones:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Duración del token:** 1440 minutos (24 horas). Configurable en `.env`.
+
+---
+
+## 2. Canciones
 
 ### Listar canciones
 
+Obtiene una lista paginada de todas las canciones.
+
 ```
-GET /songs?skip=0&limit=100
+GET /songs?skip=0&limit=50
+Authorization: Bearer {token}
 ```
 
-**Respuesta 200:**
+**Query parameters:**
+
+| Parámetro | Tipo | Default | Descripción |
+|-----------|------|---------|-------------|
+| `skip` | integer | 0 | Cantidad de registros a saltar (para paginación) |
+| `limit` | integer | 50 | Cantidad máxima de registros a devolver |
+
+**Respuesta (200):**
 ```json
 [
   {
-    "id": "uuid",
-    "title": "Nombre de canción",
-    "artist": "Artista",
-    "album": "Álbum",
+    "id": "song-uuid-1234",
+    "title": "Never Give Up",
+    "artist": "Sia",
+    "album": "The Lion Movie",
     "duration": 245.5,
     "media_type": "audio",
-    "created_at": "2026-04-05T00:00:00"
+    "created_at": "2026-04-21T10:30:00"
+  },
+  {
+    "id": "song-uuid-5678",
+    "title": "Crab Rave",
+    "artist": "Noisestorm",
+    "album": "Monstercat",
+    "duration": 180.0,
+    "media_type": "audio",
+    "created_at": "2026-04-20T15:00:00"
   }
 ]
 ```
 
+---
+
 ### Buscar canciones
+
+Busca canciones por título, artista o álbum.
 
 ```
 GET /songs/search?q=rock
+Authorization: Bearer {token}
 ```
 
-Busca por título, artista o álbum.
+**Query parameters:**
 
-**Respuesta 200:** Lista de canciones coincidentes.
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|----------|-------------|
+| `q` | string | Sí | Término de búsqueda |
 
-### Obtener canción individual
+**Respuesta (200):** Array de canciones coincidentes (mismo formato que listar).
+
+---
+
+### Obtener una canción
+
+Obtiene los detalles de una canción específica.
 
 ```
 GET /songs/{song_id}
+Authorization: Bearer {token}
 ```
 
-**Respuesta 200:** Objeto `SongResponse`.
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `song_id` | string | UUID de la canción |
+
+**Respuesta (200):**
+```json
+{
+  "id": "song-uuid-1234",
+  "title": "Never Give Up",
+  "artist": "Sia",
+  "album": "The Lion Movie",
+  "duration": 245.5,
+  "media_type": "audio",
+  "created_at": "2026-04-21T10:30:00"
+}
+```
 
 **Errores:**
-| Código | Detalle |
-|---|---|
+
+| Código | Descripción |
+|--------|-------------|
 | 404 | Canción no encontrada |
 
+---
+
 ### Reproducir (stream)
+
+Devuelve el archivo de audio/video para reproducir. Soporta byte-range para seek.
 
 ```
 GET /songs/{song_id}/stream
 ```
 
-Devuelve el archivo de audio/video con soporte de byte-range.
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `song_id` | string | UUID de la canción |
 
 **Headers de respuesta:**
-```
-Content-Type: audio/mpeg    (para MP3)
-Content-Type: video/mp4     (para MP4)
-Accept-Ranges: bytes
-Cache-Control: public, max-age=3600
-```
 
-**MIME types por formato:**
+| Header | Valor | Descripción |
+|--------|-------|-------------|
+| `Content-Type` | audio/mpeg, video/mp4, etc. | Tipo MIME según extensión |
+| `Accept-Ranges` | bytes | Soporta reproducción por partes |
+| `Content-Length` | bytes | Tamaño del archivo |
+
+**MIME types por extensión:**
 
 | Extensión | Content-Type |
-|---|---|
-| `.mp3` | `audio/mpeg` |
-| `.wav` | `audio/wav` |
-| `.flac` | `audio/flac` |
-| `.ogg` | `audio/ogg` |
-| `.m4a` | `audio/mp4` |
-| `.mp4` | `video/mp4` |
-| `.mkv` | `video/x-matroska` |
-| `.avi` | `video/x-msvideo` |
-| `.webm` | `video/webm` |
-| `.mov` | `video/quicktime` |
+|-----------|---------------|
+| `.mp3` | audio/mpeg |
+| `.wav` | audio/wav |
+| `.flac` | audio/flac |
+| `.ogg` | audio/ogg |
+| `.m4a` | audio/mp4 |
+| `.mp4` | video/mp4 |
+| `.mkv` | video/x-matroska |
+| `.avi` | video/x-msvideo |
+| `.webm` | video/webm |
+| `.mov` | video/quicktime |
+
+**Ejemplo de uso con fetch:**
+
+```javascript
+// Reproducir música
+const audio = new Audio('/songs/song-uuid-1234/stream')
+audio.play()
+
+// Reproducir video
+const video = document.createElement('video')
+video.src = '/songs/song-uuid-5678/stream'
+video.controls = true
+document.body.appendChild(video)
+```
+
+**Errores:**
+
+| Código | Descripción |
+|--------|-------------|
+| 404 | Canción no encontrada |
+
+---
 
 ### Subir archivo
+
+Sube un nuevo archivo de audio o video.
 
 ```
 POST /songs/upload
@@ -176,27 +311,52 @@ Authorization: Bearer {token}
 ```
 
 **Form fields:**
-| Campo | Tipo | Requerido |
-|---|---|---|
-| `file` | File | Sí |
-| `title` | String | Sí |
-| `artist` | String | Sí |
-| `album` | String | No |
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|----------|-------------|
+| `file` | binary | Sí | Archivo de audio/video |
+| `title` | string | Sí | Título de la canción |
+| `artist` | string | Sí | Nombre del artista |
+| `album` | string | No | Nombre del álbum |
+
+**Extensiones permitidas:**
+
+- Audio: mp3, wav, flac, ogg, m4a
+- Video: mp4, mkv, avi, webm, mov
 
 **Ejemplo con curl:**
+
 ```bash
 curl -X POST http://localhost:8001/songs/upload \
-  -H "Authorization: Bearer TOKEN" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
   -F "file=@mi_cancion.mp3" \
   -F "title=Mi Canción" \
   -F "artist=Mi Artista" \
   -F "album=Mi Álbum"
 ```
 
-**Respuesta 200:**
+**Ejemplo con fetch (JavaScript):**
+
+```javascript
+const formData = new FormData()
+formData.append('file', fileInput.files[0])
+formData.append('title', 'Mi Canción')
+formData.append('artist', 'Mi Artista')
+formData.append('album', 'Mi Álbum')
+
+fetch('/songs/upload', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + token
+  },
+  body: formData
+})
+```
+
+**Respuesta (201):**
 ```json
 {
-  "id": "uuid",
+  "id": "song-uuid-nuevo",
   "title": "Mi Canción",
   "artist": "Mi Artista",
   "album": "Mi Álbum",
@@ -207,226 +367,358 @@ curl -X POST http://localhost:8001/songs/upload \
 ```
 
 **Errores:**
-| Código | Detalle |
-|---|---|
-| 401 | Token requerido / inválido |
-| 400 | Formato no permitido |
+
+| Código | Descripción |
+|--------|-------------|
+| 401 | Token requerido o inválido |
+| 400 | Formato de archivo no permitido |
 | 400 | Nombre de archivo requerido |
 | 409 | Ya existe un archivo con esa ruta |
-| 500 | Error al subir el archivo |
+| 500 | Error al procesar el archivo |
+
+---
 
 ### Eliminar canción
+
+Elimina una canción y su archivo del servidor.
 
 ```
 DELETE /songs/{song_id}
 Authorization: Bearer {token}
 ```
 
-**Respuesta 200:**
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `song_id` | string | UUID de la canción a eliminar |
+
+**Respuesta (200):**
 ```json
-{ "message": "Canción eliminada" }
+{
+  "message": "Canción eliminada"
+}
 ```
 
 **Errores:**
-| Código | Detalle |
-|---|---|
+
+| Código | Descripción |
+|--------|-------------|
 | 401 | Token requerido |
 | 404 | Canción no encontrada |
 
 ---
 
-## Endpoints de playlists
+## 3. Playlists
 
-### Obtener playlists del usuario
+### Listar playlists
+
+Obtiene todas las playlists del usuario.
 
 ```
 GET /playlists
 Authorization: Bearer {token}
 ```
 
-**Respuesta 200:**
+**Respuesta (200):**
 ```json
 [
   {
-    "id": "uuid",
-    "name": "Mi Playlist",
-    "description": "Descripción",
-    "created_at": "2026-04-05T00:00:00",
-    "updated_at": "2026-04-05T00:00:00",
+    "id": "playlist-uuid-1234",
+    "name": "Mis Favoritas",
+    "description": "Las mejores canciones",
+    "created_at": "2026-04-21T10:30:00",
+    "updated_at": "2026-04-21T12:00:00",
     "songs": [
       {
-        "id": "uuid",
-        "song_id": "uuid",
+        "id": "playlist-song-uuid-1",
+        "song_id": "song-uuid-1234",
         "position": 0,
-        "added_at": "2026-04-05T00:00:00"
+        "added_at": "2026-04-21T10:30:00"
       }
     ]
   }
 ]
 ```
 
+---
+
 ### Crear playlist
+
+Crea una nueva playlist.
 
 ```
 POST /playlists
-Authorization: Bearer {token}
 Content-Type: application/json
+Authorization: Bearer {token}
 ```
 
-**Body:**
+**Parámetros (body):**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|----------|-------------|
+| `name` | string | Sí | Nombre de la playlist |
+| `description` | string | No | Descripción opcional |
+
+**Ejemplo de request:**
 ```json
 {
   "name": "Mi Playlist",
-  "description": "Descripción opcional"
+  "description": "Canciones para estudiar"
 }
 ```
 
-**Respuesta 200:** Objeto `PlaylistResponse`.
+**Respuesta (201):**
+```json
+{
+  "id": "playlist-uuid-nuevo",
+  "name": "Mi Playlist",
+  "description": "Canciones para estudiar",
+  "created_at": "2026-04-21T10:30:00",
+  "updated_at": "2026-04-21T10:30:00",
+  "songs": []
+}
+```
 
-### Obtener playlist detallada
+---
+
+### Obtener detalles
+
+Obtiene una playlist específica con todas sus canciones.
 
 ```
 GET /playlists/{playlist_id}
 Authorization: Bearer {token}
 ```
 
-**Respuesta 200:** `PlaylistResponse` con lista de canciones.
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `playlist_id` | string | UUID de la playlist |
+
+**Respuesta (200):** Mismo formato que listar, con el array `songs` completo.
 
 **Errores:**
-| Código | Detalle |
-|---|---|
-| 404 | Playlist no encontrada |
-| 403 | No tienes permiso |
 
-### Agregar canción a playlist
+| Código | Descripción |
+|--------|-------------|
+| 404 | Playlist no encontrada |
+| 403 | No tienes permiso para ver esta playlist |
+
+---
+
+### Agregar canción
+
+Agrega una canción a una playlist.
 
 ```
 POST /playlists/{playlist_id}/songs
-Authorization: Bearer {token}
 Content-Type: application/json
+Authorization: Bearer {token}
 ```
 
-**Body:**
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `playlist_id` | string | UUID de la playlist |
+
+**Parámetros (body):**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|----------|-------------|
+| `song_id` | string | Sí | UUID de la canción a agregar |
+
+**Ejemplo de request:**
 ```json
-{ "song_id": "uuid-de-la-cancion" }
+{
+  "song_id": "song-uuid-1234"
+}
 ```
 
-**Respuesta 200:**
+**Respuesta (201):**
 ```json
-{ "message": "Canción agregada a la playlist" }
+{
+  "message": "Canción agregada a la playlist"
+}
 ```
 
-### Eliminar canción de playlist
+---
+
+### Quitar canción
+
+Quita una canción de una playlist.
 
 ```
 DELETE /playlists/{playlist_id}/songs/{song_id}
 Authorization: Bearer {token}
 ```
 
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `playlist_id` | string | UUID de la playlist |
+| `song_id` | string | UUID de la canción a quitar |
+
+**Respuesta (200):**
+```json
+{
+  "message": "Canción eliminada de la playlist"
+}
+```
+
+---
+
 ### Eliminar playlist
+
+Elimina una playlist completamente.
 
 ```
 DELETE /playlists/{playlist_id}
 Authorization: Bearer {token}
 ```
 
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `playlist_id` | string | UUID de la playlist |
+
+**Respuesta (200):**
+```json
+{
+  "message": "Playlist eliminada"
+}
+```
+
+**Errores:**
+
+| Código | Descripción |
+|--------|-------------|
+| 404 | Playlist no encontrada |
+| 403 | No tienes permiso para eliminar esta playlist |
+
 ---
 
-## Endpoints de favoritos
+## 4. Favoritos
 
-### Obtener favoritos
+### Listar favoritos
+
+Obtiene todas las canciones favoritas del usuario.
 
 ```
 GET /favorites
 Authorization: Bearer {token}
 ```
 
-**Respuesta 200:**
+**Respuesta (200):**
 ```json
 [
   {
-    "id": "uuid",
-    "user_id": "uuid",
-    "song_id": "uuid",
-    "added_at": "2026-04-05T00:00:00"
+    "id": "favorite-uuid-1234",
+    "user_id": "user-uuid-1234",
+    "song_id": "song-uuid-5678",
+    "added_at": "2026-04-21T10:30:00"
   }
 ]
 ```
 
+---
+
 ### Agregar a favoritos
+
+Marca una canción como favorita.
 
 ```
 POST /favorites
-Authorization: Bearer {token}
 Content-Type: application/json
+Authorization: Bearer {token}
 ```
 
-**Body:**
+**Parámetros (body):**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|----------|-------------|
+| `song_id` | string | Sí | UUID de la canción |
+
+**Ejemplo de request:**
 ```json
-{ "song_id": "uuid-de-la-cancion" }
+{
+  "song_id": "song-uuid-1234"
+}
 ```
 
-**Respuesta 200:** Objeto `FavoriteResponse`.
+**Respuesta (201):**
+```json
+{
+  "id": "favorite-uuid-nuevo",
+  "user_id": "user-uuid-1234",
+  "song_id": "song-uuid-1234",
+  "added_at": "2026-04-21T10:30:00"
+}
+```
 
 **Errores:**
-| Código | Detalle |
-|---|---|
+
+| Código | Descripción |
+|--------|-------------|
 | 400 | La canción ya está en favoritos |
 | 404 | Canción no encontrada |
 
+---
+
 ### Quitar de favoritos
+
+Quita una canción de favoritos.
 
 ```
 DELETE /favorites/{song_id}
 Authorization: Bearer {token}
 ```
 
-**Respuesta 200:**
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `song_id` | string | UUID de la canción |
+
+**Respuesta (200):**
 ```json
-{ "message": "Canción eliminada de favoritos" }
+{
+  "message": "Canción eliminada de favoritos"
+}
 ```
 
 ---
 
-## Autenticación
+## 5. Códigos de respuesta
 
-Todos los endpoints protegidos requieren el header:
-
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-```
-
-### Obtener el token
-
-1. Haz login con `POST /auth/login`
-2. Copia el valor de `access_token` de la respuesta
-3. Úsalo en el header `Authorization`
-
-### Duración del token
-
-Por defecto: **1440 minutos** (24 horas). Configurable en `.env`.
+| Código | Significado | Descripción |
+|--------|------------|-------------|
+| 200 | OK | Request exitosa |
+| 201 | Created | Recurso creado |
+| 400 | Bad Request | Solicitud inválida |
+| 401 | Unauthorized | Token requerido o inválido |
+| 403 | Forbidden | Sin permisos |
+| 404 | Not Found | Recurso no encontrado |
+| 409 | Conflict | Conflicto (duplicado) |
+| 500 | Internal Server Error | Error en el servidor |
 
 ---
 
-## Códigos de error
+## 6. Documentación interactiva
 
-| Código | Significado |
-|---|---|
-| 200 | Éxito |
-| 400 | Solicitud incorrecta (validación) |
-| 401 | No autenticado o token inválido |
-| 403 | Sin permisos |
-| 404 | Recurso no encontrado |
-| 409 | Conflicto (duplicado) |
-| 500 | Error interno del servidor |
+Prueba la API directamente desde el navegador:
 
----
+| Herramienta | URL |
+|------------|-----|
+| Swagger UI | http://localhost:8001/docs |
+| ReDoc | http://localhost:8001/redoc |
 
-## Interactiva
-
-La documentación interactiva está disponible en:
-
-```
-http://localhost:8001/docs     → Swagger UI
-http://localhost:8001/redoc    → ReDoc
-```
+Ambas interfaces permiten:
+- Ver todos los endpoints disponibles
+- Probar llamadas directamente
+- Observar esquemas de respuesta
+- Autenticarse con JWT
