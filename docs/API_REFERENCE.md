@@ -32,7 +32,10 @@ API REST para el reproductor de música local.
    - [Listar](#listar-favoritos)
    - [Agregar](#agregar-a-favoritos)
    - [Quitar](#quitar-de-favoritos)
-5. [Códigos de respuesta](#5-códigos-de-respuesta)
+5. [YouTube](#5-youtube)
+   - [Buscar en YouTube](#buscar-en-youtube)
+   - [Descargar desde YouTube](#descargar-desde-youtube)
+6. [Códigos de respuesta](#6-códigos-de-respuesta)
 6. [Documentación interactiva](#6-documentación-interactiva)
 
 ---
@@ -693,7 +696,130 @@ Authorization: Bearer {token}
 
 ---
 
-## 5. Códigos de respuesta
+## 5. YouTube
+
+Descarga videos y audio desde YouTube.
+
+### Buscar en YouTube
+
+Busca videos en YouTube por término de búsqueda.
+
+```
+GET /youtube/search?q=rock&limit=10
+```
+
+**Query parameters:**
+
+| Parámetro | Tipo | Default | Descripción |
+|-----------|------|---------|-------------|
+| `q` | string | Sí | Término de búsqueda |
+| `limit` | integer | 10 | Cantidad de resultados |
+
+**Respuesta (200):**
+```json
+[
+  {
+    "video_id": "dQw4w9WgXcQ",
+    "title": "Rick Astley - Never Gonna Give You Up",
+    "channel": "RickAstleyVEVO",
+    "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+    "duration": 213,
+    "views": 1500000000
+  }
+]
+```
+
+**Errores:**
+
+| Código | Descripción |
+|--------|-------------|
+| 500 | Error al conectar con YouTube |
+
+---
+
+### Descargar desde YouTube
+
+Descarga y convierte un video de YouTube como audio o video.
+
+```
+POST /youtube/download
+Content-Type: application/json
+Authorization: Bearer {token}
+```
+
+**Parámetros (body):**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|----------|-------------|
+| `video_id` | string | Sí | ID del video de YouTube |
+| `format` | string | Sí | Formato de salida: m4a, mp3, wav, flac, ogg, mp4, mkv, webm |
+| `quality` | string | No | Calidad de audio: 320, 256, 128 (kbps) o video: 1080p, 720p, 480p |
+| `title` | string | No | Título personalizado (usa el del video si no se indica) |
+| `artist` | string | No | Artista personalizado (usa el canal del video si no se indica) |
+
+**Formatos disponibles:**
+
+| Formato | Tipo | Descripción |
+|---------|------|-------------|
+| `mp3` | audio | MP3 (más popular) |
+| `m4a` | audio | M4A AAC |
+| `wav` | audio | WAV sin pérdida |
+| `flac` | audio | FLAC sin pérdida |
+| `ogg` | audio | OGG Vorbis |
+| `mp4` | video | MP4 H.264 |
+| `mkv` | video | MKV |
+| `webm` | video | WebM |
+
+**Ejemplo de request:**
+```json
+{
+  "video_id": "dQw4w9WgXcQ",
+  "format": "mp3",
+  "quality": "320",
+  "title": "Never Gonna Give You Up",
+  "artist": "Rick Astley"
+}
+```
+
+**Ejemplo con curl:**
+
+```bash
+curl -X POST http://localhost:8001/youtube/download \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -H "Content-Type: application/json" \
+  -d '{"video_id": "dQw4w9WgXcQ", "format": "mp3", "quality": "320"}'
+```
+
+**Respuesta (201):**
+```json
+{
+  "id": "song-uuid-nuevo",
+  "title": "Never Gonna Give You Up",
+  "artist": "Rick Astley",
+  "album": null,
+  "duration": 213.0,
+  "media_type": "audio",
+  "created_at": "2026-04-21T10:30:00"
+}
+```
+
+**Errores:**
+
+| Código | Descripción |
+|--------|-------------|
+| 400 | Formato no soportado |
+| 401 | Token requerido o inválido |
+| 500 | Error al descargar desde YouTube |
+
+**Nota:** Este endpoint requiere que `yt-dlp` esté instalado:
+
+```bash
+pip install yt-dlp
+```
+
+---
+
+## 6. Códigos de respuesta
 
 | Código | Significado | Descripción |
 |--------|------------|-------------|
@@ -708,7 +834,7 @@ Authorization: Bearer {token}
 
 ---
 
-## 6. Documentación interactiva
+## 7. Documentación interactiva
 
 Prueba la API directamente desde el navegador:
 
@@ -722,3 +848,31 @@ Ambas interfaces permiten:
 - Probar llamadas directamente
 - Observar esquemas de respuesta
 - Autenticarse con JWT
+
+---
+
+## Resumen de endpoints
+
+| Endpoint | Método | Autenticado | Descripción |
+|----------|--------|------------|-------------|
+| `/health` | GET | No | Health check |
+| `/` | GET | No | Frontend SPA |
+| `/auth/register` | POST | No | Crear usuario |
+| `/auth/login` | POST | No | Iniciar sesión |
+| `/songs` | GET | Sí | Listar canciones |
+| `/songs/search` | GET | Sí | Buscar canciones |
+| `/songs/{id}` | GET | Sí | Obtener canción |
+| `/songs/{id}/stream` | GET | No | Reproducir archivo |
+| `/songs/upload` | POST | Sí | Subir archivo |
+| `/songs/{id}` | DELETE | Sí | Eliminar canción |
+| `/playlists` | GET | Sí | Listar playlists |
+| `/playlists` | POST | Sí | Crear playlist |
+| `/playlists/{id}` | GET | Sí | Obtener playlist |
+| `/playlists/{id}/songs` | POST | Sí | Agregar canción |
+| `/playlists/{id}/songs/{song_id}` | DELETE | Sí | Quitar canción |
+| `/playlists/{id}` | DELETE | Sí | Eliminar playlist |
+| `/favorites` | GET | Sí | Listar favoritos |
+| `/favorites` | POST | Sí | Agregar favorito |
+| `/favorites/{song_id}` | DELETE | Sí | Quitar favorito |
+| `/youtube/search` | GET | No | Buscar en YouTube |
+| `/youtube/download` | POST | Sí | Descargar desde YouTube |
