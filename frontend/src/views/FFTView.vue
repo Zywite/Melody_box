@@ -335,16 +335,59 @@ function drawCanvas() {
   const width = canvas.value.width = 800
   const height = canvas.value.height = 300
   
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffe4ec'
+  // Get theme colors
+  const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffe4ec'
+  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#7a7a7a'
+  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff9ebb'
+  const accentLight = getComputedStyle(document.documentElement).getPropertyValue('--accent-light').trim() || '#ffb7c5'
+  const secondaryColor = getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim() || '#b19cd9'
+  
+  // Background
+  ctx.fillStyle = bgColor
   ctx.fillRect(0, 0, width, height)
   
+  // Calculate nyquist frequency from sample rate
+  const nyquist = result.value.sample_rate / 2
   const bins = result.value.bins
   const BAR_COUNT = 64
-  const barWidth = (width / BAR_COUNT) - 4
-  const barMaxHeight = height * 0.85
+  const barWidth = (width - 80) / BAR_COUNT  // Leave space for labels
+  const barMaxHeight = height * 0.75
   
   const step = Math.floor(bins.length / BAR_COUNT)
   
+  // Draw grid lines
+  ctx.strokeStyle = 'rgba(128,128,128,0.2)'
+  ctx.lineWidth = 1
+  for (let i = 0; i <= 10; i++) {
+    const y = (height - 30) * (i / 10)
+    ctx.beginPath()
+    ctx.moveTo(60, y)
+    ctx.lineTo(width - 20, y)
+    ctx.stroke()
+  }
+  
+  // dB labels on left
+  ctx.fillStyle = textColor
+  ctx.font = '10px Nunito'
+  ctx.textAlign = 'right'
+  const dbLabels = ['0 dB', '-10', '-20', '-30', '-40', '-50', '-60', '-70', '-80', '-90', '-∞']
+  for (let i = 0; i <= 10; i++) {
+    const y = (height - 30) * (i / 10) + 4
+    ctx.fillText(dbLabels[i], 55, y)
+  }
+  
+  // Find peak frequency
+  let maxValue = 0
+  let maxIndex = 0
+  for (let i = 0; i < bins.length; i++) {
+    if (bins[i] > maxValue) {
+      maxValue = bins[i]
+      maxIndex = i
+    }
+  }
+  const peakFreq = (maxIndex / bins.length) * nyquist
+  
+  // Draw bars
   for (let i = 0; i < BAR_COUNT; i++) {
     let sum = 0
     for (let j = 0; j < step && (i * step + j) < bins.length; j++) {
@@ -353,19 +396,55 @@ function drawCanvas() {
     const value = (sum / step) / 255
     const barHeight = value * barMaxHeight
     
-    const x = i * (barWidth + 4)
-    const y = height - barHeight
+    const x = 60 + i * (barWidth + 2)
+    const y = (height - 30) - barHeight
     
-    const gradient = ctx.createLinearGradient(x, height, x, y)
-    gradient.addColorStop(0, getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff9ebb')
-    gradient.addColorStop(0.5, getComputedStyle(document.documentElement).getPropertyValue('--accent-light').trim() || '#ffb7c5')
-    gradient.addColorStop(1, getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim() || '#b19cd9')
+    // Create gradient
+    const gradient = ctx.createLinearGradient(x, (height - 30), x, y)
+    gradient.addColorStop(0, accentColor)
+    gradient.addColorStop(0.5, accentLight)
+    gradient.addColorStop(1, secondaryColor)
     
     ctx.fillStyle = gradient
     ctx.beginPath()
-    ctx.roundRect(x, y, barWidth, barHeight, 4)
+    ctx.roundRect(x, y, barWidth, barHeight, 3)
     ctx.fill()
   }
+  
+  // Frequency labels at bottom
+  ctx.fillStyle = textColor
+  ctx.font = '10px Nunito'
+  ctx.textAlign = 'center'
+  const freqLabels = [
+    { freq: 20, label: '20' },
+    { freq: 100, label: '100' },
+    { freq: 500, label: '500' },
+    { freq: 1000, label: '1K' },
+    { freq: 5000, label: '5K' },
+    { freq: 10000, label: '10K' },
+    { freq: 20000, label: '20K' }
+  ]
+  
+  for (const label of freqLabels) {
+    const x = 60 + (Math.log10(label.freq / 20) / Math.log10(nyquist / 20)) * (width - 80)
+    if (x >= 60 && x <= width - 20) {
+      ctx.fillText(label.label, x, height - 10)
+    }
+  }
+  
+  // Hz label
+  ctx.fillText('Frecuencia (Hz)', width / 2, height - 2)
+  
+  // Peak indicator
+  ctx.fillStyle = accentColor
+  ctx.font = 'bold 11px Nunito'
+  ctx.textAlign = 'left'
+  ctx.fillText(`🔺 Pico: ${Math.round(peakFreq)} Hz`, width - 120, 20)
+  
+  // Title inside the canvas
+  ctx.fillStyle = textColor
+  ctx.font = 'bold 12px Nunito'
+  ctx.fillText('Espectro de Frecuencias', 70, 15)
 }
 
 function drawSpectrogram() {
@@ -375,6 +454,9 @@ function drawSpectrogram() {
   const width = specCanvas.value.width = 800
   const height = specCanvas.value.height = 200
   
+  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#7a7a7a'
+  
+  // Background
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffe4ec'
   ctx.fillRect(0, 0, width, height)
   
@@ -382,22 +464,68 @@ function drawSpectrogram() {
   const numFrames = spectrogram.length
   const numFreqBins = spectrogram[0].length
   
-  const colsPerFrame = width / numFrames
+  // Leave space for labels
+  const graphLeft = 50
+  const graphTop = 20
+  const graphWidth = width - 70
+  const graphHeight = height - 40
+  
+  const colsPerFrame = graphWidth / numFrames
   
   for (let frame = 0; frame < numFrames; frame++) {
-    const x = frame * colsPerFrame
+    const x = graphLeft + frame * colsPerFrame
     const bins = spectrogram[frame]
     
     for (let bin = 0; bin < numFreqBins; bin++) {
       const value = bins[bin] / 255
-      const y = (bin / numFreqBins) * height
+      const y = graphTop + (bin / numFreqBins) * graphHeight
       
-      const binHeight = Math.max(1, height / numFreqBins)
+      const binHeight = Math.max(1, graphHeight / numFreqBins)
       
       ctx.fillStyle = getColor(value)
-      ctx.fillRect(x, height - y - binHeight, Math.ceil(colsPerFrame), binHeight)
+      ctx.fillRect(x, graphHeight + graphTop - y - binHeight, Math.ceil(colsPerFrame), binHeight)
     }
   }
+  
+  // Frequency axis (left side)
+  ctx.fillStyle = textColor
+  ctx.font = '9px Nunito'
+  ctx.textAlign = 'right'
+  const nyquist = result.value.sample_rate / 2
+  const freqLabels = [20, 100, 1000, 10000]
+  for (const freq of freqLabels) {
+    const y = graphTop + graphHeight - (Math.log10(freq / 20) / Math.log10(nyquist / 20)) * graphHeight
+    if (y >= graphTop && y <= graphTop + graphHeight) {
+      const label = freq >= 1000 ? `${freq/1000}K` : freq.toString()
+      ctx.fillText(label, graphLeft - 5, y + 4)
+    }
+  }
+  
+  // Time axis (bottom)
+  ctx.textAlign = 'center'
+  const timeLabels = ['Inicio', '50%', 'Fin']
+  ctx.fillText('Tiempo →', width / 2 + 20, height - 5)
+  
+  // Frequency label (rotated)
+  ctx.save()
+  ctx.translate(10, height / 2)
+  ctx.rotate(-Math.PI / 2)
+  ctx.textAlign = 'center'
+  ctx.fillText('Frecuencia', 0, 0)
+  ctx.restore()
+  
+  // Title
+  ctx.fillStyle = textColor
+  ctx.font = 'bold 12px Nunito'
+  ctx.textAlign = 'left'
+  ctx.fillText('Espectrograma (frecuencia vs tiempo)', graphLeft, 12)
+  
+  // Legend
+  ctx.font = '9px Nunito'
+  ctx.textAlign = 'left'
+  ctx.fillText('🔵 Bajo', width - 80, 15)
+  ctx.fillText('🟢 Medio', width - 80, 28)
+  ctx.fillText('🔴 Alto', width - 80, 41)
 }
 
 function getColor(value) {
