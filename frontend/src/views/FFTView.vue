@@ -95,7 +95,7 @@
           <span class="stat-label">Duración</span>
           <span class="stat-value">{{ formatTime(result.duration) }}</span>
         </div>
-        <div class="stat-box">
+<div class="stat-box">
           <span class="stat-label">Sample Rate</span>
           <span class="stat-value">{{ result.sample_rate }} Hz</span>
         </div>
