@@ -20,16 +20,40 @@
       </button>
     </div>
 
+    <!-- Filters Section -->
+    <div v-if="searchResults.length" class="filters-section">
+      <div class="filter-group">
+        <label>Duración:</label>
+        <select v-model="durationFilter" class="filter-select">
+          <option value="all">Todas</option>
+          <option value="short">Corto (&lt; 4 min)</option>
+          <option value="medium">Medio (4-10 min)</option>
+          <option value="long">Largo (&gt; 10 min)</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Ordenar:</label>
+        <select v-model="sortBy" class="filter-select">
+          <option value="relevance">Relevancia</option>
+          <option value="date">Fecha</option>
+          <option value="views">Vistas</option>
+        </select>
+      </div>
+      <div class="results-count">
+        {{ filteredResults.length }} de {{ searchResults.length }} resultados
+      </div>
+    </div>
+
     <div v-if="isSearching" class="loading-state">
       <div class="spinner"></div>
       <p>Buscando en YouTube...</p>
     </div>
 
     <div v-else-if="searchResults.length" class="results-section">
-      <h3 class="section-label">Resultados ({{ searchResults.length }})</h3>
+      <h3 class="section-label">Resultados ({{ filteredResults.length }})</h3>
       <div class="results-grid">
         <div
-          v-for="video in searchResults"
+          v-for="video in filteredResults"
           :key="video.video_id"
           class="video-card"
           :class="{ selected: selectedVideo?.video_id === video.video_id }"
@@ -45,6 +69,10 @@
           <div class="video-info">
             <p class="video-title">{{ video.title }}</p>
             <p class="video-channel">{{ video.channel }}</p>
+            <div class="video-meta">
+              <span v-if="video.views">{{ formatViews(video.views) }} vistas</span>
+              <span v-if="video.upload_date">• {{ video.upload_date }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -170,6 +198,40 @@ const searchResults = ref([])
 const isSearching = ref(false)
 const hasSearched = ref(false)
 
+// Filters
+const durationFilter = ref('all')
+const sortBy = ref('relevance')
+
+// Filtered results
+const filteredResults = computed(() => {
+  let results = [...searchResults.value]
+  
+  // Duration filter
+  if (durationFilter.value !== 'all') {
+    results = results.filter(video => {
+      const duration = video.duration || 0
+      if (durationFilter.value === 'short') return duration < 240
+      if (durationFilter.value === 'medium') return duration >= 240 && duration < 600
+      if (durationFilter.value === 'long') return duration >= 600
+      return true
+    })
+  }
+  
+  // Sort
+  if (sortBy.value === 'views') {
+    results.sort((a, b) => (b.views || 0) - (a.views || 0))
+  } else if (sortBy.value === 'date') {
+    results.sort((a, b) => {
+      const dateA = new Date(a.upload_date || '1970-01-01')
+      const dateB = new Date(b.upload_date || '1970-01-01')
+      return dateB - dateA
+    })
+  }
+  // relevance - keep original order
+  
+  return results
+})
+
 const selectedVideo = ref(null)
 const selectedFormat = ref('m4a')
 const selectedQuality = ref('320')
@@ -219,6 +281,13 @@ function formatDuration(seconds) {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
   return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+function formatViews(views) {
+  if (!views) return ''
+  if (views >= 1000000) return (views / 1000000).toFixed(1) + 'M'
+  if (views >= 1000) return (views / 1000).toFixed(1) + 'K'
+  return views.toString()
 }
 
 async function downloadVideo() {
@@ -278,6 +347,49 @@ function playDownloaded() {
 
 .search-section {
   @apply flex gap-3;
+}
+
+.filters-section {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
+}
+
+.filter-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-select:hover {
+  border-color: var(--accent);
+}
+
+.results-count {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
 }
 
 .search-input-wrapper {
@@ -407,6 +519,14 @@ function playDownloaded() {
   font-size: 0.8rem;
   color: var(--text-secondary);
   margin-top: 4px;
+}
+
+.video-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
 }
 
 .download-section {
