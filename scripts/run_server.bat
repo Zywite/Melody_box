@@ -4,6 +4,13 @@ echo ============================================
 echo   MelodyBox - Server
 echo ============================================
 echo.
+if not exist ".venv\" (
+    echo Error: No se encontro el entorno virtual (.venv)
+    echo Ejecuta: python -m venv .venv
+    echo Luego: .venv\Scripts\activate ^&^& pip install -r requirements.txt
+    pause
+    exit /b 1
+)
 echo Starting server on http://localhost:8001
 echo API Docs: http://localhost:8001/docs
 echo.
