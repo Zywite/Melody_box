@@ -18,9 +18,12 @@ async def lifespan(app: FastAPI):
     # Migrations: Add new columns if they don't exist
     try:
         with engine.connect() as conn:
-            # Check if fft_data column exists in songs table
-            result = conn.execute(text("PRAGMA table_info(songs)"))
-            columns = [row[1] for row in result]
+            # Check if fft_data column exists in songs table (PostgreSQL)
+            result = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'songs' AND column_name = 'fft_data'"
+            ))
+            columns = [row[0] for row in result]
             
             if 'fft_data' not in columns:
                 conn.execute(text("ALTER TABLE songs ADD COLUMN fft_data TEXT"))
