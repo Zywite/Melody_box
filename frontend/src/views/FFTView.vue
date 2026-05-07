@@ -279,12 +279,15 @@ async function waitForFFT(songId, maxAttempts = 30) {
 }
 
 async function analyzeSingleSong(song) {
+  console.log(`[FFT] Analyzing song: ${song.id} - ${song.title}`)
   analyzingSongId.value = song.id
   isAnalyzing.value = true
   isAnalyzingFFT.value = true
   
   try {
+    console.log(`[FFT] Calling API for song ${song.id}...`)
     const response = await api.get(`/songs/${song.id}/fft`)
+    console.log(`[FFT] Response received:`, response)
     song.has_fft = true
     result.value = response
     selectedSongId.value = song.id
@@ -292,8 +295,10 @@ async function analyzeSingleSong(song) {
     await nextTick()
     drawCanvas()
     drawSpectrogram()
+    console.log(`[FFT] Analysis complete for ${song.title}`)
   } catch (err) {
-    console.error('Error analyzing:', err)
+    console.error('[FFT] Error analyzing:', err)
+    alert('Error al analizar: ' + (err.message || err))
   } finally {
     isAnalyzing.value = false
     analyzingSongId.value = null
