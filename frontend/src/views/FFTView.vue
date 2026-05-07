@@ -195,6 +195,7 @@ let pollInterval = null
   
 const analyzedCount = computed(() => songs.value.filter(s => s.has_fft).length)
 const pendingCount = computed(() => songs.value.filter(s => !s.has_fft).length)
+const songsWithStatus = computed(() => songs.value)
 
 function formatTime(seconds) {
   const mins = Math.floor(seconds / 60)
