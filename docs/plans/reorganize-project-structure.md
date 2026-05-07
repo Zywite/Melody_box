@@ -1,7 +1,7 @@
 ---
 plan name: reorganize-project-structure
 plan description: Reorganize files to follow conventions
-plan status: active
+plan status: done
 ---
 
 ## Idea

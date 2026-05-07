@@ -2,67 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&family=Mochiy+Pop+P+One&family=Yomogi&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  /* Colores principales - Estilo moderno con tonos cálidos */
-  --bg-primary: #0a0a0a;
-  --bg-primary-light: #121212;
-  --bg-secondary: #181818;
-  --bg-tertiary: #222222;
-  --bg-elevated: #2a2a2a;
-  --bg-glass: rgba(30, 30, 30, 0.7);
-  --bg-glass-strong: rgba(20, 20, 20, 0.9);
+  /* Colores principales - Kawaii anime pastel */
+  --bg-primary: #fff5f7;
+  --bg-primary-light: #ffeef2;
+  --bg-secondary: #ffe4ec;
+  --bg-tertiary: #ffdde6;
+  --bg-elevated: #ffd0dd;
+  --bg-glass: rgba(255, 245, 247, 0.85);
+  --bg-glass-strong: rgba(255, 238, 242, 0.95);
   
   /* Colores de texto */
-  --text-primary: #fefefe;
-  --text-secondary: #a7a7a7;
-  --text-muted: #6b6b6b;
-  --text-inverse: #0a0a0a;
+  --text-primary: #4a4a4a;
+  --text-secondary: #7a7a7a;
+  --text-muted: #a0a0a0;
+  --text-inverse: #ffffff;
   
-  /* Colores de acento - Rosa/Violeta moderno */
-  --accent-primary: #e11d48;
-  --accent: #e11d48;
-  --accent-light: #f43f5e;
-  --accent-dark: #be123c;
-  --accent-glow: rgba(225, 29, 72, 0.4);
-  --accent-gradient: linear-gradient(135deg, #e11d48 0%, #9333ea 100%);
+  /* Colores de acento - Sakura pink pastel */
+  --accent-primary: #ff9ebb;
+  --accent: #ff9ebb;
+  --accent-light: #ffb7c5;
+  --accent-dark: #ff7ba3;
+  --accent-glow: rgba(255, 158, 187, 0.4);
+  --accent-gradient: linear-gradient(135deg, #ffb7c5 0%, #b19cd9 100%);
   
   /* Colores secundarios */
-  --secondary: #9333ea;
-  --secondary-glow: rgba(147, 51, 234, 0.3);
-  --blue-accent: #3b82f6;
-  --blue-glow: rgba(59, 130, 246, 0.3);
+  --secondary: #b19cd9;
+  --secondary-glow: rgba(177, 156, 217, 0.3);
+  --blue-accent: #87ceeb;
+  --blue-glow: rgba(135, 206, 235, 0.3);
+  --mint-accent: #98fb98;
+  --mint-glow: rgba(152, 251, 152, 0.3);
   
   /* Colores de estados */
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --danger-glow: rgba(239, 68, 68, 0.3);
+  --success: #98fb98;
+  --warning: #ffd700;
+  --danger: #ff6b8a;
+  --danger-glow: rgba(255, 107, 138, 0.3);
   
   /* Bordes y separadores */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
-  --border-active: rgba(225, 29, 72, 0.5);
+  --border: rgba(255, 158, 187, 0.2);
+  --border-hover: rgba(255, 158, 187, 0.35);
+  --border-active: rgba(255, 158, 187, 0.6);
   
   /* Dimensiones */
   --sidebar-width: 260px;
   --player-height: 90px;
-  --radius-sm: 6px;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-sm: 12px;
+  --radius: 24px;
+  --radius-lg: 32px;
+  --radius-xl: 40px;
   --radius-full: 9999px;
   
-  /* Transiciones */
-  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Transiciones - bouncy kawaii style */
+  --transition: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-slow: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   
-  /* Sombras */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  /* Sombras suaves */
+  --shadow-sm: 0 2px 8px rgba(255, 158, 187, 0.15);
+  --shadow: 0 4px 16px rgba(255, 158, 187, 0.2);
+  --shadow-lg: 0 8px 32px rgba(255, 158, 187, 0.25);
   --shadow-glow: 0 0 20px var(--accent-glow);
 }
 
@@ -75,22 +77,22 @@
 
   html, body {
     @apply h-full overflow-hidden;
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Nunito', 'Mochiy Pop P One', 'Yomogi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.01em;
   }
 
   #app {
     @apply flex flex-col h-full relative;
   }
 
-  /* Scrollbar personalizada */
+  /* Scrollbar kawaii */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
 
   ::-webkit-scrollbar-track {
@@ -98,118 +100,132 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--bg-elevated);
+    background: var(--accent-light);
     border-radius: var(--radius-full);
+    border: 2px solid var(--bg-primary);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    background: var(--accent);
   }
 }
 
 @layer components {
-  /* Paneles de vidrio */
+  /* Paneles de vidrio - Kawaii style */
   .glass {
     background: var(--bg-glass);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-lg);
   }
 
   .glass-strong {
     background: var(--bg-glass-strong);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-xl);
   }
 
-  /* Botón primario con gradiente */
+  /* Botón primario - Kawaii gradient */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 font-semibold;
+    @apply inline-flex items-center justify-center gap-2 px-8 py-3.5 font-semibold;
     background: var(--accent-gradient);
-    background-size: 150% 150%;
+    background-size: 200% 200%;
     color: #fff;
     border: none;
     border-radius: var(--radius-full);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     cursor: pointer;
     transition: all var(--transition);
-    box-shadow: 0 4px 15px var(--accent-glow);
+    box-shadow: 0 4px 20px var(--accent-glow);
+    font-family: 'Nunito', sans-serif;
   }
 
   .btn-primary:hover {
     background-position: 100% 0;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px var(--accent-glow);
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px var(--accent-glow);
   }
 
   .btn-primary:active {
-    transform: translateY(0);
+    transform: scale(0.98);
   }
 
-  /* Botón secundario */
+  /* Botón secundario - Kawaii */
   .btn-secondary {
-    @apply inline-flex items-center gap-2 px-4 py-2 font-medium;
+    @apply inline-flex items-center gap-2 px-5 py-2.5 font-medium;
     background: var(--bg-tertiary);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
     border-radius: var(--radius-full);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     cursor: pointer;
     transition: all var(--transition-fast);
+    font-family: 'Nunito', sans-serif;
   }
 
   .btn-secondary:hover {
     background: var(--bg-elevated);
-    border-color: var(--border-hover);
+    border-color: var(--accent-light);
+    transform: scale(1.03);
   }
 
-  /* Botón de ícono */
+  /* Botón de ícono - Kawaii */
   .btn-icon {
-    @apply inline-flex items-center justify-center p-2 rounded-full;
+    @apply inline-flex items-center justify-center p-2.5 rounded-full;
     background: transparent;
     color: var(--text-secondary);
-    border: none;
+    border: 2px solid transparent;
     cursor: pointer;
     transition: all var(--transition-fast);
   }
 
   .btn-icon:hover {
     background: var(--bg-tertiary);
-    color: var(--text-primary);
+    color: var(--accent);
+    border-color: var(--accent-light);
+    transform: scale(1.1);
   }
 
-  /* Campo de entrada */
+  /* Campo de entrada - Kawaii */
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl;
-    background: var(--bg-tertiary);
+    @apply w-full px-5 py-3.5 rounded-2xl;
+    background: var(--bg-secondary);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
     font-size: 0.95rem;
     transition: all var(--transition-fast);
+    font-family: 'Nunito', sans-serif;
   }
 
   .input-field::placeholder {
     color: var(--text-muted);
+    font-style: italic;
   }
 
   .input-field:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
+    box-shadow: 0 0 0 4px var(--accent-glow);
+    background: var(--bg-primary);
   }
 
-  /* Tarjeta base */
+  /* Tarjeta base - Kawaii */
   .card {
-    @apply rounded-2xl p-4;
+    @apply rounded-[var(--radius-lg)] p-5;
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
     transition: all var(--transition);
+    box-shadow: var(--shadow-sm);
   }
 
   .card:hover {
     background: var(--bg-tertiary);
-    border-color: var(--border-hover);
+    border-color: var(--accent-light);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow);
   }
 
   /* Estado vacío */
@@ -547,7 +563,7 @@
     box-shadow: 0 0 0 0 var(--accent-glow);
   }
   50% {
-    box-shadow: 0 0 20px 5px var(--accent-glow);
+    box-shadow: 0 0 25px 8px var(--accent-glow);
   }
 }
 
@@ -556,12 +572,90 @@
   to { transform: rotate(360deg); }
 }
 
+@keyframes bouncy {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.08); }
+  50% { transform: scale(0.95); }
+  75% { transform: scale(1.03); }
+}
+
+@keyframes sakura-fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes sakura-sway {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(30px); }
+  50% { transform: translateX(-20px); }
+  75% { transform: translateX(15px); }
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(20px) scale(0);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-40px) scale(1.2);
+    opacity: 0;
+  }
+}
+
 .animation-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .animation-spin-slow {
   animation: spin-slow 3s linear infinite;
+}
+
+.animation-bouncy {
+  animation: bouncy 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.sakura-petal {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(ellipse at center, var(--accent-light) 0%, transparent 70%);
+  border-radius: 50% 0 50% 0;
+  pointer-events: none;
+  z-index: 9999;
+  animation: sakura-fall var(--duration, 10s) linear infinite, sakura-sway var(--sway, 3s) ease-in-out infinite;
+  opacity: 0;
+}
+
+.app-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(
+    135deg,
+    var(--bg-primary) 0%,
+    var(--bg-primary-light) 30%,
+    var(--bg-secondary) 60%,
+    var(--bg-tertiary) 100%
+  );
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* Responsive */

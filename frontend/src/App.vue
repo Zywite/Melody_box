@@ -1,5 +1,6 @@
 <template>
   <div class="app-background"></div>
+  <SakuraPetal />
   <audio ref="audioRef" @ended="onEnded" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata"></audio>
   <div id="app" class="flex flex-col h-full relative">
     <template v-if="authStore.isAuthenticated">
@@ -39,6 +40,7 @@ import ToastContainer from '@/components/layout/ToastContainer.vue'
 import VideoFlyout from '@/components/player/VideoFlyout.vue'
 import ModeSelector from '@/components/player/ModeSelector.vue'
 import QueuePanel from '@/components/player/QueuePanel.vue'
+import SakuraPetal from '@/components/effects/SakuraPetal.vue'
 
 const authStore = useAuthStore()
 const playerStore = usePlayerStore()

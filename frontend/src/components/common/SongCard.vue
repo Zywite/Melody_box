@@ -124,11 +124,24 @@ async function deleteSong() {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 16px;
-  border-radius: 12px;
+  padding: 14px 18px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--transition);
   position: relative;
+  border: 2px solid transparent;
+}
+
+.song-card:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.song-card.active {
+  background: var(--bg-elevated);
+  border-color: var(--accent-light);
 }
 
 .song-card:hover {
@@ -175,11 +188,28 @@ async function deleteSong() {
 
 .song-artwork {
   position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   overflow: hidden;
   flex-shrink: 0;
+  border: 2px solid var(--border);
+}
+
+.song-artwork img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.artwork-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
 }
 
 .song-artwork img {
@@ -201,12 +231,14 @@ async function deleteSong() {
 .artwork-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, rgba(255, 183, 197, 0.6) 0%, rgba(177, 156, 217, 0.6) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   transition: opacity var(--transition-fast);
+  border-radius: 14px;
+  color: #fff;
 }
 
 .song-card:hover .artwork-overlay {
@@ -234,12 +266,13 @@ async function deleteSong() {
 }
 
 .song-title {
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text-primary);
+  font-family: 'Nunito', sans-serif;
 }
 
 .song-artist {
@@ -281,7 +314,7 @@ async function deleteSong() {
 
 .action-btn {
   padding: 8px;
-  border-radius: 6px;
+  border-radius: 10px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -290,8 +323,9 @@ async function deleteSong() {
 }
 
 .action-btn:hover {
-  color: var(--text-primary);
+  color: var(--accent);
   background: var(--bg-elevated);
+  transform: scale(1.1);
 }
 
 .action-btn.active {
@@ -304,9 +338,9 @@ async function deleteSong() {
   top: 100%;
   margin-top: 8px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 6px;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 8px;
   min-width: 180px;
   z-index: 50;
   box-shadow: var(--shadow-lg);

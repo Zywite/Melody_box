@@ -182,10 +182,11 @@ function addToPlaylist() {
   left: 0;
   right: 0;
   height: var(--player-height);
-  background: linear-gradient(180deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%);
+  background: linear-gradient(180deg, rgba(255, 245, 247, 0.95) 0%, rgba(255, 238, 242, 0.98) 100%);
   backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border);
+  border-top: 2px solid var(--border);
   z-index: 100;
+  box-shadow: 0 -4px 20px rgba(255, 158, 187, 0.15);
 }
 
 .player-bar-content {
@@ -208,9 +209,9 @@ function addToPlaylist() {
 
 .track-artwork {
   position: relative;
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
   overflow: visible;
   flex-shrink: 0;
 }
@@ -219,26 +220,28 @@ function addToPlaylist() {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 16px;
+  border: 2px solid var(--border);
 }
 
 .artwork-placeholder {
   width: 100%;
   height: 100%;
   background: var(--bg-tertiary);
-  border-radius: 8px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--accent);
+  border: 2px solid var(--border);
 }
 
 .artwork-glow {
   position: absolute;
-  inset: -4px;
-  border-radius: 12px;
+  inset: -6px;
+  border-radius: 20px;
   background: var(--accent-glow);
-  filter: blur(12px);
+  filter: blur(15px);
   opacity: 0;
   transition: opacity var(--transition);
 }
@@ -326,22 +329,27 @@ function addToPlaylist() {
 }
 
 .play-btn {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: var(--text-primary);
-  color: var(--text-inverse);
+  background: var(--accent-gradient);
+  color: #fff;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  transition: all var(--transition);
+  box-shadow: 0 4px 20px var(--accent-glow);
 }
 
 .play-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+  box-shadow: 0 8px 30px var(--accent-glow);
+}
+
+.play-btn:active {
+  transform: scale(0.95);
 }
 
 .play-icon {
@@ -375,16 +383,17 @@ function addToPlaylist() {
 .progress-track {
   position: relative;
   width: 100%;
-  height: 4px;
+  height: 6px;
   background: var(--bg-tertiary);
-  border-radius: 2px;
+  border-radius: var(--radius-full);
   overflow: visible;
 }
 
 .progress-fill {
   height: 100%;
-  background: var(--accent);
-  border-radius: 2px;
+  background: var(--accent-gradient);
+  background-size: 200% 200%;
+  border-radius: var(--radius-full);
   transition: width 0.1s linear;
 }
 
@@ -392,13 +401,14 @@ function addToPlaylist() {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 12px;
-  height: 12px;
-  background: var(--text-primary);
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
   border-radius: 50%;
   opacity: 0;
   transition: opacity var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px var(--accent-glow);
+  border: 2px solid #fff;
 }
 
 .progress-bar:hover .progress-thumb {
