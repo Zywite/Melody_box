@@ -70,13 +70,35 @@ function removeFromQueue(index) {
 <style scoped>
 .queue-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  inset:0;
+  background: rgba(255, 245, 247, 0.7);
   backdrop-filter: blur(8px);
   display: flex;
   justify-content: flex-end;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease;
+  z-index:1000;
+  animation: fadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity:0; }
+  to { opacity:1; }
+}
+
+.queue-panel {
+  width:100%;
+  max-width:420px;
+  height:100%;
+  background: var(--bg-secondary);
+  border-left:2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: -4px 0 30px rgba(255, 158, 187, 0.15);
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes fadeIn {
@@ -104,8 +126,32 @@ function removeFromQueue(index) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
+  padding:20px 24px;
+  border-bottom:2px solid var(--border);
+}
+
+.queue-title {
+  font-size:1.35rem;
+  font-weight:700;
+  color: var(--text-primary);
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+}
+
+.close-btn {
+  padding:8px;
+  border-radius:12px;
+  background: transparent;
+  border: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent);
+  border-color: var(--accent-light);
+  transform: scale(1.05);
 }
 
 .queue-title {
@@ -155,11 +201,22 @@ function removeFromQueue(index) {
 .queue-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 10px;
+  gap:12px;
+  padding:14px;
+  border-radius:14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
+  border: 2px solid transparent;
+}
+
+.queue-item:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+}
+
+.queue-item.active {
+  background: rgba(255, 158, 187, 0.15);
+  border-color: var(--accent-light);
 }
 
 .queue-item:hover {
@@ -176,12 +233,26 @@ function removeFromQueue(index) {
 }
 
 .queue-item-title {
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size:0.9rem;
+  font-weight:600;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: 'Nunito', sans-serif;
+}
+
+.queue-item.active .queue-item-title {
+  color: var(--accent);
+}
+
+.queue-item-artist {
+  font-size:0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Nunito', sans-serif;
 }
 
 .queue-item.active .queue-item-title {
@@ -210,9 +281,9 @@ function removeFromQueue(index) {
 }
 
 .playing-bar span {
-  width: 3px;
-  background: var(--accent-primary);
-  border-radius: 1px;
+  width:3px;
+  background: var(--accent-gradient);
+  border-radius:2px;
   animation: playingBar 0.8s ease-in-out infinite;
 }
 
@@ -226,14 +297,25 @@ function removeFromQueue(index) {
 }
 
 .remove-btn {
-  padding: 6px;
-  border-radius: 50%;
+  padding:6px;
+  border-radius:50%;
   background: transparent;
-  border: none;
+  border: 2px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
-  opacity: 0;
-  transition: all 0.2s ease;
+  opacity:0;
+  transition: all var(--transition-fast);
+}
+
+.queue-item:hover .remove-btn {
+  opacity:1;
+}
+
+.remove-btn:hover {
+  background: rgba(255, 107, 138, 0.15);
+  color: var(--danger);
+  border-color: var(--danger);
+  transform: scale(1.1);
 }
 
 .queue-item:hover .remove-btn {
