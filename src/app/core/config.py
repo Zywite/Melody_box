@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8001"
     
     class Config:
-        env_file = ".env"
+        env_file = str(BASE_DIR / ".env")
         env_file_encoding = "utf-8"
     
     def get_allowed_extensions(self) -> tuple:

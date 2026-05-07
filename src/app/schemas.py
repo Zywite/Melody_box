@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
+from pathlib import Path
 
 class UserRegister(BaseModel):
     username: str
@@ -39,10 +40,28 @@ class SongResponse(BaseModel):
     album: Optional[str]
     duration: float
     media_type: Optional[str] = "audio"
+    file: Optional[str] = None
+    file_path: Optional[str] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_orm(cls, song):
+        filename = Path(song.file_path).name if song.file_path else None
+        file_url = f"/music/{filename}" if filename else None
+        return cls(
+            id=song.id,
+            title=song.title,
+            artist=song.artist,
+            album=song.album,
+            duration=song.duration,
+            media_type=song.media_type,
+            file=file_url,
+            file_path=filename,
+            created_at=song.created_at
+        )
 
 class PlaylistCreate(BaseModel):
     name: str

@@ -29,13 +29,13 @@ MIME_TYPES = {
 @router.get("", response_model=list[SongResponse])
 def get_all_songs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     songs = SongService.get_all_songs(db, skip, limit)
-    return songs
+    return [SongResponse.from_orm(song) for song in songs]
 
 
 @router.get("/search", response_model=list[SongResponse])
 def search_songs(q: str = Query(..., min_length=1), db: Session = Depends(get_db)):
     songs = SongService.search_songs(db, q)
-    return songs
+    return [SongResponse.from_orm(song) for song in songs]
 
 
 @router.get("/{song_id}", response_model=SongResponse)
@@ -43,7 +43,7 @@ def get_song(song_id: str, db: Session = Depends(get_db)):
     song = SongService.get_song(db, song_id)
     if not song:
         raise HTTPException(status_code=404, detail="Canción no encontrada")
-    return song
+    return SongResponse.from_orm(song)
 
 
 @router.get("/{song_id}/stream")
