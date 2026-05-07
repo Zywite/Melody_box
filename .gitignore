@@ -29,6 +29,20 @@ ENV/
 
 # Logs
 *.log
+docs/*.log
+
+# LaTeX aux files
+docs/*.aux
+docs/*.fdb_latexmk
+docs/*.fls
+docs/*.out
+docs/*.toc
+docs/*.synctex.gz
+docs/_*.data.minted
+docs/diagrams/
+
+# Logs
+*.log
 server_*.txt
 test_*.txt
 test_output.txt
