@@ -117,7 +117,7 @@ import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
 import api from '@/composables/useApi'
-import { SkipBack, Play, Pause, SkipForward, Heart, ListMusic, VolumeX, Volume2, Volume1, Music2, Shuffle, Repeat, Repeat1 } from 'lucide-vue-next'
+import { SkipBack, Play, Pause, SkipForward, Heart, ListMusic, VolumeX, Volume2, Volume1, Music2, Shuffle, Repeat, Repeat1, Activity } from 'lucide-vue-next'
 
 const playerStore = usePlayerStore()
 const libraryStore = useLibraryStore()

@@ -30,6 +30,10 @@
         <Upload :size="20" />
         <span>Subir</span>
       </router-link>
+      <router-link to="/fft" class="nav-item" :class="{ active: $route.path === '/fft' }">
+        <Activity :size="20" />
+        <span>FFT Audio</span>
+      </router-link>
     </nav>
 
     <div class="sidebar-playlists" v-if="playlists.length">
@@ -67,7 +71,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/composables/useApi'
-import { Music2, Home, Search, Library, ListMusic, Upload, LogOut } from 'lucide-vue-next'
+import { Music2, Home, Search, Library, ListMusic, Upload, LogOut, Activity } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
