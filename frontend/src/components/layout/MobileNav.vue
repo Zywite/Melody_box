@@ -38,16 +38,47 @@ function openUpload() {
 .mobile-nav {
   display: none;
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(20, 20, 30, 0.95);
+  bottom:0;
+  left:0;
+  right:0;
+  background: rgba(255, 245, 247, 0.95);
   backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 10px 8px 20px;
+  border-top:2px solid var(--border);
+  padding:12px 8px 24px;
   justify-content: space-around;
-  z-index: 100;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
+  z-index:100;
+  box-shadow:0 -10px 40px rgba(255, 158, 187, 0.15);
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap:6px;
+  padding:10px 18px;
+  border-radius: 18px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size:0.75rem;
+  background: transparent;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: 'Nunito', sans-serif;
+  font-weight:600;
+}
+
+.mobile-nav-item:hover {
+  color: var(--accent);
+  background: rgba(255, 158, 187, 0.15);
+  border-color: var(--accent-light);
+  transform: translateY(-2px);
+}
+
+.mobile-nav-item.active {
+  color: white;
+  background: var(--accent-gradient);
+  box-shadow:0 4px 15px var(--accent-glow);
 }
 
 .mobile-nav-item {
