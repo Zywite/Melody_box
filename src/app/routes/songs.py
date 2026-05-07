@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.config import settings
 from app.services.song_service import SongService
+from app.services.fft_service import FFTService
 from app.schemas import SongResponse
 from app.routes.dependencies import get_current_user
 from app.models import User
@@ -150,6 +151,55 @@ def delete_song(
     song = SongService.get_song(db, song_id)
     if not song:
         raise HTTPException(status_code=404, detail="Canción no encontrada")
-
+    
     SongService.delete_song(db, song_id)
     return {"message": "Canción eliminada"}
+
+
+@router.get("/{song_id}/fft")
+def get_song_fft(song_id: str, db: Session = Depends(get_db)):
+    """Get FFT analysis for a song. Computes if not available."""
+    song = SongService.get_song(db, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Canción no encontrada")
+    
+    # Return existing FFT data if available
+    if song.fft_data:
+        fft_json = FFTService.get_fft_data_json(song.fft_data)
+        if fft_json:
+            return JSONResponse(content=fft_json)
+    
+    # Compute FFT if not available
+    try:
+        fft_result = FFTService.compute_fft_from_file(song.file_path)
+        if fft_result:
+            song.fft_data = FFTService.to_json(fft_result)
+            db.commit()
+            return JSONResponse(content=fft_result)
+        else:
+            raise HTTPException(status_code=500, detail="Failed to compute FFT")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"FFT analysis failed: {str(e)}")
+
+
+@router.post("/analyze-all")
+def analyze_all_songs_fft(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Analyze all songs that don't have FFT data yet."""
+    songs = SongService.get_all_songs(db, limit=1000)
+    analyzed = 0
+    failed = 0
+    
+    for song in songs:
+        if not song.fft_data:
+            try:
+                fft_result = FFTService.compute_fft_from_file(song.file_path)
+                if fft_result:
+                    song.fft_data = FFTService.to_json(fft_result)
+                    analyzed += 1
+                else:
+                    failed += 1
+            except Exception:
+                failed += 1
+    
+    db.commit()
+    return {"message": f"Analyzed {analyzed} songs, {failed} failed"}

@@ -1,26 +1,95 @@
 <template>
-  <div class="fft-analyzer">
-    <div class="header">
-      <h1>Análisis de Audio FFT</h1>
-      <p class="subtitle">Análisis de frecuencias de audio</p>
-    </div>
-    
-    <div class="song-selector">
-      <h3>Seleccionar Canción</h3>
-      <div class="selector-row">
-        <select v-model="selectedSongId" class="song-select">
-          <option value="">-- Selecciona una canción --</option>
-          <option v-for="song in songs" :key="song.id" :value="song.id">
-            {{ song.title }} - {{ song.artist }}
-          </option>
-        </select>
-        <button @click="analyzeSong" :disabled="!selectedSongId || isAnalyzing" class="btn-analyze">
-          {{ isAnalyzing ? 'Analizando...' : '🔍 Analizar' }}
-        </button>
+  <div class="fft-view">
+    <header class="page-header">
+      <div class="header-content">
+        <h1 class="header-title">🔊 Análisis de Audio FFT</h1>
+        <p class="header-subtitle">Visualización de frecuencias y espectrogramas</p>
       </div>
+    </header>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <Music :size="20" />
+          </div>
+          <div class="stat-info">
+            <p class="stat-value">{{ analyzedCount }}</p>
+            <p class="stat-label">Analizadas</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon pending">
+            <Activity :size="20" />
+          </div>
+          <div class="stat-info">
+            <p class="stat-value">{{ pendingCount }}</p>
+            <p class="stat-label">Pendientes</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <ListMusic :size="20" />
+          </div>
+          <div class="stat-info">
+            <p class="stat-value">{{ songs.length }}</p>
+            <p class="stat-label">Total</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Analyze All Button -->
+    <div v-if="pendingCount > 0" class="analyze-all-section">
+      <button @click="analyzeAllPending" :disabled="isAnalyzingAll" class="btn-analyze-all">
+        <RefreshCw :size="18" :class="{ 'spin': isAnalyzingAll }" />
+        {{ isAnalyzingAll ? `Analizando... (${analyzeProgress}/${pendingCount})` : `Analizar todas las faltantes (${pendingCount})` }}
+      </button>
     </div>
-    
-    <div v-if="result" class="results">
+
+    <!-- Song List with FFT Status -->
+    <section class="song-list-section">
+      <h2 class="section-title">Canciones</h2>
+      
+      <div class="song-list">
+        <div 
+          v-for="song in songsWithStatus" 
+          :key="song.id"
+          @click="selectSong(song)"
+          class="song-item"
+          :class="{ active: selectedSongId === song.id }"
+        >
+          <div class="song-status">
+            <CheckCircle v-if="song.has_fft" :size="18" class="status-done" />
+            <Clock v-else :size="18" class="status-pending" />
+          </div>
+          <div class="song-info">
+            <p class="song-title">{{ song.title }}</p>
+            <p class="song-artist">{{ song.artist }}</p>
+          </div>
+          <div class="song-actions">
+            <button 
+              v-if="!song.has_fft" 
+              @click.stop="analyzeSingleSong(song)"
+              :disabled="isAnalyzing"
+              class="btn-analyze-single"
+            >
+              {{ analyzingSongId === song.id ? '...' : '🔍' }}
+            </button>
+            <span v-else class="fft-badge">FFT ✓</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FFT Results -->
+    <div v-if="result" class="results-section">
+      <div class="results-header">
+        <h2 class="section-title">Resultados: {{ selectedSongTitle }}</h2>
+        <button @click="clearResults" class="btn-clear">✕</button>
+      </div>
+      
       <div class="stats-row">
         <div class="stat-box">
           <span class="stat-label">Duración</span>
@@ -28,7 +97,7 @@
         </div>
         <div class="stat-box">
           <span class="stat-label">Sample Rate</span>
-          <span class="stat-value">{{ result.sampleRate }} Hz</span>
+          <span class="stat-value">{{ result.sample_rate }} Hz</span>
         </div>
         <div class="stat-box">
           <span class="stat-label">Canales</span>
@@ -41,55 +110,76 @@
       </div>
       
       <div class="canvas-container">
+        <h3 class="canvas-title">Espectro de Frecuencias</h3>
         <canvas ref="canvas"></canvas>
       </div>
       
-      <h3 class="section-title">Espectrograma</h3>
       <div class="canvas-container spectrogram">
+        <h3 class="canvas-title">Espectrograma</h3>
         <canvas ref="specCanvas"></canvas>
       </div>
       
       <div class="info-cards">
         <div class="info-card bass">
+          <div class="card-icon">🔊</div>
           <h4>Graves (20-250 Hz)</h4>
-          <p class="info-value">{{ result.bassPower.toFixed(1) }}%</p>
+          <p class="info-value">{{ result.bass_power.toFixed(1) }}%</p>
           <p class="info-desc">Bajos, bombo, bajo eléctrico</p>
         </div>
         <div class="info-card mid">
+          <div class="card-icon">🎸</div>
           <h4>Medios (250-2k Hz)</h4>
-          <p class="info-value">{{ result.midPower.toFixed(1) }}%</p>
-          <p class="info-desc">Voces,guitarras,sintetizadores</p>
+          <p class="info-value">{{ result.mid_power.toFixed(1) }}%</p>
+          <p class="info-desc">Voces, guitarras, sintetizadores</p>
         </div>
         <div class="info-card treble">
+          <div class="card-icon">✨</div>
           <h4>Agudos (2k-20k Hz)</h4>
-          <p class="info-value">{{ result.treblePower.toFixed(1) }}%</p>
+          <p class="info-value">{{ result.treble_power.toFixed(1) }}%</p>
           <p class="info-desc">Brillantes, platillos, aire</p>
         </div>
       </div>
     </div>
     
-    <div v-else class="placeholder">
-      <p>Selecciona una canción y presiona "Analizar" para ver el espectro de frecuencias</p>
+    <!-- Loading State -->
+    <div v-if="isLoading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Analizando audio con FFT...</p>
+    </div>
+    
+    <!-- Empty State -->
+    <div v-if="!result && !isLoading && selectedSongId" class="empty-state">
+      <p>Presiona el botón 🔍 para analizar esta canción</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLibraryStore } from '@/stores/library'
 import api from '@/composables/useApi'
+import { Music, Activity, ListMusic, CheckCircle, Clock, RefreshCw } from 'lucide-vue-next'
 
 const route = useRoute()
 const libraryStore = useLibraryStore()
 
+const songs = computed(() => libraryStore.songs || [])
 const selectedSongId = ref('')
-const isAnalyzing = ref(false)
+const selectedSongTitle = ref('')
 const result = ref(null)
 const canvas = ref(null)
 const specCanvas = ref(null)
+const isLoading = ref(false)
+const isAnalyzing = ref(false)
+const isAnalyzingAll = ref(false)
+const analyzeProgress = ref(0)
+const analyzingSongId = ref(null)
 
-const songs = computed(() => libraryStore.songs || [])
+const analyzedCount = computed(() => songs.value.filter(s => s.has_fft).length)
+const pendingCount = computed(() => songs.value.filter(s => !s.has_fft).length)
+
+const songsWithStatus = computed(() => songs.value)
 
 function formatTime(seconds) {
   const mins = Math.floor(seconds / 60)
@@ -97,144 +187,75 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-async function analyzeSong(songId) {
-  const id = songId || selectedSongId.value
-  if (!id || isAnalyzing.value) return
+function selectSong(song) {
+  selectedSongId.value = song.id
+  selectedSongTitle.value = `${song.title} - ${song.artist}`
   
-  const song = songs.value.find(s => s.id === id)
-  if (!song) return
-  
-  isAnalyzing.value = true
+  if (song.has_fft) {
+    loadFFTData(song.id)
+  } else {
+    result.value = null
+  }
+}
+
+async function loadFFTData(songId) {
+  isLoading.value = true
   result.value = null
   
   try {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001'
-    
-    let audioUrl = song.file || song.file_path || song.url || song.path
-    
-    if (!audioUrl) {
-      throw new Error('La canción no tiene archivo de audio')
-    }
-    
-    if (!audioUrl.startsWith('http') && !audioUrl.startsWith('/')) {
-      audioUrl = `${API_BASE_URL}${audioUrl}`
-    } else if (audioUrl.startsWith('/')) {
-      audioUrl = `${API_BASE_URL}${audioUrl}`
-    }
-    
-    const response = await fetch(audioUrl)
-    if (!response.ok) throw new Error('No se pudo cargar el audio')
-    
-    const arrayBuffer = await response.arrayBuffer()
-    
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
-    
-    const sampleRate = audioBuffer.sampleRate
-    const channels = audioBuffer.numberOfChannels
-    const duration = audioBuffer.duration
-    
-    // Use OfflineAudioContext with AnalyserNode for real FFT
-    const offlineContext = new OfflineAudioContext(1, audioBuffer.length, sampleRate)
-    const source = offlineContext.createBufferSource()
-    source.buffer = audioBuffer
-    
-    const fftSize = 2048
-    const offlineAnalyser = offlineContext.createAnalyser()
-    offlineAnalyser.fftSize = fftSize
-    offlineAnalyser.smoothingTimeConstant = 0
-    
-    source.connect(offlineAnalyser)
-    offlineAnalyser.connect(offlineContext.destination)
-    source.start(0)
-    
-    const bufferLength = offlineAnalyser.frequencyBinCount
-    const hopSize = 512
-    const numFrames = Math.floor(audioBuffer.length / hopSize)
-    
-    const spectrogramData = []
-    const fullBins = new Float32Array(bufferLength)
-    
-    // Process each frame
-    for (let frame = 0; frame < numFrames; frame++) {
-      const frameOffset = frame * hopSize
-      
-      // Create a short buffer for this frame
-      const frameLength = Math.min(hopSize, audioBuffer.length - frameOffset)
-      const frameBuffer = offlineContext.createBuffer(1, frameLength, sampleRate)
-      const frameData = frameBuffer.getChannelData(0)
-      
-      for (let i = 0; i < frameLength; i++) {
-        frameData[i] = audioBuffer.getChannelData(0)[frameOffset + i] || 0
-      }
-      
-      const frameSource = offlineContext.createBufferSource()
-      frameSource.buffer = frameBuffer
-      
-      const frameAnalyser = offlineContext.createAnalyser()
-      frameAnalyser.fftSize = fftSize
-      frameAnalyser.smoothingTimeConstant = 0
-      
-      frameSource.connect(frameAnalyser)
-      frameAnalyser.connect(offlineContext.destination)
-      frameSource.start(0)
-      
-      const frameBins = new Uint8Array(bufferLength)
-      frameAnalyser.getByteFrequencyData(frameBins)
-      
-      spectrogramData.push(Array.from(frameBins))
-      
-      // Accumulate for full FFT
-      for (let i = 0; i < bufferLength; i++) {
-        fullBins[i] += frameBins[i]
-      }
-    }
-    
-    // Average the full FFT
-    for (let i = 0; i < bufferLength; i++) {
-      fullBins[i] = Math.round(fullBins[i] / numFrames)
-    }
-    
-    const nyquist = sampleRate / 2
-    const binWidth = nyquist / bufferLength
-    
-    const bassEnd = Math.floor(250 / binWidth)
-    const midEnd = Math.floor(2000 / binWidth)
-    
-    let bassSum = 0, midSum = 0, trebleSum = 0
-    
-    for (let i = 0; i < bufferLength; i++) {
-      const val = fullBins[i] / 255
-      if (i < bassEnd) {
-        bassSum += val
-      } else if (i < midEnd) {
-        midSum += val
-      } else {
-        trebleSum += val
-      }
-    }
-    
-    result.value = {
-      duration,
-      sampleRate,
-      channels,
-      bins: Array.from(fullBins),
-      spectrogram: spectrogramData,
-      bassPower: bassEnd > 0 ? (bassSum / bassEnd) * 100 : 0,
-      midPower: (midEnd - bassEnd) > 0 ? (midSum / (midEnd - bassEnd)) * 100 : 0,
-      treblePower: (bufferLength - midEnd) > 0 ? (trebleSum / (bufferLength - midEnd)) * 100 : 0
-    }
-    
+    const response = await api.get(`/songs/${songId}/fft`)
+    result.value = response
+    await nextTick()
     drawCanvas()
     drawSpectrogram()
-    
-    audioContext.close()
+  } catch (err) {
+    console.error('Error loading FFT:', err)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function analyzeSingleSong(song) {
+  analyzingSongId.value = song.id
+  isAnalyzing.value = true
+  
+  try {
+    const response = await api.get(`/songs/${song.id}/fft`)
+    song.has_fft = true
+    result.value = response
+    selectedSongId.value = song.id
+    selectedSongTitle.value = `${song.title} - ${song.artist}`
+    await nextTick()
+    drawCanvas()
+    drawSpectrogram()
   } catch (err) {
     console.error('Error analyzing:', err)
-    alert('Error al analizar: ' + err.message)
   } finally {
     isAnalyzing.value = false
+    analyzingSongId.value = null
   }
+}
+
+async function analyzeAllPending() {
+  isAnalyzingAll.value = true
+  analyzeProgress.value = 0
+  const pendingSongs = songs.value.filter(s => !s.has_fft)
+  
+  try {
+    const response = await api.post('/songs/analyze-all')
+    // Reload songs to get updated status
+    await libraryStore.fetchSongs()
+    analyzeProgress.value = pendingSongs.length
+  } catch (err) {
+    console.error('Error analyzing all:', err)
+  } finally {
+    isAnalyzingAll.value = false
+  }
+}
+
+function clearResults() {
+  result.value = null
+  selectedSongId.value = ''
 }
 
 function drawCanvas() {
@@ -244,57 +265,36 @@ function drawCanvas() {
   const width = canvas.value.width = 800
   const height = canvas.value.height = 300
   
-  // Get theme colors from CSS variables
-  const style = getComputedStyle(document.documentElement)
-  const bgColor = style.getPropertyValue('--bg-secondary').trim() || '#1a1a1a'
-  const accentColor = style.getPropertyValue('--accent').trim() || '#ff9ebb'
-  const accentLight = style.getPropertyValue('--accent-light').trim() || '#ffb7c5'
-  const textColor = style.getPropertyValue('--text-primary').trim() || '#fefefe'
-  
-  ctx.fillStyle = bgColor
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffe4ec'
   ctx.fillRect(0, 0, width, height)
-    
+  
   const bins = result.value.bins
   const BAR_COUNT = 64
   const barWidth = (width / BAR_COUNT) - 4
   const barMaxHeight = height * 0.85
-    
-  const step = Math.max(1, Math.floor(bins.length / BAR_COUNT))
-    
+  
+  const step = Math.floor(bins.length / BAR_COUNT)
+  
   for (let i = 0; i < BAR_COUNT; i++) {
-    const binIndex = Math.min(i * step, bins.length - 1)
-    const value = bins[binIndex] / 255
+    let sum = 0
+    for (let j = 0; j < step && (i * step + j) < bins.length; j++) {
+      sum += bins[i * step + j]
+    }
+    const value = (sum / step) / 255
     const barHeight = value * barMaxHeight
-      
+    
     const x = i * (barWidth + 4)
     const y = height - barHeight
-      
-    // Create gradient based on frequency (bass=accent, mid=accentLight, treble=textColor)
-    const gradient = ctx.createLinearGradient(x, height, x, y)
-    if (i < BAR_COUNT / 3) {
-      gradient.addColorStop(0, accentColor)
-      gradient.addColorStop(1, accentLight)
-    } else if (i < 2 * BAR_COUNT / 3) {
-      gradient.addColorStop(0, accentLight)
-      gradient.addColorStop(1, textColor)
-    } else {
-      gradient.addColorStop(0, textColor)
-      gradient.addColorStop(1, accentColor)
-    }
-      
-    ctx.fillStyle = gradient
-    ctx.fillRect(x, y, barWidth, barHeight)
-  }
     
-  // Draw grid lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)'
-  ctx.lineWidth = 1
-  for (let i = 0; i <= 10; i++) {
-    const y = (height / 10) * i
+    const gradient = ctx.createLinearGradient(x, height, x, y)
+    gradient.addColorStop(0, getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff9ebb')
+    gradient.addColorStop(0.5, getComputedStyle(document.documentElement).getPropertyValue('--accent-light').trim() || '#ffb7c5')
+    gradient.addColorStop(1, getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim() || '#b19cd9')
+    
+    ctx.fillStyle = gradient
     ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(width, y)
-    ctx.stroke()
+    ctx.roundRect(x, y, barWidth, barHeight, 4)
+    ctx.fill()
   }
 }
 
@@ -305,170 +305,332 @@ function drawSpectrogram() {
   const width = specCanvas.value.width = 800
   const height = specCanvas.value.height = 200
   
-  // Get theme colors
-  const style = getComputedStyle(document.documentElement)
-  const bgColor = style.getPropertyValue('--bg-secondary').trim() || '#1a1a1a'
-  
-  ctx.fillStyle = bgColor
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffe4ec'
   ctx.fillRect(0, 0, width, height)
   
   const spectrogram = result.value.spectrogram
   const numFrames = spectrogram.length
-  if (numFrames === 0) return
-  
   const numFreqBins = spectrogram[0].length
+  
   const colsPerFrame = width / numFrames
   
-  // Color map function (rainbow: blue -> cyan -> green -> yellow -> red)
-  function getColor(value) {
-    // value is 0-1
-    const v = Math.max(0, Math.min(1, value))
-    let r, g, b
-    
-    if (v < 0.25) {
-      // Blue to Cyan
-      r = 0
-      g = Math.round(v * 4 * 255)
-      b = 255
-    } else if (v < 0.5) {
-      // Cyan to Green
-      r = 0
-      g = 255
-      b = Math.round((1 - (v - 0.25) * 4) * 255)
-    } else if (v < 0.75) {
-      // Green to Yellow
-      r = Math.round((v - 0.5) * 4 * 255)
-      g = 255
-      b = 0
-    } else {
-      // Yellow to Red
-      r = 255
-      g = Math.round((1 - (v - 0.75) * 4) * 255)
-      b = 0
-    }
-    
-    return `rgb(${r},${g},${b})`
-  }
-  
   for (let frame = 0; frame < numFrames; frame++) {
-    const x = Math.floor(frame * colsPerFrame)
-    const xNext = Math.floor((frame + 1) * colsPerFrame)
-    const binWidth = Math.max(1, xNext - x)
+    const x = frame * colsPerFrame
     const bins = spectrogram[frame]
     
     for (let bin = 0; bin < numFreqBins; bin++) {
       const value = bins[bin] / 255
-      const y = height - ((bin + 1) / numFreqBins) * height
+      const y = (bin / numFreqBins) * height
+      
       const binHeight = Math.max(1, height / numFreqBins)
       
       ctx.fillStyle = getColor(value)
-      ctx.fillRect(x, y, binWidth, binHeight)
+      ctx.fillRect(x, height - y - binHeight, Math.ceil(colsPerFrame), binHeight)
     }
   }
 }
 
-async function loadSongs() {
-  if (!libraryStore.songs || libraryStore.songs.length === 0) {
-    await libraryStore.fetchSongs()
+function getColor(value) {
+  if (value < 0.25) {
+    const t = value / 0.25
+    return `rgb(0, ${Math.round(t * 255)}, ${Math.round(255 - t * 100)})`
+  } else if (value < 0.5) {
+    const t = (value - 0.25) / 0.25
+    return `rgb(0, ${Math.round(255 - t * 100)}, ${Math.round(155 + t * 100)})`
+  } else if (value < 0.75) {
+    const t = (value - 0.5) / 0.25
+    return `rgb(${Math.round(t * 255)}, ${Math.round(155 + t * 100)}, 0)`
+  } else {
+    const t = (value - 0.75) / 0.25
+    return `rgb(255, ${Math.round(255 - t * 200)}, 0)`
   }
 }
 
+function getSpectrogramColor(value) {
+  return getColor(value)
+}
+
 onMounted(async () => {
-  await loadSongs()
+  if (!libraryStore.songs || libraryStore.songs.length === 0) {
+    await libraryStore.fetchSongs()
+  }
   
   // Check if songId is provided in route query
   const songId = route.query.songId
   if (songId) {
     selectedSongId.value = songId
-    // Auto-analyze after a short delay to ensure everything is loaded
-    setTimeout(() => {
-      analyzeSong(songId)
-    }, 500)
+    const song = songs.value.find(s => s.id === songId)
+    if (song) {
+      selectedSongTitle.value = `${song.title} - ${song.artist}`
+      if (song.has_fft) {
+        await loadFFTData(songId)
+      }
+    }
   }
 })
 </script>
 
 <style scoped>
-.fft-analyzer {
+.fft-view {
   min-height: 100vh;
   background: var(--bg-primary);
   color: var(--text-primary);
   padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.header {
-  text-align: center;
-  margin-bottom: 20px;
+.page-header {
+  margin-bottom: 28px;
 }
 
-.header h1 {
+.header-content {
+  animation: fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.header-title {
   font-size: 2rem;
-  margin-bottom: 10px;
-  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
-}
-
-.subtitle {
-  color: var(--text-secondary);
-}
-
-.song-selector {
-  background: var(--bg-secondary);
-  padding: 20px;
-  border-radius: var(--radius);
-  margin-bottom: 20px;
-  border: 2px solid var(--border);
-}
-
-.song-selector h3 {
-  margin-bottom: 15px;
-  color: var(--accent);
-}
-
-.selector-row {
-  display: flex;
-  gap: 10px;
-}
-
-.song-select {
-  flex: 1;
-  padding: 12px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-tertiary);
+  font-weight: 800;
   color: var(--text-primary);
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+  margin-bottom: 4px;
+}
+
+.header-subtitle {
   font-size: 1rem;
+  color: var(--accent);
   font-family: 'Nunito', sans-serif;
 }
 
-.song-select option {
-  background: var(--bg-tertiary);
+/* Stats Section */
+.stats-section {
+  margin-bottom: 28px;
 }
 
-.btn-analyze {
-  padding: 12px 24px;
-  border: none;
-  border-radius: var(--radius-sm);
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all var(--transition-fast);
+}
+
+.stat-card:hover {
+  border-color: var(--accent-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
   background: var(--accent-gradient);
-  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.stat-icon.pending {
+  background: linear-gradient(135deg, var(--warning) 0%, var(--danger) 100%);
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'Nunito', sans-serif;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Analyze All Section */
+.analyze-all-section {
+  margin-bottom: 28px;
+}
+
+.btn-analyze-all {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
   font-weight: 600;
+  font-family: 'Nunito', sans-serif;
   cursor: pointer;
   transition: all var(--transition-fast);
-  font-family: 'Nunito', sans-serif;
+  box-shadow: var(--shadow);
 }
 
-.btn-analyze:hover:not(:disabled) {
+.btn-analyze-all:hover:not(:disabled) {
   transform: scale(1.05);
   box-shadow: var(--shadow-glow);
 }
 
-.btn-analyze:disabled {
-  background: var(--bg-tertiary);
-  color: var(--text-muted);
+.btn-analyze-all:disabled {
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
-.results {
-  margin-top: 20px;
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Song List Section */
+.song-list-section {
+  margin-bottom: 28px;
+}
+
+.section-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'Nunito', sans-serif;
+  margin-bottom: 16px;
+}
+
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.song-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.song-item:hover {
+  border-color: var(--accent-light);
+  transform: translateX(4px);
+  box-shadow: var(--shadow);
+}
+
+.song-item.active {
+  border-color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+.song-status {
+  flex-shrink: 0;
+}
+
+.status-done {
+  color: var(--success);
+}
+
+.status-pending {
+  color: var(--warning);
+}
+
+.song-info {
+  flex: 1;
+}
+
+.song-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'Nunito', sans-serif;
+  margin-bottom: 2px;
+}
+
+.song-artist {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
+}
+
+.song-actions {
+  flex-shrink: 0;
+}
+
+.btn-analyze-single {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-analyze-single:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+.fft-badge {
+  background: var(--success);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Results Section */
+.results-section {
+  animation: fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.btn-clear {
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-clear:hover {
+  transform: scale(1.1);
 }
 
 .stats-row {
@@ -476,6 +638,7 @@ onMounted(async () => {
   justify-content: center;
   gap: 20px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .stat-box {
@@ -484,12 +647,14 @@ onMounted(async () => {
   border-radius: var(--radius);
   text-align: center;
   border: 2px solid var(--border);
+  min-width: 140px;
 }
 
 .stat-label {
   display: block;
   color: var(--text-secondary);
   font-size: 0.8rem;
+  font-family: 'Nunito', sans-serif;
 }
 
 .stat-value {
@@ -497,6 +662,7 @@ onMounted(async () => {
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--accent);
+  font-family: 'Nunito', sans-serif;
 }
 
 .canvas-container {
@@ -505,22 +671,26 @@ onMounted(async () => {
   overflow: hidden;
   margin-bottom: 20px;
   border: 2px solid var(--border);
+  padding: 16px;
+}
+
+.canvas-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-family: 'Nunito', sans-serif;
+  margin-bottom: 12px;
 }
 
 .canvas-container canvas {
   width: 100%;
   height: 300px;
   display: block;
+  border-radius: 12px;
 }
 
 .canvas-container.spectrogram canvas {
   height: 200px;
-}
-
-.section-title {
-  margin: 20px 0 10px;
-  color: var(--accent);
-  font-family: 'Nunito', sans-serif;
 }
 
 .info-cards {
@@ -535,12 +705,24 @@ onMounted(async () => {
   border-radius: var(--radius);
   text-align: center;
   border: 2px solid var(--border);
+  transition: all var(--transition-fast);
+}
+
+.info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow);
+}
+
+.card-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
 }
 
 .info-card h4 {
   margin-bottom: 10px;
   font-size: 0.9rem;
   color: var(--accent);
+  font-family: 'Nunito', sans-serif;
 }
 
 .info-card.bass h4 { color: var(--accent); }
@@ -552,16 +734,50 @@ onMounted(async () => {
   font-weight: 700;
   margin-bottom: 5px;
   color: var(--text-primary);
+  font-family: 'Nunito', sans-serif;
 }
 
 .info-desc {
   font-size: 0.8rem;
   color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
 }
 
-.placeholder {
+/* Loading State */
+.loading-state {
   text-align: center;
   padding: 60px;
   color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .stats-grid,
+  .info-cards {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

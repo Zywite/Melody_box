@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Float, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, Float, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -13,6 +13,7 @@ class Song(Base):
     duration = Column(Float)
     file_path = Column(String, unique=True, nullable=False)
     media_type = Column(String, default="audio")
+    fft_data = Column(Text, nullable=True)  # JSON string with FFT analysis
     created_at = Column(DateTime, default=datetime.utcnow)
     
     playlists = relationship("PlaylistSong", back_populates="song")

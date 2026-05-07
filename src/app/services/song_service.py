@@ -4,6 +4,7 @@ from app.core.config import settings
 import os
 import uuid
 from pathlib import Path
+from app.services.fft_service import FFTService
 
 class SongService:
     @staticmethod
@@ -20,6 +21,17 @@ class SongService:
         db.add(db_song)
         db.commit()
         db.refresh(db_song)
+        
+        # Trigger FFT analysis in background (will be done async in real app)
+        # For now, compute synchronously
+        try:
+            fft_result = FFTService.compute_fft_from_file(file_path)
+            if fft_result:
+                db_song.fft_data = FFTService.to_json(fft_result)
+                db.commit()
+        except Exception as e:
+            print(f"FFT analysis failed: {e}")
+        
         return db_song
 
     @staticmethod

@@ -42,6 +42,7 @@ class SongResponse(BaseModel):
     media_type: Optional[str] = "audio"
     file: Optional[str] = None
     file_path: Optional[str] = None
+    has_fft: Optional[bool] = False
     created_at: datetime
 
     class Config:
@@ -60,6 +61,7 @@ class SongResponse(BaseModel):
             media_type=song.media_type,
             file=file_url,
             file_path=filename,
+            has_fft=bool(song.fft_data),
             created_at=song.created_at
         )
 
