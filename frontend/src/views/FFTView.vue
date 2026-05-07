@@ -76,9 +76,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useLibraryStore } from '@/stores/library'
 import api from '@/composables/useApi'
 
+const route = useRoute()
 const libraryStore = useLibraryStore()
 
 const selectedSongId = ref('')
@@ -95,10 +97,11 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-async function analyzeSong() {
-  if (!selectedSongId.value || isAnalyzing.value) return
+async function analyzeSong(songId) {
+  const id = songId || selectedSongId.value
+  if (!id || isAnalyzing.value) return
   
-  const song = songs.value.find(s => s.id === selectedSongId.value)
+  const song = songs.value.find(s => s.id === id)
   if (!song) return
   
   isAnalyzing.value = true
@@ -107,23 +110,17 @@ async function analyzeSong() {
   try {
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001'
     
-    console.log('Song data:', song)
-    
     let audioUrl = song.file || song.file_path || song.url || song.path
     
     if (!audioUrl) {
       throw new Error('La canción no tiene archivo de audio')
     }
     
-    console.log('audioUrl antes:', audioUrl)
-    
     if (!audioUrl.startsWith('http') && !audioUrl.startsWith('/')) {
       audioUrl = `${API_BASE_URL}${audioUrl}`
     } else if (audioUrl.startsWith('/')) {
       audioUrl = `${API_BASE_URL}${audioUrl}`
     }
-    
-    console.log('audioUrl después:', audioUrl)
     
     const response = await fetch(audioUrl)
     if (!response.ok) throw new Error('No se pudo cargar el audio')
@@ -133,82 +130,69 @@ async function analyzeSong() {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)()
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
     
-    const channelData = audioBuffer.getChannelData(0)
     const sampleRate = audioBuffer.sampleRate
     const channels = audioBuffer.numberOfChannels
     const duration = audioBuffer.duration
     
-    const offlineContext = new OfflineAudioContext(channels, sampleRate * duration, sampleRate)
+    // Use OfflineAudioContext with AnalyserNode for real FFT
+    const offlineContext = new OfflineAudioContext(1, audioBuffer.length, sampleRate)
     const source = offlineContext.createBufferSource()
     source.buffer = audioBuffer
     
     const fftSize = 2048
     const offlineAnalyser = offlineContext.createAnalyser()
     offlineAnalyser.fftSize = fftSize
-    offlineAnalyser.fftSize = fftSize
+    offlineAnalyser.smoothingTimeConstant = 0
     
     source.connect(offlineAnalyser)
     offlineAnalyser.connect(offlineContext.destination)
     source.start(0)
     
-    const renderedBuffer = await offlineContext.startRendering()
-    const renderedData = renderedBuffer.getChannelData(0)
-    
+    const bufferLength = offlineAnalyser.frequencyBinCount
     const hopSize = 512
-    const numFrames = Math.floor((renderedData.length - fftSize) / hopSize)
-    const bufferLength = fftSize / 2
-    const blockSize = Math.floor(renderedData.length / bufferLength)
+    const numFrames = Math.floor(audioBuffer.length / hopSize)
     
     const spectrogramData = []
+    const fullBins = new Float32Array(bufferLength)
     
+    // Process each frame
     for (let frame = 0; frame < numFrames; frame++) {
-      const frameData = new Float32Array(fftSize)
-      const offset = frame * hopSize
+      const frameOffset = frame * hopSize
       
-      for (let i = 0; i < fftSize; i++) {
-        if (offset + i < renderedData.length) {
-          frameData[i] = renderedData[offset + i]
-        }
+      // Create a short buffer for this frame
+      const frameLength = Math.min(hopSize, audioBuffer.length - frameOffset)
+      const frameBuffer = offlineContext.createBuffer(1, frameLength, sampleRate)
+      const frameData = frameBuffer.getChannelData(0)
+      
+      for (let i = 0; i < frameLength; i++) {
+        frameData[i] = audioBuffer.getChannelData(0)[frameOffset + i] || 0
       }
       
-      const sums = new Float32Array(bufferLength)
-      const specBlockSize = Math.floor(fftSize / bufferLength)
+      const frameSource = offlineContext.createBufferSource()
+      frameSource.buffer = frameBuffer
       
+      const frameAnalyser = offlineContext.createAnalyser()
+      frameAnalyser.fftSize = fftSize
+      frameAnalyser.smoothingTimeConstant = 0
+      
+      frameSource.connect(frameAnalyser)
+      frameAnalyser.connect(offlineContext.destination)
+      frameSource.start(0)
+      
+      const frameBins = new Uint8Array(bufferLength)
+      frameAnalyser.getByteFrequencyData(frameBins)
+      
+      spectrogramData.push(Array.from(frameBins))
+      
+      // Accumulate for full FFT
       for (let i = 0; i < bufferLength; i++) {
-        let sum = 0
-        const idx = i * specBlockSize
-        for (let j = 0; j < specBlockSize && idx + j < fftSize; j++) {
-          sum += Math.abs(frameData[idx + j])
-        }
-        sums[i] = sum / specBlockSize
+        fullBins[i] += frameBins[i]
       }
-      
-      const maxVal = Math.max(...sums)
-      const framebins = new Uint8Array(bufferLength)
-      for (let i = 0; i < bufferLength; i++) {
-        framebins[i] = Math.round((sums[i] / maxVal) * 255)
-      }
-      
-      spectrogramData.push(Array.from(framebins))
     }
     
-    const fullFFT = spectrogramData.length > 0 ? new Uint8Array(spectrogramData[spectrogramData.length - 1]) : new Uint8Array(bufferLength)
-    
-    const avgSums = new Float32Array(bufferLength)
+    // Average the full FFT
     for (let i = 0; i < bufferLength; i++) {
-      const start = i * blockSize
-      let sum = 0
-      for (let j = 0; j < blockSize; j++) {
-        if (start + j < renderedData.length) {
-          sum += Math.abs(renderedData[start + j])
-        }
-      }
-      avgSums[i] = sum / blockSize
-    }
-    
-    const maxVal = Math.max(...avgSums)
-    for (let i = 0; i < bufferLength; i++) {
-      fullFFT[i] = (avgSums[i] / maxVal) * 255
+      fullBins[i] = Math.round(fullBins[i] / numFrames)
     }
     
     const nyquist = sampleRate / 2
@@ -220,7 +204,7 @@ async function analyzeSong() {
     let bassSum = 0, midSum = 0, trebleSum = 0
     
     for (let i = 0; i < bufferLength; i++) {
-      const val = fullFFT[i] / 255
+      const val = fullBins[i] / 255
       if (i < bassEnd) {
         bassSum += val
       } else if (i < midEnd) {
@@ -234,16 +218,17 @@ async function analyzeSong() {
       duration,
       sampleRate,
       channels,
-      bins: Array.from(fullFFT),
+      bins: Array.from(fullBins),
       spectrogram: spectrogramData,
-      bassPower: (bassSum / bassEnd) * 100,
-      midPower: (midSum / (midEnd - bassEnd)) * 100,
-      treblePower: (trebleSum / (bufferLength - midEnd)) * 100
+      bassPower: bassEnd > 0 ? (bassSum / bassEnd) * 100 : 0,
+      midPower: (midEnd - bassEnd) > 0 ? (midSum / (midEnd - bassEnd)) * 100 : 0,
+      treblePower: (bufferLength - midEnd) > 0 ? (trebleSum / (bufferLength - midEnd)) * 100 : 0
     }
     
     drawCanvas()
     drawSpectrogram()
     
+    audioContext.close()
   } catch (err) {
     console.error('Error analyzing:', err)
     alert('Error al analizar: ' + err.message)
@@ -259,40 +244,49 @@ function drawCanvas() {
   const width = canvas.value.width = 800
   const height = canvas.value.height = 300
   
-  ctx.fillStyle = '#000'
-  ctx.fillRect(0, 0, width, height)
+  // Get theme colors from CSS variables
+  const style = getComputedStyle(document.documentElement)
+  const bgColor = style.getPropertyValue('--bg-secondary').trim() || '#1a1a1a'
+  const accentColor = style.getPropertyValue('--accent').trim() || '#ff9ebb'
+  const accentLight = style.getPropertyValue('--accent-light').trim() || '#ffb7c5'
+  const textColor = style.getPropertyValue('--text-primary').trim() || '#fefefe'
   
+  ctx.fillStyle = bgColor
+  ctx.fillRect(0, 0, width, height)
+    
   const bins = result.value.bins
   const BAR_COUNT = 64
   const barWidth = (width / BAR_COUNT) - 4
   const barMaxHeight = height * 0.85
-  
-  const step = Math.floor(bins.length / BAR_COUNT)
-  
-  for (let i = 0; i < BAR_COUNT; i++) {
-    let sum = 0
-    for (let j = 0; j < step; j++) {
-      sum += bins[i * step + j]
-    }
-    const value = (sum / step) / 255
-    const barHeight = value * barMaxHeight
     
+  const step = Math.max(1, Math.floor(bins.length / BAR_COUNT))
+    
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const binIndex = Math.min(i * step, bins.length - 1)
+    const value = bins[binIndex] / 255
+    const barHeight = value * barMaxHeight
+      
     const x = i * (barWidth + 4)
     const y = height - barHeight
-    
-    let color
+      
+    // Create gradient based on frequency (bass=accent, mid=accentLight, treble=textColor)
+    const gradient = ctx.createLinearGradient(x, height, x, y)
     if (i < BAR_COUNT / 3) {
-      color = '#1DB954'
+      gradient.addColorStop(0, accentColor)
+      gradient.addColorStop(1, accentLight)
     } else if (i < 2 * BAR_COUNT / 3) {
-      color = '#1ED760'
+      gradient.addColorStop(0, accentLight)
+      gradient.addColorStop(1, textColor)
     } else {
-      color = '#FFFFFF'
+      gradient.addColorStop(0, textColor)
+      gradient.addColorStop(1, accentColor)
     }
-    
-    ctx.fillStyle = color
+      
+    ctx.fillStyle = gradient
     ctx.fillRect(x, y, barWidth, barHeight)
   }
-  
+    
+  // Draw grid lines
   ctx.strokeStyle = 'rgba(255,255,255,0.1)'
   ctx.lineWidth = 1
   for (let i = 0; i <= 10; i++) {
@@ -311,31 +305,64 @@ function drawSpectrogram() {
   const width = specCanvas.value.width = 800
   const height = specCanvas.value.height = 200
   
-  ctx.fillStyle = '#000'
+  // Get theme colors
+  const style = getComputedStyle(document.documentElement)
+  const bgColor = style.getPropertyValue('--bg-secondary').trim() || '#1a1a1a'
+  
+  ctx.fillStyle = bgColor
   ctx.fillRect(0, 0, width, height)
   
   const spectrogram = result.value.spectrogram
   const numFrames = spectrogram.length
-  const numFreqBins = spectrogram[0].length
+  if (numFrames === 0) return
   
+  const numFreqBins = spectrogram[0].length
   const colsPerFrame = width / numFrames
   
+  // Color map function (rainbow: blue -> cyan -> green -> yellow -> red)
+  function getColor(value) {
+    // value is 0-1
+    const v = Math.max(0, Math.min(1, value))
+    let r, g, b
+    
+    if (v < 0.25) {
+      // Blue to Cyan
+      r = 0
+      g = Math.round(v * 4 * 255)
+      b = 255
+    } else if (v < 0.5) {
+      // Cyan to Green
+      r = 0
+      g = 255
+      b = Math.round((1 - (v - 0.25) * 4) * 255)
+    } else if (v < 0.75) {
+      // Green to Yellow
+      r = Math.round((v - 0.5) * 4 * 255)
+      g = 255
+      b = 0
+    } else {
+      // Yellow to Red
+      r = 255
+      g = Math.round((1 - (v - 0.75) * 4) * 255)
+      b = 0
+    }
+    
+    return `rgb(${r},${g},${b})`
+  }
+  
   for (let frame = 0; frame < numFrames; frame++) {
-    const x = frame * colsPerFrame
+    const x = Math.floor(frame * colsPerFrame)
+    const xNext = Math.floor((frame + 1) * colsPerFrame)
+    const binWidth = Math.max(1, xNext - x)
     const bins = spectrogram[frame]
     
     for (let bin = 0; bin < numFreqBins; bin++) {
       const value = bins[bin] / 255
-      const y = (bin / numFreqBins) * height
+      const y = height - ((bin + 1) / numFreqBins) * height
+      const binHeight = Math.max(1, height / numFreqBins)
       
-      const binHeight = (height / numFreqBins)
-      
-      const r = Math.round(value * 255)
-      const g = Math.round(value * 255)
-      const b = Math.round(value * 255)
-      
-      ctx.fillStyle = `rgb(${r},${g},${b})`
-      ctx.fillRect(x, height - y - binHeight, Math.ceil(colsPerFrame), binHeight)
+      ctx.fillStyle = getColor(value)
+      ctx.fillRect(x, y, binWidth, binHeight)
     }
   }
 }
@@ -348,14 +375,24 @@ async function loadSongs() {
 
 onMounted(async () => {
   await loadSongs()
+  
+  // Check if songId is provided in route query
+  const songId = route.query.songId
+  if (songId) {
+    selectedSongId.value = songId
+    // Auto-analyze after a short delay to ensure everything is loaded
+    setTimeout(() => {
+      analyzeSong(songId)
+    }, 500)
+  }
 })
 </script>
 
 <style scoped>
 .fft-analyzer {
   min-height: 100vh;
-  background: #121212;
-  color: #fff;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   padding: 20px;
 }
 
@@ -367,22 +404,24 @@ onMounted(async () => {
 .header h1 {
   font-size: 2rem;
   margin-bottom: 10px;
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
 }
 
 .subtitle {
-  color: #b3b3b3;
+  color: var(--text-secondary);
 }
 
 .song-selector {
-  background: #1a1a1a;
+  background: var(--bg-secondary);
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   margin-bottom: 20px;
+  border: 2px solid var(--border);
 }
 
 .song-selector h3 {
   margin-bottom: 15px;
-  color: #1DB954;
+  color: var(--accent);
 }
 
 .selector-row {
@@ -393,34 +432,38 @@ onMounted(async () => {
 .song-select {
   flex: 1;
   padding: 12px;
-  border: none;
-  border-radius: 8px;
-  background: #282828;
-  color: #fff;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   font-size: 1rem;
+  font-family: 'Nunito', sans-serif;
 }
 
 .song-select option {
-  background: #282828;
+  background: var(--bg-tertiary);
 }
 
 .btn-analyze {
   padding: 12px 24px;
   border: none;
-  border-radius: 8px;
-  background: #1DB954;
-  color: #000;
+  border-radius: var(--radius-sm);
+  background: var(--accent-gradient);
+  color: #fff;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
+  font-family: 'Nunito', sans-serif;
 }
 
 .btn-analyze:hover:not(:disabled) {
-  background: #1ed760;
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
 }
 
 .btn-analyze:disabled {
-  background: #555;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
@@ -436,15 +479,16 @@ onMounted(async () => {
 }
 
 .stat-box {
-  background: #1a1a1a;
+  background: var(--bg-secondary);
   padding: 15px 25px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   text-align: center;
+  border: 2px solid var(--border);
 }
 
 .stat-label {
   display: block;
-  color: #b3b3b3;
+  color: var(--text-secondary);
   font-size: 0.8rem;
 }
 
@@ -452,14 +496,15 @@ onMounted(async () => {
   display: block;
   font-size: 1.2rem;
   font-weight: 600;
-  color: #1DB954;
+  color: var(--accent);
 }
 
 .canvas-container {
-  background: #000;
-  border-radius: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
   overflow: hidden;
   margin-bottom: 20px;
+  border: 2px solid var(--border);
 }
 
 .canvas-container canvas {
@@ -474,7 +519,8 @@ onMounted(async () => {
 
 .section-title {
   margin: 20px 0 10px;
-  color: #1DB954;
+  color: var(--accent);
+  font-family: 'Nunito', sans-serif;
 }
 
 .info-cards {
@@ -484,35 +530,38 @@ onMounted(async () => {
 }
 
 .info-card {
-  background: #1a1a1a;
+  background: var(--bg-secondary);
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   text-align: center;
+  border: 2px solid var(--border);
 }
 
 .info-card h4 {
   margin-bottom: 10px;
   font-size: 0.9rem;
+  color: var(--accent);
 }
 
-.info-card.bass h4 { color: #1DB954; }
-.info-card.mid h4 { color: #1ED760; }
-.info-card.treble h4 { color: #fff; }
+.info-card.bass h4 { color: var(--accent); }
+.info-card.mid h4 { color: var(--secondary); }
+.info-card.treble h4 { color: var(--blue-accent); }
 
 .info-value {
   font-size: 2rem;
   font-weight: 700;
   margin-bottom: 5px;
+  color: var(--text-primary);
 }
 
 .info-desc {
   font-size: 0.8rem;
-  color: #b3b3b3;
+  color: var(--text-secondary);
 }
 
 .placeholder {
   text-align: center;
   padding: 60px;
-  color: #b3b3b3;
+  color: var(--text-secondary);
 }
 </style>

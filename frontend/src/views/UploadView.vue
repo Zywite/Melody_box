@@ -175,16 +175,30 @@ async function uploadFiles() {
   uploadProgress.value = 0
 
   try {
+    let firstSongId = null
+    
     for (let i = 0; i < selectedFiles.value.length; i++) {
       const file = selectedFiles.value[i]
-      await api.uploadSong(file, uploadData.title, uploadData.artist, uploadData.album)
+      const songData = await api.uploadSong(file, uploadData.title, uploadData.artist, uploadData.album)
       uploadProgress.value = Math.round(((i + 1) / selectedFiles.value.length) * 100)
+      
+      // Save first song ID for FFT analysis
+      if (i === 0 && songData && songData.id) {
+        firstSongId = songData.id
+      }
     }
 
     toast.success('Archivos subidos correctamente')
     await libraryStore.fetchSongs()
-    clearFiles()
-    router.push('/library')
+    
+    if (firstSongId) {
+      // Auto-redirect to FFT analysis
+      clearFiles()
+      router.push(`/fft?songId=${firstSongId}`)
+    } else {
+      clearFiles()
+      router.push('/library')
+    }
   } catch (e) {
     toast.error('Error al subir', e.message)
   } finally {
