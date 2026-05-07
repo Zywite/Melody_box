@@ -30,6 +30,13 @@ ENV/
 # Logs
 *.log
 docs/*.log
+server_*.txt
+test_*.txt
+test_output.txt
+test_error.txt
+server_error.txt
+server_log.txt
+server_output.txt
 
 # LaTeX aux files
 docs/*.aux
@@ -41,15 +48,9 @@ docs/*.synctex.gz
 docs/_*.data.minted
 docs/diagrams/
 
-# Logs
-*.log
-server_*.txt
-test_*.txt
-test_output.txt
-test_error.txt
-server_error.txt
-server_log.txt
-server_output.txt
+# LaTeX main files (not to be tracked)
+docs/*.pdf
+docs/*.tex
 
 # IDE
 .vscode/
@@ -60,7 +61,7 @@ server_output.txt
 .DS_Store
 
 # Proyecto específico
-music_storage/
+data/music/
 uploads/
 temp/
 tmp/

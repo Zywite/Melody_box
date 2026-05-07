@@ -13,7 +13,7 @@ else:
         engine = create_engine(settings.DATABASE_URL)
     except Exception:
         print("Warning: Could not connect to PostgreSQL, falling back to SQLite")
-        db_path = BASE_DIR / "spotify_local.db"
+        db_path = BASE_DIR / "data" / "spotify_local.db"
         engine = create_engine(
             f"sqlite:///{db_path}",
             connect_args={"check_same_thread": False}

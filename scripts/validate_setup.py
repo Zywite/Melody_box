@@ -19,10 +19,10 @@ class ValidationReport:
         """Verificar versión de Python"""
         version = sys.version_info
         if version.major >= 3 and version.minor >= 8:
-            self.checks.append(f"✅ Python {version.major}.{version.minor}.{version.micro}")
+            self.checks.append(f"[OK] Python {version.major}.{version.minor}.{version.micro}")
             return True
         else:
-            self.issues.append(f"❌ Python 3.8+ requerido (tienes {version.major}.{version.minor})")
+            self.issues.append(f"[ERROR] Python 3.8+ requerido (tienes {version.major}.{version.minor})")
             return False
 
     def check_packages(self):
@@ -36,12 +36,12 @@ class ValidationReport:
         for package in required:
             try:
                 __import__(package)
-                self.checks.append(f"✅ {package}")
+                self.checks.append(f"[OK] {package}")
             except ImportError:
                 missing.append(package)
 
         if missing:
-            self.issues.append(f"❌ Paquetes faltantes: {', '.join(missing)}")
+            self.issues.append(f"[ERROR] Paquetes faltantes: {', '.join(missing)}")
             return False
         return True
 
@@ -54,14 +54,14 @@ class ValidationReport:
             "src/app/routes",
             "src/app/services",
             "frontend/src",
-            "music_storage"
+            "data/music"
         ]
 
         for dir_path in required_dirs:
             if os.path.exists(dir_path):
-                self.checks.append(f"✅ Directorio: {dir_path}")
+                self.checks.append(f"[OK] Directorio: {dir_path}")
             else:
-                self.issues.append(f"❌ Falta directorio: {dir_path}")
+                self.issues.append(f"[ERROR] Falta directorio: {dir_path}")
                 return False
 
         return True
@@ -79,9 +79,9 @@ class ValidationReport:
         for file_path in required_files:
             if os.path.isfile(file_path):
                 size = os.path.getsize(file_path)
-                self.checks.append(f"✅ Archivo: {file_path} ({size} bytes)")
+                self.checks.append(f"[OK] Archivo: {file_path} ({size} bytes)")
             else:
-                self.issues.append(f"❌ Falta archivo: {file_path}")
+                self.issues.append(f"[ERROR] Falta archivo: {file_path}")
                 return False
 
         return True
@@ -93,29 +93,29 @@ class ValidationReport:
             with open(env_file, "r") as f:
                 env_content = f.read()
                 if "DATABASE_URL" in env_content and "SECRET_KEY" in env_content:
-                    self.checks.append("✅ Archivo .env configurado")
+                    self.checks.append("[OK] Archivo .env configurado")
                     return True
                 else:
-                    self.warnings.append("⚠️ Archivo .env incompleto")
+                    self.warnings.append("[WARN] Archivo .env incompleto")
                     return True
         else:
-            self.issues.append("❌ Archivo .env no encontrado")
+            self.issues.append("[ERROR] Archivo .env no encontrado")
             return False
 
     def check_frontend(self):
         """Verificar configuración del frontend"""
         frontend_package = Path("frontend/package.json")
         if frontend_package.is_file():
-            self.checks.append("✅ Frontend configurado (package.json)")
+            self.checks.append("[OK] Frontend configurado (package.json)")
             return True
         else:
-            self.warnings.append("⚠️ Frontend no encontrado")
+            self.warnings.append("[WARN] Frontend no encontrado")
             return True
 
     def run_all_checks(self):
         """Ejecutar todas las validaciones"""
         print("\n" + "="*60)
-        print("🔍 Validación Pre-Inicio - MelodyBox")
+        print("Validacion Pre-Inicio - MelodyBox")
         print("="*60 + "\n")
 
         print("Verificando configuración...\n")
@@ -129,33 +129,33 @@ class ValidationReport:
             ("Frontend", self.check_frontend())
         ]
 
-        print("\n📋 Resumen de verificaciones:")
+        print("\nResumen de verificaciones:")
         print("-" * 60)
         for check in self.checks:
             print(check)
-
+        
         if self.warnings:
-            print("\n⚠️ Advertencias:")
+            print("\nAdvertencias:")
             for warning in self.warnings:
                 print(warning)
-
+        
         if self.issues:
-            print("\n❌ Problemas encontrados:")
+            print("\nProblemas encontrados:")
             for issue in self.issues:
                 print(issue)
             print("\n" + "="*60)
-            print("❌ Validación FALLIDA")
+            print("Validacion FALLIDA")
             print("="*60 + "\n")
             return False
         else:
             print("\n" + "="*60)
-            print("✅ Validación EXITOSA - Listo para iniciar!")
+            print("Validacion EXITOSA - Listo para iniciar!")
             print("="*60 + "\n")
             print("Próximos pasos:")
             print("1. Ejecuta: python scripts/start_server.py")
             print("2. Abre: http://localhost:8001/docs")
             print("3. Registra un usuario")
-            print("4. ¡Disfruta de MelodyBox! 🎵\n")
+            print("4. Disfruta de MelodyBox!\n")
             return True
 
 if __name__ == "__main__":

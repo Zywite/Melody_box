@@ -37,7 +37,7 @@ app.add_middleware(
 BASE_DIR = Path(__file__).parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
 PUBLIC_DIR = BASE_DIR / "public"
-MUSIC_DIR = BASE_DIR / "src" / "music_storage"
+MUSIC_DIR = BASE_DIR / "data" / "music"
 
 
 @app.get("/")

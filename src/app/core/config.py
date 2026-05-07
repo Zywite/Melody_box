@@ -3,12 +3,12 @@ from typing import Optional
 from pathlib import Path
 import os
 
-# Project root is 3 levels up from src/app/core/config.py -> src -> project root
-BASE_DIR = Path(__file__).parents[2]
+# Project root is 3 levels up: src/app/core/config.py -> core -> app -> src -> project root
+BASE_DIR = Path(__file__).parents[3]
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "sqlite:///./spotify_local.db"
+    DATABASE_URL: str = "sqlite:///./data/spotify_local.db"
     
     # API
     API_TITLE: str = "MelodyBox API"
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
     # Media storage (absolute path)
-    MUSIC_STORAGE_PATH: str = str(BASE_DIR / "music_storage")
+    MUSIC_STORAGE_PATH: str = str(BASE_DIR / "data" / "music")
     ALLOWED_AUDIO_EXTENSIONS: str = "mp3,wav,flac,ogg,m4a"
     ALLOWED_VIDEO_EXTENSIONS: str = "mp4,mkv,avi,webm,mov"
     
