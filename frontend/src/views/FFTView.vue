@@ -366,14 +366,14 @@ function drawCanvas() {
     ctx.stroke()
   }
   
-  // dB labels on left
+  // Amplitude labels on left (normalized 0-100%)
   ctx.fillStyle = textColor
   ctx.font = '10px Nunito'
   ctx.textAlign = 'right'
-  const dbLabels = ['0 dB', '-10', '-20', '-30', '-40', '-50', '-60', '-70', '-80', '-90', '-∞']
+  const ampLabels = ['100%', '90%', '80%', '70%', '60%', '50%', '40%', '30%', '20%', '10%', '0%']
   for (let i = 0; i <= 10; i++) {
     const y = (height - 30) * (i / 10) + 4
-    ctx.fillText(dbLabels[i], 55, y)
+    ctx.fillText(ampLabels[i], 55, y)
   }
   
   // Find peak frequency
@@ -445,6 +445,15 @@ function drawCanvas() {
   ctx.fillStyle = textColor
   ctx.font = 'bold 12px Nunito'
   ctx.fillText('Espectro de Frecuencias', 70, 15)
+  
+  // Amplitud label
+  ctx.font = '10px Nunito'
+  ctx.save()
+  ctx.translate(12, height / 2)
+  ctx.rotate(-Math.PI / 2)
+  ctx.textAlign = 'center'
+  ctx.fillText('Amplitud', 0, 0)
+  ctx.restore()
 }
 
 function drawSpectrogram() {
