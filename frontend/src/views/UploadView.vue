@@ -84,7 +84,7 @@
           <div class="progress-bar">
             <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
           </div>
-          <p class="text-sm text-center mt-2">{{ uploadProgress }}%</p>
+          <p class="text-sm text-center mt-2">{{ uploadStatus || uploadProgress + '%' }}</p>
         </div>
       </div>
     </div>
@@ -115,6 +115,7 @@ const fileInput = ref(null)
 const selectedFiles = ref([])
 const isUploading = ref(false)
 const uploadProgress = ref(0)
+const uploadStatus = ref('')
 
 const uploadData = reactive({
   title: '',
@@ -173,36 +174,46 @@ async function uploadFiles() {
 
   isUploading.value = true
   uploadProgress.value = 0
+  uploadStatus.value = 'Subiendo archivo...'
+
+  let firstSongId = null
 
   try {
-    let firstSongId = null
-    
     for (let i = 0; i < selectedFiles.value.length; i++) {
       const file = selectedFiles.value[i]
-      const songData = await api.uploadSong(file, uploadData.title, uploadData.artist, uploadData.album)
+      uploadStatus.value = `Subiendo ${file.name}...`
+      const result = await api.uploadSong(file, uploadData.title, uploadData.artist, uploadData.album)
       uploadProgress.value = Math.round(((i + 1) / selectedFiles.value.length) * 100)
       
-      // Save first song ID for FFT analysis
-      if (i === 0 && songData && songData.id) {
-        firstSongId = songData.id
+      if (result.fft_ready) {
+        toast.success(`"${result.title}" subido y analizado exitosamente`)
+      } else {
+        toast.warning(`"${result.title}" subido, pero falló el análisis FFT`)
+      }
+
+      // Save first song ID for redirect
+      if (i === 0 && result.id) {
+        firstSongId = result.id
       }
     }
 
-    toast.success('Archivos subidos correctamente')
+    toast.info('Redirigiendo a Análisis FFT...')
     await libraryStore.fetchSongs()
+    clearFiles()
     
+    // Redirect to FFT with the first uploaded song
     if (firstSongId) {
-      // Auto-redirect to FFT analysis
-      clearFiles()
-      router.push(`/fft?songId=${firstSongId}`)
+      setTimeout(() => {
+        router.push(`/fft?songId=${firstSongId}`)
+      }, 1000)
     } else {
-      clearFiles()
       router.push('/library')
     }
   } catch (e) {
     toast.error('Error al subir', e.message)
   } finally {
     isUploading.value = false
+    uploadStatus.value = ''
     uploadProgress.value = 0
   }
 }

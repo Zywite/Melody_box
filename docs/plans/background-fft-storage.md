@@ -1,7 +1,7 @@
 ---
 plan name: background-fft-storage
 plan description: Background FFT with storage
-plan status: active
+plan status: done
 ---
 
 ## Idea

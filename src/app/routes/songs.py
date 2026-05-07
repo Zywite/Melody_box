@@ -120,8 +120,8 @@ async def upload_song(
         except Exception:
             duration = 0.0
 
-        song = SongService.create_song(db, title, artist, file_path, duration, album, media_type)
-
+        song, fft_success = SongService.create_song(db, title, artist, file_path, duration, album, media_type)
+        
         return {
             "id": song.id,
             "title": song.title,
@@ -129,7 +129,8 @@ async def upload_song(
             "album": song.album,
             "duration": song.duration,
             "media_type": song.media_type,
-            "message": "Archivo subido exitosamente"
+            "fft_ready": fft_success,
+            "message": "Archivo subido exitosamente" + (" y analizado" if fft_success else ", pero falló el análisis FFT")
         }
 
     except HTTPException:

@@ -147,9 +147,16 @@
       <p>Analizando audio con FFT...</p>
     </div>
     
+    <!-- Analyzing FFT State (song selected but pending) -->
+    <div v-if="!isLoading && selectedSongId && !result && !song.has_fft" class="analyzing-state">
+      <div class="analyzing-spinner"></div>
+      <p>Analizando FFT para "{{ selectedSongTitle }}"...</p>
+      <p class="analyzing-hint">Esto puede tardar unos segundos</p>
+    </div>
+    
     <!-- Empty State -->
-    <div v-if="!result && !isLoading && selectedSongId" class="empty-state">
-      <p>Presiona el botón 🔍 para analizar esta canción</p>
+    <div v-if="!result && !isLoading && !selectedSongId" class="empty-state">
+      <p>Selecciona una canción de la lista para ver su análisis FFT</p>
     </div>
   </div>
 </template>
@@ -175,6 +182,7 @@ const isAnalyzing = ref(false)
 const isAnalyzingAll = ref(false)
 const analyzeProgress = ref(0)
 const analyzingSongId = ref(null)
+const isAnalyzingFFT = ref(false) // For pending analysis display
 
 const analyzedCount = computed(() => songs.value.filter(s => s.has_fft).length)
 const pendingCount = computed(() => songs.value.filter(s => !s.has_fft).length)
@@ -190,6 +198,7 @@ function formatTime(seconds) {
 function selectSong(song) {
   selectedSongId.value = song.id
   selectedSongTitle.value = `${song.title} - ${song.artist}`
+  isAnalyzingFFT.value = false
   
   if (song.has_fft) {
     loadFFTData(song.id)
@@ -218,6 +227,7 @@ async function loadFFTData(songId) {
 async function analyzeSingleSong(song) {
   analyzingSongId.value = song.id
   isAnalyzing.value = true
+  isAnalyzingFFT.value = true
   
   try {
     const response = await api.get(`/songs/${song.id}/fft`)
@@ -233,6 +243,7 @@ async function analyzeSingleSong(song) {
   } finally {
     isAnalyzing.value = false
     analyzingSongId.value = null
+    isAnalyzingFFT.value = false
   }
 }
 
@@ -350,6 +361,25 @@ function getSpectrogramColor(value) {
   return getColor(value)
 }
 
+async function waitForFFT(songId, attempts = 0) {
+  if (attempts > 5) {
+    console.log('FFT analysis timeout after 5 attempts')
+    isAnalyzingFFT.value = false
+    return false
+  }
+  
+  const song = songs.value.find(s => s.id === songId)
+  if (song?.has_fft) {
+    await loadFFTData(songId)
+    isAnalyzingFFT.value = false
+    return true
+  }
+  
+  await new Promise(resolve => setTimeout(resolve, 1000))
+  await libraryStore.fetchSongs()
+  return waitForFFT(songId, attempts + 1)
+}
+
 onMounted(async () => {
   if (!libraryStore.songs || libraryStore.songs.length === 0) {
     await libraryStore.fetchSongs()
@@ -364,6 +394,10 @@ onMounted(async () => {
       selectedSongTitle.value = `${song.title} - ${song.artist}`
       if (song.has_fft) {
         await loadFFTData(songId)
+      } else {
+        // Wait for FFT analysis to complete (poll backend)
+        isAnalyzingFFT.value = true
+        waitForFFT(songId)
       }
     }
   }
@@ -759,6 +793,32 @@ onMounted(async () => {
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
+}
+
+/* Analyzing State (Pending FFT) */
+.analyzing-state {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
+  animation: fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.analyzing-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+  box-shadow: var(--shadow-glow);
+}
+
+.analyzing-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 8px;
 }
 
 /* Empty State */

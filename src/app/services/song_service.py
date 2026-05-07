@@ -3,6 +3,7 @@ from app.models import Song
 from app.core.config import settings
 import os
 import uuid
+import time
 from pathlib import Path
 from app.services.fft_service import FFTService
 
@@ -25,14 +26,22 @@ class SongService:
         # Trigger FFT analysis in background (will be done async in real app)
         # For now, compute synchronously
         try:
+            start_time = time.time()
+            print(f"Starting FFT analysis for: {title}")
             fft_result = FFTService.compute_fft_from_file(file_path)
             if fft_result:
                 db_song.fft_data = FFTService.to_json(fft_result)
                 db.commit()
+                elapsed = time.time() - start_time
+                print(f"FFT analysis completed for song: {title} (ID: {db_song.id})")
+                print(f"FFT analysis took {elapsed:.2f}s for {title}")
+                return db_song, True  # Return success flag
+            else:
+                print(f"FFT analysis failed: No result for {title}")
+                return db_song, False
         except Exception as e:
-            print(f"FFT analysis failed: {e}")
-        
-        return db_song
+            print(f"FFT analysis failed for {title}: {e}")
+            return db_song, False
 
     @staticmethod
     def get_song(db: Session, song_id: str):
