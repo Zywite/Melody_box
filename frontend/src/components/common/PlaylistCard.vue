@@ -30,16 +30,19 @@ const emit = defineEmits(['click'])
 .playlist-card {
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  border-radius: 16px;
+  padding: 18px;
+  border-radius: 24px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--transition);
   background: var(--bg-secondary);
+  border: 2px solid var(--border);
 }
 
 .playlist-card:hover {
-  background: rgba(225, 29, 72, 0.1);
-  transform: translateY(-4px);
+  background: var(--bg-tertiary);
+  border-color: var(--accent-light);
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: var(--shadow);
 }
 
 .playlist-card:hover .play-overlay {
@@ -49,14 +52,15 @@ const emit = defineEmits(['click'])
 
 .playlist-cover {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #e11d48 0%, #7c3aed 100%);
+  width:100%;
+  aspect-ratio:1;
+  border-radius: 18px;
+  background: var(--accent-gradient);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 20px var(--accent-glow);
 }
 
 .cover-img {
@@ -72,20 +76,20 @@ const emit = defineEmits(['click'])
 
 .play-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top:50%;
+  left:50%;
   transform: translate(-50%, -50%) scale(0.8);
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: var(--accent-primary);
+  background: var(--accent-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  opacity: 0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 8px 24px rgba(225, 29, 72, 0.4);
+  opacity:0;
+  transition: all var(--transition);
+  box-shadow: 0 8px 30px var(--accent-glow);
 }
 
 .playlist-info {
@@ -99,13 +103,14 @@ const emit = defineEmits(['click'])
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Nunito', sans-serif;
+  margin-top: 14px;
 }
 
 .playlist-count {
   font-size: 0.875rem;
   color: var(--text-secondary);
   margin-top: 4px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Nunito', sans-serif;
 }
 </style>
