@@ -150,5 +150,9 @@ export default {
 
   getBaseUrl() {
     return API_BASE_URL
+  },
+
+  async get(url) {
+    return api.get(url)
   }
 }

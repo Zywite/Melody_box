@@ -12,7 +12,17 @@ class FFTService:
         Returns a dictionary with FFT data that can be stored as JSON.
         """
         try:
-            file_path = str(Path(file_path).resolve())
+            # Handle old paths (src/music_storage/) vs new paths (data/music/)
+            filename = Path(file_path).name
+            base_dir = Path(file_path).parents[2]  # Go up to project root
+            
+            # Try new location first (data/music/)
+            new_path = base_dir / "data" / "music" / filename
+            if new_path.exists():
+                file_path = str(new_path)
+            else:
+                # Fall back to original path
+                file_path = str(Path(file_path).resolve())
             
             # Load audio file
             y, sr = librosa.load(file_path, sr=None, mono=True)

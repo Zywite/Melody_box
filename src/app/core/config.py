@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
-    # Media storage (absolute path)
+    # Media storage (absolute path) - files are in data/music after reorganization
     MUSIC_STORAGE_PATH: str = str(BASE_DIR / "data" / "music")
     ALLOWED_AUDIO_EXTENSIONS: str = "mp3,wav,flac,ogg,m4a"
     ALLOWED_VIDEO_EXTENSIONS: str = "mp4,mkv,avi,webm,mov"
