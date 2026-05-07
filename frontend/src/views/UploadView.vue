@@ -84,7 +84,7 @@
           <div class="progress-bar">
             <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
           </div>
-          <p class="text-sm text-center mt-2">{{ uploadStatus || uploadProgress + '%' }}</p>
+          <p class="text-sm text-center mt-2 font-semibold" :class="uploadStatus.includes('FFT') ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'">{{ uploadStatus || uploadProgress + '%' }}</p>
         </div>
       </div>
     </div>
@@ -175,28 +175,35 @@ async function uploadFiles() {
   isUploading.value = true
   uploadProgress.value = 0
   uploadStatus.value = 'Subiendo archivo...'
-
+  console.log('[Upload] Starting upload...')
+  
   let firstSongId = null
-
+  
   try {
     for (let i = 0; i < selectedFiles.value.length; i++) {
       const file = selectedFiles.value[i]
       uploadStatus.value = `Subiendo ${file.name}...`
+      console.log(`[Upload] Uploading file ${i+1}/${selectedFiles.value.length}: ${file.name}`)
+      
       const result = await api.uploadSong(file, uploadData.title, uploadData.artist, uploadData.album)
       uploadProgress.value = Math.round(((i + 1) / selectedFiles.value.length) * 100)
+      
+      console.log(`[Upload] Upload complete for ${result.title}, fft_ready: ${result.fft_ready}`)
       
       if (result.fft_ready) {
         toast.success(`"${result.title}" subido y analizado exitosamente`)
       } else {
         toast.warning(`"${result.title}" subido, pero falló el análisis FFT`)
       }
-
+      
       // Save first song ID for redirect
       if (i === 0 && result.id) {
         firstSongId = result.id
       }
     }
-
+    
+    uploadStatus.value = 'Analizando FFT...'
+    console.log('[Upload] All files uploaded. Redirecting to FFT...')
     toast.info('Redirigiendo a Análisis FFT...')
     await libraryStore.fetchSongs()
     clearFiles()
@@ -204,12 +211,14 @@ async function uploadFiles() {
     // Redirect to FFT with the first uploaded song
     if (firstSongId) {
       setTimeout(() => {
+        console.log(`[Upload] Redirecting to FFT view with songId=${firstSongId}`)
         router.push(`/fft?songId=${firstSongId}`)
       }, 1000)
     } else {
       router.push('/library')
     }
   } catch (e) {
+    console.error('[Upload] Error:', e)
     toast.error('Error al subir', e.message)
   } finally {
     isUploading.value = false

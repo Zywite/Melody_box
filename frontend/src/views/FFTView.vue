@@ -144,14 +144,22 @@
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <div class="loading-spinner"></div>
-      <p>Analizando audio con FFT...</p>
+      <p class="loading-text">Analizando audio con FFT...</p>
+      <p class="loading-subtext">Esto puede tardar unos segundos</p>
     </div>
     
     <!-- Analyzing FFT State (song selected but pending) -->
-    <div v-if="!isLoading && selectedSongId && !result && !song.has_fft" class="analyzing-state">
+    <div v-if="isAnalyzingFFT" class="analyzing-state">
       <div class="analyzing-spinner"></div>
-      <p>Analizando FFT para "{{ selectedSongTitle }}"...</p>
-      <p class="analyzing-hint">Esto puede tardar unos segundos</p>
+      <p class="analyzing-text">Analizando FFT para "{{ selectedSongTitle }}"...</p>
+      <p class="analyzing-subtext">Esto puede tardar unos segundos</p>
+      <div class="analyzing-progress">
+        <div class="analyzing-dots">
+          <span class="dot" :style="{ animationDelay: '0s' }">.</span>
+          <span class="dot" :style="{ animationDelay: '0.2s' }">.</span>
+          <span class="dot" :style="{ animationDelay: '0.4s' }">.</span>
+        </div>
+      </div>
     </div>
     
     <!-- Empty State -->
@@ -162,7 +170,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLibraryStore } from '@/stores/library'
 import api from '@/composables/useApi'
@@ -183,11 +191,10 @@ const isAnalyzingAll = ref(false)
 const analyzeProgress = ref(0)
 const analyzingSongId = ref(null)
 const isAnalyzingFFT = ref(false) // For pending analysis display
-
+let pollInterval = null
+  
 const analyzedCount = computed(() => songs.value.filter(s => s.has_fft).length)
 const pendingCount = computed(() => songs.value.filter(s => !s.has_fft).length)
-
-const songsWithStatus = computed(() => songs.value)
 
 function formatTime(seconds) {
   const mins = Math.floor(seconds / 60)
@@ -212,16 +219,62 @@ async function loadFFTData(songId) {
   result.value = null
   
   try {
+    console.log(`[FFTView] Loading FFT data for song ${songId}...`)
     const response = await api.get(`/songs/${songId}/fft`)
     result.value = response
     await nextTick()
     drawCanvas()
     drawSpectrogram()
+    console.log(`[FFTView] FFT data loaded successfully`)
   } catch (err) {
-    console.error('Error loading FFT:', err)
+    console.error('[FFTView] Error loading FFT:', err)
   } finally {
     isLoading.value = false
   }
+}
+
+async function waitForFFT(songId, maxAttempts = 30) {
+  console.log(`[FFTView] Waiting for FFT analysis to complete for song ${songId}...`)
+  isAnalyzingFFT.value = true
+  let attempts = 0
+  
+  return new Promise((resolve, reject) => {
+    pollInterval = setInterval(async () => {
+      attempts++
+      console.log(`[FFTView] Polling FFT status, attempt ${attempts}/${maxAttempts}`)
+      
+      try {
+        const response = await api.get(`/songs/${songId}/fft`)
+        
+        if (response && response.bins) {
+          console.log(`[FFTView] FFT analysis complete!`)
+          clearInterval(pollInterval)
+          pollInterval = null
+          result.value = response
+          selectedSongId.value = songId
+          const song = songs.value.find(s => s.id === songId)
+          if (song) {
+            song.has_fft = true
+            selectedSongTitle.value = `${song.title} - ${song.artist}`
+          }
+          await nextTick()
+          drawCanvas()
+          drawSpectrogram()
+          isAnalyzingFFT.value = false
+          resolve(response)
+        }
+      } catch (err) {
+        console.error(`[FFTView] Poll attempt ${attempts} failed:`, err)
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval)
+          pollInterval = null
+          isAnalyzingFFT.value = false
+          reject(new Error('FFT analysis timeout'))
+        }
+      }
+    }, 2000) // Poll every 2 seconds
+  })
 }
 
 async function analyzeSingleSong(song) {
@@ -361,25 +414,6 @@ function getSpectrogramColor(value) {
   return getColor(value)
 }
 
-async function waitForFFT(songId, attempts = 0) {
-  if (attempts > 5) {
-    console.log('FFT analysis timeout after 5 attempts')
-    isAnalyzingFFT.value = false
-    return false
-  }
-  
-  const song = songs.value.find(s => s.id === songId)
-  if (song?.has_fft) {
-    await loadFFTData(songId)
-    isAnalyzingFFT.value = false
-    return true
-  }
-  
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  await libraryStore.fetchSongs()
-  return waitForFFT(songId, attempts + 1)
-}
-
 onMounted(async () => {
   if (!libraryStore.songs || libraryStore.songs.length === 0) {
     await libraryStore.fetchSongs()
@@ -397,9 +431,28 @@ onMounted(async () => {
       } else {
         // Wait for FFT analysis to complete (poll backend)
         isAnalyzingFFT.value = true
-        waitForFFT(songId)
+        waitForFFT(songId).catch(err => {
+          console.error('[FFTView] Failed to wait for FFT:', err)
+          isAnalyzingFFT.value = false
+        })
       }
     }
+  }
+})
+
+onUnmounted(() => {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+    console.log('[FFTView] Cleaned up poll interval')
+  }
+})
+
+onUnmounted(() => {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+    console.log('[FFTView] Cleaned up poll interval')
   }
 })
 </script>
@@ -795,7 +848,19 @@ onMounted(async () => {
   margin: 0 auto 16px;
 }
 
-/* Analyzing State (Pending FFT) */
+.loading-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.loading-subtext {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Analyzing State */
 .analyzing-state {
   text-align: center;
   padding: 60px;
@@ -812,13 +877,47 @@ onMounted(async () => {
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
-  box-shadow: var(--shadow-glow);
 }
 
-.analyzing-hint {
-  font-size: 0.85rem;
+.analyzing-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.analyzing-subtext {
+  font-size: 0.9rem;
   color: var(--text-muted);
-  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+.analyzing-progress {
+  margin-top: 16px;
+}
+
+.analyzing-dots {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.dot {
+  font-size: 2rem;
+  color: var(--accent);
+  animation: dotPulse 1.4s infinite;
+}
+
+@keyframes dotPulse {
+  0%, 20% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  80%, 100% {
+    opacity: 0.2;
+  }
 }
 
 /* Empty State */

@@ -1,7 +1,7 @@
 ---
 plan name: fft-progress-feedback
 plan description: FFT progress feedback
-plan status: active
+plan status: done
 ---
 
 ## Idea
