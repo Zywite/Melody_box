@@ -1,7 +1,7 @@
 ---
 plan name: kawaii-anime-theme
 plan description: Kawaii anime aesthetic
-plan status: active
+plan status: done
 ---
 
 ## Idea

@@ -199,31 +199,65 @@ function onYouTubeDownloaded(song) {
 </script>
 
 <style scoped>
+.page-header {
+  margin-bottom: 28px;
+}
+
+.header-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+  margin-bottom: 4px;
+}
+
+.header-subtitle {
+  font-size: 1rem;
+  color: var(--accent);
+  font-family: 'Nunito', sans-serif;
+}
+
 .upload-tabs {
-  @apply flex gap-2 mb-6;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+  background: var(--bg-secondary);
+  padding: 6px;
+  border-radius: 20px;
+  width: fit-content;
+  border: 2px solid var(--border);
 }
 
 .upload-tabs .tab-btn {
-  @apply flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium cursor-pointer transition-all duration-200;
-  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 16px;
+  background: transparent;
   color: var(--text-secondary);
-  border: 1px solid var(--border);
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
 .upload-tabs .tab-btn:hover {
   color: var(--text-primary);
-  border-color: var(--border-hover);
+  background: var(--bg-tertiary);
 }
 
 .upload-tabs .tab-btn.active {
-  background: var(--accent-primary);
+  background: var(--accent-gradient);
   color: #fff;
-  border-color: var(--accent-primary);
+  box-shadow: 0 4px 15px var(--accent-glow);
 }
 
 .upload-section,
 .youtube-section {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes fadeIn {
@@ -232,37 +266,74 @@ function onYouTubeDownloaded(song) {
 }
 
 .upload-area {
-  @apply border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200;
-  border-color: var(--border);
+  border: 3px dashed var(--border);
+  border-radius: 32px;
+  padding: 48px 32px;
+  text-align: center;
+  transition: all var(--transition);
+  background: var(--bg-secondary);
+  cursor: pointer;
 }
 
 .upload-area:hover {
-  border-color: var(--accent-primary);
-  background: rgba(225, 29, 72, 0.05);
+  border-color: var(--accent);
+  background: rgba(255, 158, 187, 0.1);
+  transform: scale(1.01);
 }
 
 .upload-placeholder {
-  @apply cursor-pointer;
+  cursor: pointer;
+}
+
+.upload-placeholder h3 {
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+  color: var(--text-primary);
+  margin-top: 16px;
+}
+
+.upload-placeholder p {
+  font-family: 'Nunito', sans-serif;
+  color: var(--text-secondary);
 }
 
 .file-list {
   text-align: left;
+  margin-top: 24px;
 }
 
 .file-item {
-  @apply flex items-center justify-between p-4 rounded-xl mb-2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: 16px;
   background: var(--bg-secondary);
+  margin-bottom: 8px;
+  border: 2px solid var(--border);
+  transition: all var(--transition-fast);
+}
+
+.file-item:hover {
+  border-color: var(--accent-light);
+  transform: translateX(4px);
 }
 
 .file-info {
-  @apply flex items-center gap-3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 1;
+}
+
+.file-info p {
+  font-family: 'Nunito', sans-serif;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 20px;
+  margin-top: 24px;
 }
 
 .form-group {
@@ -271,25 +342,28 @@ function onYouTubeDownloaded(song) {
 }
 
 .form-label {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-family: 'Nunito', sans-serif;
 }
 
 .upload-progress {
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .progress-bar {
-  height: 8px;
+  height: 10px;
   background: var(--bg-tertiary);
-  border-radius: 4px;
+  border-radius: var(--radius-full);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-primary), #7c3aed);
+  background: var(--accent-gradient);
+  background-size: 200% 200%;
   transition: width 0.3s ease;
 }
 
