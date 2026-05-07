@@ -4,6 +4,14 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&family=Mochiy+Pop+P+One&family=Yomogi&family=JetBrains+Mono:wght@400;500&display=swap');
 
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
 :root {
   /* Colores principales - Kawaii anime pastel */
   --bg-primary: #fff5f7;
@@ -65,6 +73,54 @@
   --shadow-sm: 0 2px 8px rgba(255, 158, 187, 0.15);
   --shadow: 0 4px 16px rgba(255, 158, 187, 0.2);
   --shadow-lg: 0 8px 32px rgba(255, 158, 187, 0.25);
+  --shadow-glow: 0 0 20px var(--accent-glow);
+}
+
+/* Tema Oscuro - Kawaii Dark Mode */
+[data-theme="dark"] {
+  /* Colores principales - Dark con acentos kawaii */
+  --bg-primary: #0a0a0a;
+  --bg-primary-light: #121212;
+  --bg-secondary: #181818;
+  --bg-tertiary: #222222;
+  --bg-elevated: #2a2a2a;
+  --bg-glass: rgba(30, 30, 30, 0.85);
+  --bg-glass-strong: rgba(20, 20, 20, 0.95);
+  
+  /* Colores de texto */
+  --text-primary: #fefefe;
+  --text-secondary: #a7a7a7;
+  --text-muted: #6b6b6b;
+  --text-inverse: #0a0a0a;
+  
+  /* Colores de acento - Sakura pink pastel (mantenidos) */
+  --accent-primary: #ff9ebb;
+  --accent: #ff9ebb;
+  --accent-light: #ffb7c5;
+  --accent-dark: #ff7ba3;
+  --accent-glow: rgba(255, 158, 187, 0.4);
+  --accent-gradient: linear-gradient(135deg, #ffb7c5 0%, #b19cd9 100%);
+  
+  /* Colores secundarios */
+  --secondary: #b19cd9;
+  --secondary-glow: rgba(177, 156, 217, 0.3);
+  --blue-accent: #87ceeb;
+  --blue-glow: rgba(135, 206, 235, 0.3);
+  --mint-accent: #98fb98;
+  --mint-glow: rgba(152, 251, 152, 0.3);  
+  /* Colores de estados */
+  --success: #98fb98;
+  --warning: #ffd700;
+  --danger: #ff6b8a;
+  --danger-glow: rgba(255, 107, 138, 0.3);  
+  /* Bordes y separadores */
+  --border: rgba(255, 158, 187, 0.15);
+  --border-hover: rgba(255, 158, 187, 0.25);
+  --border-active: rgba(255, 158, 187, 0.5);  
+  /* Sombras */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px var(--accent-glow);
 }
 

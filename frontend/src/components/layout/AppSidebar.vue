@@ -59,6 +59,7 @@
           <p class="user-name">{{ authStore.username }}</p>
         </div>
       </div>
+      <ThemeToggle />
       <button @click="handleLogout" class="logout-btn" title="Cerrar sesión">
         <LogOut :size="18" />
       </button>
@@ -71,6 +72,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/composables/useApi'
+import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import { Music2, Home, Search, Library, ListMusic, Upload, LogOut, Activity } from 'lucide-vue-next'
 
 const router = useRouter()
