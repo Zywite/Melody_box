@@ -97,11 +97,11 @@ onMounted(loadPlaylists)
 <style scoped>
 .app-sidebar {
   width: 260px;
-  background: linear-gradient(180deg, var(--bg-secondary) 0%, rgba(30, 30, 40, 0.95) 100%);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
   display: flex;
   flex-direction: column;
   height: 100%;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 2px solid var(--border);
 }
 
 .sidebar-header {
@@ -116,21 +116,22 @@ onMounted(loadPlaylists)
 }
 
 .logo-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #e11d48 0%, #7c3aed 100%);
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--accent-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  box-shadow: 0 4px 15px var(--accent-glow);
 }
 
 .logo-text {
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--text-primary);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
 }
 
 .sidebar-nav {
@@ -143,27 +144,58 @@ onMounted(loadPlaylists)
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 16px;
   color: var(--text-secondary);
   text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 500;
+  transition: all var(--transition);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
 }
 
 .nav-item:hover {
-  background: rgba(225, 29, 72, 0.1);
+  background: rgba(255, 158, 187, 0.15);
   color: var(--text-primary);
+  transform: scale(1.02);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(225, 29, 72, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%);
+  background: linear-gradient(135deg, rgba(255, 183, 197, 0.25) 0%, rgba(177, 156, 217, 0.25) 100%);
   color: var(--accent-primary);
+  box-shadow: 0 2px 10px var(--accent-glow);
 }
 
 .sidebar-playlists {
   padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 2px solid var(--border);
+}
+
+.section-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+}
+
+.playlist-link {
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Nunito', sans-serif;
+}
+
+.playlist-link:hover {
+  background: rgba(255, 158, 187, 0.15);
+  color: var(--text-primary);
+  transform: translateX(4px);
 }
 
 .section-title {
@@ -200,7 +232,7 @@ onMounted(loadPlaylists)
 
 .sidebar-footer {
   padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 2px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -213,38 +245,41 @@ onMounted(loadPlaylists)
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e11d48 0%, #7c3aed 100%);
+  background: var(--accent-gradient);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Nunito', sans-serif;
+  box-shadow: 0 2px 10px var(--accent-glow);
 }
 
 .user-name {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Nunito', sans-serif;
 }
 
 .logout-btn {
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
-  border: none;
+  border: 2px solid transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .logout-btn:hover {
-  background: rgba(225, 29, 72, 0.15);
-  color: var(--accent-primary);
+  background: rgba(255, 158, 187, 0.15);
+  color: var(--accent);
+  border-color: var(--accent-light);
+  transform: scale(1.05);
 }
 
 @media (max-width: 768px) {

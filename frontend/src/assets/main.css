@@ -128,6 +128,15 @@
     border-radius: var(--radius-xl);
   }
 
+  .glass-panel-strong {
+    background: var(--bg-glass-strong);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-xl);
+    position: relative;
+  }
+
   /* Botón primario - Kawaii gradient */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-8 py-3.5 font-semibold;

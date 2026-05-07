@@ -144,5 +144,129 @@ async function toggleFavorite(song) {
   } catch (e) {
     console.error('Error toggling favorite:', e)
   }
-}
+  }
 </script>
+
+<style scoped>
+.home-view {
+  animation: fadeIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.page-header {
+  margin-bottom: 32px;
+}
+
+.header-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+  margin-bottom: 4px;
+}
+
+.header-subtitle {
+  font-size: 1.1rem;
+  color: var(--accent);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  border-radius: 24px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--shadow);
+  border-color: var(--accent-light);
+}
+
+.stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.stat-icon.video {
+  background: linear-gradient(135deg, var(--blue-accent) 0%, var(--secondary) 100%);
+}
+
+.stat-icon.favorite {
+  background: linear-gradient(135deg, #ff6b8a 0%, #ff9ebb 100%);
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+  margin-bottom: 20px;
+}
+
+.song-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.playlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+
+.empty-state h3 {
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+  color: var(--text-primary);
+}
+
+.empty-state p {
+  font-family: 'Nunito', sans-serif;
+  margin-top: 8px;
+}
+
+.empty-state :deep(svg) {
+  color: var(--accent-light);
+}
+</style>
