@@ -39,13 +39,91 @@ function getIcon(type) {
 <style scoped>
 .toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
+  top:20px;
+  right:20px;
+  z-index:1000;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-width: 360px;
+  gap:10px;
+  max-width:400px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap:12px;
+  padding:18px;
+  border-radius:20px;
+  background: var(--bg-secondary);
+  border:2px solid var(--border);
+  box-shadow:0 4px 20px rgba(255, 158, 187, 0.15);
+  font-family: 'Nunito', sans-serif;
+}
+
+.toast.success {
+  border-left:4px solid var(--mint-accent);
+}
+
+.toast.error {
+  border-left:4px solid var(--danger);
+}
+
+.toast.warning {
+  border-left:4px solid var(--warning);
+}
+
+.toast.info {
+  border-left:4px solid var(--blue-accent);
+}
+
+.toast-content {
+  flex:1;
+}
+
+.toast-title {
+  font-weight:700;
+  color: var(--text-primary);
+}
+
+.toast-message {
+  font-size:0.875rem;
+  color: var(--text-secondary);
+  margin-top:4px;
+}
+
+.toast-close {
+  background: var(--bg-tertiary);
+  border:2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding:4px;
+  border-radius:8px;
+  transition: all var(--transition-fast);
+}
+
+.toast-close:hover {
+  background: rgba(255, 158, 187, 0.2);
+  color: var(--accent);
+  border-color: var(--accent-light);
+  transform: scale(1.1);
+}
+
+.toast-enter-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.toast-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast-enter-from {
+  opacity:0;
+  transform: translateX(100%) scale(0.9);
+}
+
+.toast-leave-to {
+  opacity:0;
+  transform: translateX(100%) scale(0.9);
 }
 
 .toast {
