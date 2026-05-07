@@ -44,6 +44,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/fft',
+    name: 'fft',
+    component: () => import('@/views/FFTView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/home'
   }

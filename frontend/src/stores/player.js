@@ -27,6 +27,10 @@ export const usePlayerStore = defineStore('player', () => {
   const showVideoFlyout = ref(false)
   const showModeSelector = ref(false)
   const showQueue = ref(false)
+  const showFFT = ref(false)
+  const analyser = ref(null)
+  const audioContext = ref(null)
+  const sourceNode = ref(null)
   const progress = computed(() => {
     if (!duration.value || duration.value <= 0 || !isFinite(duration.value) || isNaN(duration.value)) {
       return 0
@@ -40,6 +44,50 @@ export const usePlayerStore = defineStore('player', () => {
     audio.value.addEventListener('timeupdate', updateTime)
     audio.value.addEventListener('loadedmetadata', updateDuration)
     audio.value.addEventListener('ended', playNext)
+  }
+
+  function initFFT() {
+    if (!audio.value) return false
+    
+    try {
+      if (audioContext.value && sourceNode.value) {
+        sourceNode.value.disconnect()
+      }
+      
+      audioContext.value = new (window.AudioContext || window.webkitAudioContext)()
+      analyser.value = audioContext.value.createAnalyser()
+      analyser.value.fftSize = 256
+      analyser.value.smoothingTimeConstant = 0.8
+      
+      sourceNode.value = audioContext.value.createMediaElementSource(audio.value)
+      sourceNode.value.connect(analyser.value)
+      analyser.value.connect(audioContext.value.destination)
+      
+      console.log('FFT initialized fresh, audio.src:', audio.value.src)
+      return true
+    } catch (e) {
+      console.error('FFT init error:', e)
+      return false
+    }
+  }
+
+  function toggleFFT() {
+    console.log('toggleFFT called, showFFT:', showFFT.value, 'audio:', !!audio.value)
+    
+    if (!showFFT.value) {
+      if (!audio.value) {
+        console.warn('FFT: Audio no disponible aún, espera a reproducir algo')
+        return
+      }
+      
+      const success = initFFT()
+      if (!success) {
+        console.error('No se pudo inicializar FFT')
+        return
+      }
+    }
+    showFFT.value = !showFFT.value
+    console.log('FFT toggle result:', showFFT.value)
   }
 
   function updateTime() {
@@ -333,6 +381,7 @@ export const usePlayerStore = defineStore('player', () => {
     toggleVideoFlyout,
     setVideoElement,
     closeModeSelector,
-    toggleQueue
+    toggleQueue,
+    toggleFFT
   }
 })
