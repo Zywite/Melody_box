@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
+from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import engine, Base
 
@@ -13,6 +14,22 @@ from app.models import User, Song, Playlist, PlaylistSong, Favorite
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    
+    # Migrations: Add new columns if they don't exist
+    try:
+        with engine.connect() as conn:
+            # Check if fft_data column exists in songs table
+            result = conn.execute(text("PRAGMA table_info(songs)"))
+            columns = [row[1] for row in result]
+            
+            if 'fft_data' not in columns:
+                conn.execute(text("ALTER TABLE songs ADD COLUMN fft_data TEXT"))
+                print("Added fft_data column to songs table")
+            
+            conn.commit()
+    except Exception as e:
+        print(f"Migration error: {e}")
+    
     print("MelodyBox iniciando...")
     yield
     print("MelodyBox detenido")
