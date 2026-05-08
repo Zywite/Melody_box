@@ -1,36 +1,54 @@
 # MelodyBox
 
-Un reproductor de música y video para red local, construido con FastAPI.
+Un reproductor de música y video para red local, construido con FastAPI y Vue 3.
 
 ## Características
 
 - **Autenticación segura** — JWT con registro y login
 - **Audio y Video** — Sube y reproduce MP3, WAV, FLAC, OGG, M4A, MP4, MKV, AVI, WebM, MOV
 - **Streaming** — Reproducción por partes con soporte byte-range
-- **Búsqueda** — Por título, artista o álbum
+- **YouTube** — Busca, filtra y descarga música desde YouTube
+- **Análisis FFT** — Espectro de frecuencias y espectrograma de tus canciones
 - **Playlists** — Crea y gestiona listas de reproducción
 - **Favoritos** — Marca canciones como favoritas
+- **Modo oscuro** — Alterna entre tema claro y oscuro
 - **Multi-usuario** — Cada usuario tiene sus playlists y favoritos
 - **Acceso en red** — Cualquier dispositivo en la misma red puede acceder
-- **Interfaz moderna** — Diseño dark theme con glassmorphism
+- **FAQ** — Sección de preguntas frecuentes integrada
 
 ## Tecnologías
 
 | Capa | Tecnología |
 |---|---|
-| Backend | FastAPI, SQLAlchemy, JWT, bcrypt |
-| Frontend | Vue 3 + Vite + Tailwind CSS |
-| Base de datos | PostgreSQL (recomendado) / SQLite |
+| Backend | FastAPI, SQLAlchemy, JWT, bcrypt, librosa |
+| Frontend | Vue 3 + Vite + Tailwind CSS + Pinia |
+| Base de datos | PostgreSQL |
+| Contenedores | Docker + Docker Compose |
 | Servidor | Uvicorn (ASGI) |
 
 ## Instalación
 
 ### Requisitos
 
-- Python 3.12+
-- PostgreSQL (recomendado) o SQLite
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-### Pasos
+### Pasos (recomendado — con Docker)
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/Zywite/Melody_box.git
+cd Melody_box
+
+# 2. Buildear e iniciar
+docker compose up --build
+
+# 3. Abrir en el navegador
+http://localhost:8001
+```
+
+La primera vez puede tardar unos minutos (build del frontend + instalación de dependencias Python).
+
+### Sin Docker (desarrollo local)
 
 ```bash
 # 1. Crear entorno virtual
@@ -43,29 +61,37 @@ source .venv/bin/activate       # Linux/Mac
 # 3. Instalar dependencias del backend
 pip install -r requirements.txt
 
-# 4. Copiar y configurar .env
-copy .env.example src/.env
-# Editar src/.env con tu configuración
+# 4. Configurar .env
+copy .env.example .env
+# Editar .env con tu configuración de PostgreSQL
 
 # 5. Instalar dependencias del frontend
 cd frontend
 npm install
-```
+npm run build
+cd ..
 
-> **Nota:** El frontend se sirve desde el backend en producción. Para desarrollo, puedes ejecutar `npm run dev` en la carpeta `frontend` y conectar al backend en `http://localhost:8001`.
-
-## Inicio rápido
-
-### Opción 1: Script (recomendado)
-
-```bash
+# 6. Iniciar servidor
 python scripts/start_server.py
 ```
 
-### Opción 2: Batch (Windows)
+## Inicio rápido
+
+### Opción 1: Docker (recomendado)
 
 ```bash
-scripts\run_server.bat
+docker compose up
+```
+
+Para reconstruir después de cambios:
+```bash
+docker compose up --build
+```
+
+### Opción 2: Script
+
+```bash
+python scripts/start_server.py
 ```
 
 ### Opción 3: Manual
@@ -96,14 +122,13 @@ El servidor arranca en **http://localhost:8001**
 ```
 MelodyBox/
 ├── src/                     # Backend
-│   ├── app/
-│   │   ├── core/            # Config, BD, seguridad
-│   │   ├── models/          # Modelos SQLAlchemy
-│   │   ├── routes/          # Endpoints API
-│   │   ├── services/        # Lógica de negocio
-│   │   ├── schemas.py       # Schemas Pydantic
-│   │   └── main.py          # App principal
-│   └── .env                 # Configuración (no incluir en git)
+│   └── app/
+│       ├── core/            # Config, BD, seguridad
+│       ├── models/          # Modelos SQLAlchemy
+│       ├── routes/          # Endpoints API
+│       ├── services/        # Lógica de negocio (incl. FFT)
+│       ├── schemas.py       # Schemas Pydantic
+│       └── main.py          # App principal
 ├── frontend/                # Frontend Vue 3 + Vite + Tailwind
 │   ├── src/
 │   │   ├── assets/          # Estilos, imágenes
@@ -112,18 +137,14 @@ MelodyBox/
 │   │   ├── stores/          # Pinia stores
 │   │   ├── views/           # Vistas
 │   │   └── router/          # Vue Router
-│   ├── package.json
-│   └── vite.config.js
+│   ├── dist/                # Frontend compilado
+│   └── package.json
+├── data/
+│   └── music/               # Archivos de audio subidos
 ├── docs/                    # Documentación
-│   ├── MANUAL_USUARIO.md
-│   ├── API_REFERENCE.md
-│   ├── ARQUITECTURA.md
-│   ├── POSTGRESQL_SETUP.md
-│   ├── STREAMING_GUIDE.md
-│   └── SRS.pdf              # Especificación de requisitos
 ├── scripts/                 # Scripts de utilidad
-├── music_storage/           # Archivos subidos
-├── .gitignore
+├── Dockerfile               # Imagen Docker
+├── docker-compose.yml       # Orquestación Docker
 ├── .env.example
 ├── requirements.txt
 └── README.md
@@ -143,13 +164,14 @@ MelodyBox/
 
 | Problema | Solución |
 |---|---|
-| Puerto 8001 bloqueado | Cambia el puerto en `scripts/start_server.py` |
-| `ModuleNotFoundError` | `pip install -r requirements.txt` |
-| `UniqueViolation` en upload | Reinicia el servidor (rutas absolutas) |
+| `ModuleNotFoundError: No module named 'app'` | Rebuild con `docker compose up --build` |
+| `No module named 'email_validator'` | Rebuild con `docker compose up --build` |
+| Frontend muestra JSON en vez de HTML | Rebuild con `docker compose up --build` |
+| Puerto 8001 bloqueado | Cambia el puerto en `docker-compose.yml` |
 | No conecta desde otro dispositivo | Verifica firewall y que estén en la misma red |
-| Archivos no se reproducen | Verifica que el archivo existe en `music_storage/` |
 
 ## Formatos soportados
 
-**Audio:** MP3, WAV, FLAC, OGG, M4A  
+**Audio:** MP3, WAV, FLAC, OGG, M4A, AAC, WMA
 **Video:** MP4, MKV, AVI, WebM, MOV
+**YouTube download:** M4A, MP3 (128-320 kbps)
