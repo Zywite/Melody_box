@@ -20,12 +20,16 @@
       <Upload :size="22" />
       <span>Subir</span>
     </button>
+    <router-link to="/faq" class="mobile-nav-item" :class="{ active: $route.path === '/faq' }">
+      <HelpCircle :size="22" />
+      <span>FAQ</span>
+    </router-link>
   </nav>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { Home, Search, Library, ListMusic, Upload } from 'lucide-vue-next'
+import { Home, Search, Library, ListMusic, Upload, HelpCircle } from 'lucide-vue-next'
 
 const router = useRouter()
 

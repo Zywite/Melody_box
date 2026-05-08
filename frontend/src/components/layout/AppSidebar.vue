@@ -34,6 +34,10 @@
         <Activity :size="20" />
         <span>FFT Audio</span>
       </router-link>
+      <router-link to="/faq" class="nav-item" :class="{ active: $route.path === '/faq' }">
+        <HelpCircle :size="20" />
+        <span>FAQ</span>
+      </router-link>
     </nav>
 
     <div class="sidebar-playlists" v-if="playlists.length">
@@ -73,7 +77,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/composables/useApi'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
-import { Music2, Home, Search, Library, ListMusic, Upload, LogOut, Activity } from 'lucide-vue-next'
+import { Music2, Home, Search, Library, ListMusic, Upload, LogOut, Activity, HelpCircle } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()

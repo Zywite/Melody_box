@@ -1,0 +1,33 @@
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+.env
+.env.local
+*.db
+*.sqlite
+.gitkeep
+**/.gitkeep
+
+# Music files (mounted as volume)
+data/music/
+
+# IDE
+.vscode/
+.idea/
+
+# Docs
+docs/
+README.md
+
+# Scripts
+scripts/
+
+# Temp
+temp/
+tmp/
+uploads/

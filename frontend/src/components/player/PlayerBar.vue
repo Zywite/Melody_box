@@ -182,11 +182,11 @@ function addToPlaylist() {
   left: 0;
   right: 0;
   height: var(--player-height);
-  background: linear-gradient(180deg, rgba(255, 245, 247, 0.95) 0%, rgba(255, 238, 242, 0.98) 100%);
+  background: var(--bg-glass-strong);
   backdrop-filter: blur(20px);
   border-top: 2px solid var(--border);
   z-index: 100;
-  box-shadow: 0 -4px 20px rgba(255, 158, 187, 0.15);
+  box-shadow: 0 -4px 20px var(--accent-glow);
 }
 
 .player-bar-content {
