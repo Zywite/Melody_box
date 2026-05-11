@@ -1,14 +1,17 @@
+import uvicorn
+from contextlib import asynccontextmanager
+from pathlib import Path
+from sqlalchemy import text
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from contextlib import asynccontextmanager
-from pathlib import Path
-from sqlalchemy import text
-from app.core.config import settings
-from app.core.database import engine, Base
 
-from app.models import User, Song, Playlist, PlaylistSong, Favorite
+from app.core.config import settings
+from app.core.database import Base, engine
+from app.models import Favorite, Playlist, PlaylistSong, Song, User
+from app.routes import auth, favorites, playlists, songs, youtube
 
 
 @asynccontextmanager
@@ -88,13 +91,9 @@ if PUBLIC_DIR.exists():
     if static_path.exists():
         app.mount("/static", StaticFiles(directory=str(static_path)), name="public-static")
 
-from app.routes import auth, songs, playlists, favorites, youtube
-
-app.include_router(auth.router)
-app.include_router(songs.router)
-app.include_router(playlists.router)
-app.include_router(favorites.router)
-app.include_router(youtube.router)
+# Include routers
+for router in [auth.router, songs.router, playlists.router, favorites.router, youtube.router]:
+    app.include_router(router)
 
 @app.get("/{path:path}")
 async def serve_spa(path: str):
