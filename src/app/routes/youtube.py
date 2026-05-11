@@ -1,13 +1,15 @@
+import json
 import os
 import uuid
-import json
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.core.database import get_db
+
 from app.core.config import settings
+from app.core.database import get_db
+from app.schemas import SongResponse, YouTubeDownloadRequest, YouTubeSearchResult
 from app.services.song_service import SongService
-from app.schemas import YouTubeSearchResult, YouTubeDownloadRequest, SongResponse
 
 router = APIRouter(prefix="/youtube", tags=["youtube"])
 
@@ -22,14 +24,10 @@ YTDLP_FORMAT_MAP = {
     "webm": "bestvideo[ext=webm]+bestaudio[ext=webm]/best[ext=webm]/best",
 }
 
-QUALITY_MAP = {
-    "320": "320k",
-    "256": "256k",
-    "128": "128k",
-    "1080p": "1080",
-    "720p": "720",
-    "480p": "480",
-}
+QUALITY_MAP = {"320": "320k", "256": "256k", "128": "128k", "1080p": "1080", "720p": "720", "480p": "480"}
+AUDIO_FORMATS = {"m4a", "mp3", "wav", "flac", "ogg"}
+VIDEO_FORMATS = {"mp4", "mkv", "webm"}
+EXTENSION_MAP = {fmt: fmt for fmt in list(AUDIO_FORMATS) + list(VIDEO_FORMATS)}
 
 
 @router.get("/search", response_model=list[YouTubeSearchResult])
@@ -100,7 +98,7 @@ async def download_youtube(
         'postprocessors': [],
     }
 
-    if request.format in ['m4a', 'mp3', 'wav', 'flac', 'ogg']:
+    if request.format in AUDIO_FORMATS:
         quality = QUALITY_MAP.get(request.quality, '320k')
         ydl_opts['postprocessors'] = [{
             'key': 'FFmpegExtractAudio',
@@ -118,12 +116,7 @@ async def download_youtube(
             artist = request.artist or info.get('uploader', 'Unknown')
             duration = info.get('duration', 0)
 
-            ext_map = {
-                'm4a': 'm4a', 'mp3': 'mp3', 'wav': 'wav',
-                'flac': 'flac', 'ogg': 'ogg', 'mp4': 'mp4',
-                'mkv': 'mkv', 'webm': 'webm'
-            }
-            actual_ext = ext_map.get(request.format, 'm4a')
+            actual_ext = EXTENSION_MAP.get(request.format, 'm4a')
 
             original_title = info.get('title', 'video')
             safe_title = "".join(c for c in original_title if c.isalnum() or c in ' _-').strip()[:50]
@@ -142,8 +135,7 @@ async def download_youtube(
                 raise HTTPException(status_code=500, detail="Downloaded file not found")
 
             file_path = str(downloaded_file)
-
-            is_video = request.format in ['mp4', 'mkv', 'webm']
+            is_video = request.format in VIDEO_FORMATS
             media_type = "video" if is_video else "audio"
 
             db_song = SongService.create_song(
