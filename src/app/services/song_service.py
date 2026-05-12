@@ -5,8 +5,6 @@ import os
 import uuid
 import time
 from pathlib import Path
-from app.services.fft_service import FFTService
-
 class SongService:
     @staticmethod
     def create_song(db: Session, title: str, artist: str, file_path: str, duration: float, album: str = None, media_type: str = "audio"):
@@ -23,25 +21,9 @@ class SongService:
         db.commit()
         db.refresh(db_song)
         
-        # Trigger FFT analysis in background (will be done async in real app)
-        # For now, compute synchronously
-        try:
-            start_time = time.time()
-            print(f"Starting FFT analysis for: {title}")
-            fft_result = FFTService.compute_fft_from_file(file_path)
-            if fft_result:
-                db_song.fft_data = FFTService.to_json(fft_result)
-                db.commit()
-                elapsed = time.time() - start_time
-                print(f"FFT analysis completed for song: {title} (ID: {db_song.id})")
-                print(f"FFT analysis took {elapsed:.2f}s for {title}")
-                return db_song, True  # Return success flag
-            else:
-                print(f"FFT analysis failed: No result for {title}")
-                return db_song, False
-        except Exception as e:
-            print(f"FFT analysis failed for {title}: {e}")
-            return db_song, False
+        # FFT analysis is now handled asynchronously by the worker.
+        # The upload endpoint will enqueue a task if Redis is available.
+        return db_song, False
 
     @staticmethod
     def get_song(db: Session, song_id: str):

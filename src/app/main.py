@@ -1,22 +1,47 @@
-import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
+import time
+import logging
 from sqlalchemy import text
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+from app.core.config import settings
+from app.core.database import engine, Base
+from app.core.rate_limit import limiter
 
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.models import Favorite, Playlist, PlaylistSong, Song, User
 from app.routes import auth, favorites, playlists, songs, youtube
 
+logger = logging.getLogger(__name__)
+
+
+class CachedStaticFiles(StaticFiles):
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # Retry create_all with a brief delay for PostgreSQL readiness
+    for attempt in range(3):
+        try:
+            Base.metadata.create_all(bind=engine)
+            break
+        except Exception as e:
+            print(f"Database connection attempt {attempt+1}/3 failed: {e}")
+            if attempt < 2:
+                time.sleep(2)
+            else:
+                print("All database connection attempts failed. Continuing without DB.")
     
     # Migrations: Add new columns if they don't exist
     try:
@@ -56,6 +81,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Error interno del servidor"}
+    )
+
 
 BASE_DIR = Path(__file__).parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
@@ -81,7 +120,9 @@ async def health_check():
 
 
 if FRONTEND_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets"), html=True), name="frontend-assets")
+    assets_dir = FRONTEND_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", CachedStaticFiles(directory=str(assets_dir), html=True), name="frontend-assets")
 
 if MUSIC_DIR.exists():
     app.mount("/music", StaticFiles(directory=str(MUSIC_DIR)), name="music-storage")
@@ -91,9 +132,14 @@ if PUBLIC_DIR.exists():
     if static_path.exists():
         app.mount("/static", StaticFiles(directory=str(static_path)), name="public-static")
 
-# Include routers
-for router in [auth.router, songs.router, playlists.router, favorites.router, youtube.router]:
-    app.include_router(router)
+from app.routes import auth, songs, playlists, favorites, youtube, tasks
+
+app.include_router(auth.router)
+app.include_router(songs.router)
+app.include_router(playlists.router)
+app.include_router(favorites.router)
+app.include_router(youtube.router)
+app.include_router(tasks.router)
 
 @app.get("/{path:path}")
 async def serve_spa(path: str):

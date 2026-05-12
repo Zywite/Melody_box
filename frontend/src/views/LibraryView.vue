@@ -54,6 +54,7 @@
         <SongCard
           v-for="song in filteredSongs"
           :key="song.id"
+          v-memo="[song.id, isSongFavorite(song.id)]"
           :song="song"
           :show-artist="true"
           :is-favorite="isSongFavorite(song.id)"
@@ -123,6 +124,7 @@
         <SongCard
           v-for="song in favorites"
           :key="song.id"
+          v-memo="[song.id]"
           :song="song"
           :show-artist="true"
           :is-favorite="true"
@@ -180,7 +182,7 @@ async function loadMore() {
   isLoading.value = true
   currentPage.value++
   try {
-    await libraryStore.fetchSongs(currentPage.value, pageSize.value)
+    await libraryStore.fetchSongs(currentPage.value, pageSize.value, true)
   } catch (e) {
     toast.error('Error', 'No se pudieron cargar más canciones')
     currentPage.value--

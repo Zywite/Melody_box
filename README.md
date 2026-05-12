@@ -19,12 +19,14 @@ Un reproductor de música y video para red local, construido con FastAPI y Vue 3
 ## Tecnologías
 
 | Capa | Tecnología |
-|---|---|
-| Backend | FastAPI, SQLAlchemy, JWT, bcrypt, librosa |
+|---|---|---|
+| Backend | FastAPI, SQLAlchemy, JWT, bcrypt, librosa, ARQ |
 | Frontend | Vue 3 + Vite + Tailwind CSS + Pinia |
-| Base de datos | PostgreSQL |
+| Base de datos | PostgreSQL (+ SQLite fallback) |
+| Cache / Colas | Redis |
+| Worker async | ARQ (FFT, YouTube downloads) |
+| Proxy inverso | Nginx (static files, API proxy) |
 | Contenedores | Docker + Docker Compose |
-| Servidor | Uvicorn (ASGI) |
 
 ## Instalación
 
@@ -47,6 +49,8 @@ http://localhost:8001
 ```
 
 La primera vez puede tardar unos minutos (build del frontend + instalación de dependencias Python).
+
+> Docker Compose inicia 4 servicios: **backend** (FastAPI + Uvicorn), **nginx** (proxy inverso), **redis** (cache/colas), **worker** (ARQ para FFT y descargas).
 
 ### Sin Docker (desarrollo local)
 
@@ -122,29 +126,31 @@ El servidor arranca en **http://localhost:8001**
 ```
 MelodyBox/
 ├── src/                     # Backend
-│   └── app/
-│       ├── core/            # Config, BD, seguridad
-│       ├── models/          # Modelos SQLAlchemy
-│       ├── routes/          # Endpoints API
-│       ├── services/        # Lógica de negocio (incl. FFT)
-│       ├── schemas.py       # Schemas Pydantic
-│       └── main.py          # App principal
+│   ├── app/
+│   │   ├── core/            # Config, BD, seguridad, Redis helper
+│   │   ├── models/          # Modelos SQLAlchemy (incl. Task)
+│   │   ├── routes/          # Endpoints API (incl. tasks, youtube)
+│   │   ├── services/        # Lógica de negocio (FFT, users, songs, playlists)
+│   │   ├── schemas.py       # Schemas Pydantic
+│   │   └── main.py          # App principal
+│   └── worker.py            # Worker ARQ (FFT + YouTube downloads)
 ├── frontend/                # Frontend Vue 3 + Vite + Tailwind
 │   ├── src/
-│   │   ├── assets/          # Estilos, imágenes
-│   │   ├── components/      # Componentes Vue
-│   │   ├── composables/     # Composables Vue
-│   │   ├── stores/          # Pinia stores
-│   │   ├── views/           # Vistas
+│   │   ├── assets/          # Estilos globales
+│   │   ├── components/      # Componentes Vue (common, layout, player, effects)
+│   │   ├── composables/     # useApi.js, useToast.js
+│   │   ├── stores/          # Pinia stores (auth, library, player)
+│   │   ├── views/           # 9 vistas (Home, Library, FFT, Upload, etc.)
 │   │   └── router/          # Vue Router
 │   ├── dist/                # Frontend compilado
 │   └── package.json
 ├── data/
-│   └── music/               # Archivos de audio subidos
+│   └── music/               # Archivos de audio/video subidos
 ├── docs/                    # Documentación
-├── scripts/                 # Scripts de utilidad
-├── Dockerfile               # Imagen Docker
-├── docker-compose.yml       # Orquestación Docker
+├── scripts/                 # Scripts de utilidad (presentar, run_worker)
+├── nginx.conf               # Configuración Nginx
+├── Dockerfile               # Imagen Docker multi-stage
+├── docker-compose.yml       # Orquestación (4 servicios)
 ├── .env.example
 ├── requirements.txt
 └── README.md
@@ -172,6 +178,6 @@ MelodyBox/
 
 ## Formatos soportados
 
-**Audio:** MP3, WAV, FLAC, OGG, M4A, AAC, WMA
+**Audio:** MP3, WAV, FLAC, OGG, M4A
 **Video:** MP4, MKV, AVI, WebM, MOV
-**YouTube download:** M4A, MP3 (128-320 kbps)
+**YouTube download:** M4A, MP3, WAV, FLAC, OGG (audio) / MP4, MKV, WebM (video)

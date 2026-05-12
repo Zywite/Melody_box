@@ -43,32 +43,26 @@
         </div>
 
         <div v-else class="file-list">
-          <div v-for="(file, index) in selectedFiles" :key="index" class="file-item">
+          <div v-for="(entry, index) in selectedFiles" :key="index" class="file-item">
             <div class="file-info">
               <Music :size="20" class="opacity-50" />
-              <div class="flex-1">
-                <p class="font-medium">{{ file.name }}</p>
-                <p class="text-sm text-[var(--text-secondary)]">{{ formatSize(file.size) }}</p>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium truncate">{{ entry.file.name }}</p>
+                <p class="text-sm text-[var(--text-secondary)]">{{ formatSize(entry.file.size) }}</p>
               </div>
+            </div>
+            <div class="file-metadata">
+              <input v-model="entry.title" type="text" class="input-field" placeholder="Título" @click.stop />
+              <input v-model="entry.artist" type="text" class="input-field" placeholder="Artista" @click.stop />
             </div>
             <button @click="removeFile(index)" class="btn-icon">
               <X :size="18" />
             </button>
           </div>
 
-          <div class="form-grid mt-6">
-            <div class="form-group">
-              <label class="form-label">Título</label>
-              <input v-model="uploadData.title" type="text" class="input-field" placeholder="Título de la canción" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Artista</label>
-              <input v-model="uploadData.artist" type="text" class="input-field" placeholder="Nombre del artista" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Álbum (opcional)</label>
-              <input v-model="uploadData.album" type="text" class="input-field" placeholder="Nombre del álbum" />
-            </div>
+          <div class="form-group mt-4">
+            <label class="form-label">Álbum (aplica a todos)</label>
+            <input v-model="uploadData.album" type="text" class="input-field" placeholder="Nombre del álbum" />
           </div>
 
           <div class="flex gap-4 mt-6">
@@ -118,8 +112,6 @@ const uploadProgress = ref(0)
 const uploadStatus = ref('')
 
 const uploadData = reactive({
-  title: '',
-  artist: '',
   album: ''
 })
 
@@ -139,14 +131,14 @@ function handleDrop(event) {
 
 function addFiles(files) {
   const validExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.mp4', '.mkv', '.avi', '.webm', '.mov']
-  const validFiles = files.filter(f => validExtensions.some(ext => f.name.toLowerCase().endsWith(ext)))
+  const validFiles = files
+    .filter(f => validExtensions.some(ext => f.name.toLowerCase().endsWith(ext)))
+    .map(f => ({
+      file: f,
+      title: f.name.replace(/\.[^/.]+$/, ''),
+      artist: ''
+    }))
   selectedFiles.value = [...selectedFiles.value, ...validFiles]
-  
-  if (validFiles.length > 0 && !uploadData.title) {
-    const firstFile = validFiles[0]
-    const nameWithoutExt = firstFile.name.replace(/\.[^/.]+$/, '')
-    uploadData.title = nameWithoutExt
-  }
 }
 
 function removeFile(index) {
@@ -155,8 +147,6 @@ function removeFile(index) {
 
 function clearFiles() {
   selectedFiles.value = []
-  uploadData.title = ''
-  uploadData.artist = ''
   uploadData.album = ''
 }
 
@@ -167,56 +157,50 @@ function formatSize(bytes) {
 }
 
 async function uploadFiles() {
-  if (!uploadData.title || !uploadData.artist) {
-    toast.error('Completa título y artista')
-    return
+  for (const entry of selectedFiles.value) {
+    if (!entry.title || !entry.artist) {
+      toast.error(`Completa título y artista para "${entry.file.name}"`)
+      return
+    }
   }
 
   isUploading.value = true
   uploadProgress.value = 0
-  uploadStatus.value = 'Subiendo archivo...'
-  console.log('[Upload] Starting upload...')
-  
-  let firstSongId = null
-  
+  uploadStatus.value = 'Subiendo archivos...'
+
   try {
-    for (let i = 0; i < selectedFiles.value.length; i++) {
-      const file = selectedFiles.value[i]
-      uploadStatus.value = `Subiendo ${file.name}...`
-      console.log(`[Upload] Uploading file ${i+1}/${selectedFiles.value.length}: ${file.name}`)
-      
-      const result = await api.uploadSong(file, uploadData.title, uploadData.artist, uploadData.album)
-      uploadProgress.value = Math.round(((i + 1) / selectedFiles.value.length) * 100)
-      
-      console.log(`[Upload] Upload complete for ${result.title}, fft_ready: ${result.fft_ready}`)
-      
-      if (result.fft_ready) {
-        toast.success(`"${result.title}" subido y analizado exitosamente`)
-      } else {
-        toast.warning(`"${result.title}" subido, pero falló el análisis FFT`)
-      }
-      
-      // Save first song ID for redirect
-      if (i === 0 && result.id) {
-        firstSongId = result.id
-      }
+    const metadataArray = selectedFiles.value.map(e => ({
+      title: e.title,
+      artist: e.artist,
+      album: uploadData.album
+    }))
+
+    const response = await api.uploadMultipleSongs(
+      selectedFiles.value.map(e => e.file),
+      metadataArray
+    )
+
+    uploadProgress.value = 100
+
+    if (response.success_count > 0) {
+      uploadStatus.value = `${response.success_count} archivo(s) subido(s)`
+      toast.success(`${response.success_count} archivo(s) subido(s) exitosamente`)
     }
-    
-    uploadStatus.value = 'Analizando FFT...'
-    console.log('[Upload] All files uploaded. Redirecting to FFT...')
-    toast.info('Redirigiendo a Análisis FFT...')
-    await libraryStore.fetchSongs()
+
+    if (response.error_count > 0) {
+      for (const err of response.errors) {
+        console.error(`[Upload] Error: ${err.filename}: ${err.error}`)
+      }
+      toast.error(`${response.error_count} archivo(s) con errores`)
+    }
+
+    try {
+      await libraryStore.fetchSongs()
+    } catch (e) {
+      console.warn('[Upload] Songs refresh failed:', e)
+    }
     clearFiles()
-    
-    // Redirect to FFT with the first uploaded song
-    if (firstSongId) {
-      setTimeout(() => {
-        console.log(`[Upload] Redirecting to FFT view with songId=${firstSongId}`)
-        router.push(`/fft?songId=${firstSongId}`)
-      }, 1000)
-    } else {
-      router.push('/library')
-    }
+    router.push('/library')
   } catch (e) {
     console.error('[Upload] Error:', e)
     toast.error('Error al subir', e.message)
@@ -337,8 +321,9 @@ function onYouTubeDownloaded(song) {
 
 .file-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 14px 18px;
   border-radius: 16px;
   background: var(--bg-secondary);
@@ -363,13 +348,6 @@ function onYouTubeDownloaded(song) {
   font-family: 'Nunito', sans-serif;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-top: 24px;
-}
-
 .form-group {
   display: flex;
   flex-direction: column;
@@ -381,6 +359,20 @@ function onYouTubeDownloaded(song) {
   margin-bottom: 8px;
   font-weight: 600;
   font-family: 'Nunito', sans-serif;
+}
+
+.file-metadata {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1 1 220px;
+}
+
+.file-metadata .input-field {
+  flex: 1;
+  min-width: 100px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
 }
 
 .upload-progress {
@@ -401,9 +393,4 @@ function onYouTubeDownloaded(song) {
   transition: width 0.3s ease;
 }
 
-@media (max-width: 640px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

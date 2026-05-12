@@ -29,4 +29,4 @@ ENV ALLOWED_ORIGINS=http://localhost:8001
 
 EXPOSE 8001
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--app-dir", "/app/src"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--app-dir", "/app/src", "--workers", "4"]

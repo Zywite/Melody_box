@@ -54,6 +54,7 @@
         <SongCard
           v-for="song in recentSongs"
           :key="song.id"
+          v-memo="[song.id, isSongFavorite(song.id)]"
           :song="song"
           :is-favorite="isSongFavorite(song.id)"
           @play="playSong"

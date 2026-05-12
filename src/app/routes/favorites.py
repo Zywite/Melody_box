@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.models import Favorite, Song
 from app.schemas import FavoriteCreate, FavoriteResponse
@@ -16,27 +16,24 @@ def get_favorites(
     db: Session = Depends(get_db)
 ):
     """Obtener canciones favoritas del usuario"""
-    favorites = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
-    result = []
-    for f in favorites:
-        song = db.query(Song).filter(Song.id == f.song_id).first()
-        fav_dict = {
-            "id": f.id,
-            "user_id": f.user_id,
-            "song_id": f.song_id,
-            "added_at": f.added_at,
-            "song": {
-                "id": song.id,
-                "title": song.title,
-                "artist": song.artist,
-                "album": song.album,
-                "duration": song.duration,
-                "media_type": song.media_type,
-                "file_path": song.file_path
-            } if song else None
-        }
-        result.append(fav_dict)
-    return result
+    favorites = db.query(Favorite).options(
+        joinedload(Favorite.song)
+    ).filter(Favorite.user_id == current_user.id).all()
+    return [{
+        "id": f.id,
+        "user_id": f.user_id,
+        "song_id": f.song_id,
+        "added_at": f.added_at,
+        "song": {
+            "id": f.song.id,
+            "title": f.song.title,
+            "artist": f.song.artist,
+            "album": f.song.album,
+            "duration": f.song.duration,
+            "media_type": f.song.media_type,
+            "file_path": f.song.file_path
+        } if f.song else None
+    } for f in favorites]
 
 
 @router.post("", response_model=FavoriteResponse)

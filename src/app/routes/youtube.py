@@ -3,13 +3,16 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.schemas import SongResponse, YouTubeDownloadRequest, YouTubeSearchResult
+from app.core.rate_limit import limiter
+from app.core.redis_helper import enqueue_job
 from app.services.song_service import SongService
+from app.schemas import YouTubeSearchResult, YouTubeDownloadRequest, SongResponse
+from app.models.task import Task
 
 router = APIRouter(prefix="/youtube", tags=["youtube"])
 
@@ -31,7 +34,8 @@ EXTENSION_MAP = {fmt: fmt for fmt in list(AUDIO_FORMATS) + list(VIDEO_FORMATS)}
 
 
 @router.get("/search", response_model=list[YouTubeSearchResult])
-async def search_youtube(q: str, limit: int = 10):
+@limiter.limit("10/minute")
+async def search_youtube(request: Request, q: str, limit: int = 10):
     """Search for videos on YouTube."""
     import yt_dlp
 
@@ -69,19 +73,59 @@ async def search_youtube(q: str, limit: int = 10):
         raise HTTPException(status_code=500, detail=f"Error searching YouTube: {str(e)}")
 
 
-@router.post("/download", response_model=SongResponse)
+@router.post("/download")
+@limiter.limit("3/minute")
 async def download_youtube(
+    fastapi_request: Request,
     request: YouTubeDownloadRequest,
     db: Session = Depends(get_db)
 ):
-    """Download and convert a YouTube video."""
-    import yt_dlp
-
+    """Download and convert a YouTube video (async via worker)."""
     if request.format not in YTDLP_FORMAT_MAP:
         raise HTTPException(
             status_code=400,
             detail=f"Format not supported. Choose: {', '.join(YTDLP_FORMAT_MAP.keys())}"
         )
+
+    # Create task record
+    task = Task(
+        id=str(uuid.uuid4()),
+        type="youtube_download",
+        status="pending",
+    )
+    db.add(task)
+    db.commit()
+
+    job_id = await enqueue_job(
+        "download_youtube",
+        request.video_id,
+        request.format,
+        request.quality,
+        request.title,
+        request.artist,
+        _job_id=task.id,
+    )
+
+    if job_id:
+        return {"task_id": task.id, "status": "pending"}
+    else:
+        # Fallback: synchronous execution
+        task.status = "processing"
+        db.commit()
+        try:
+            result = await _sync_download_youtube(request, db, task)
+            return result
+        except Exception as e:
+            task.status = "failed"
+            task.error = str(e)
+            db.commit()
+            raise HTTPException(status_code=500, detail=f"Error downloading: {str(e)}")
+
+
+async def _sync_download_youtube(request: YouTubeDownloadRequest, db: Session, task: Task):
+    """Fallback synchronous YouTube download when no worker is available."""
+    import asyncio
+    import yt_dlp
 
     output_dir = Path(settings.MUSIC_STORAGE_PATH)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -108,58 +152,62 @@ async def download_youtube(
 
     video_url = f"https://www.youtube.com/watch?v={request.video_id}"
 
-    try:
+    def _run_ytdlp():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=True)
+            return ydl.extract_info(video_url, download=True)
 
-            title = request.title or info.get('title', 'Unknown')
-            artist = request.artist or info.get('uploader', 'Unknown')
-            duration = info.get('duration', 0)
+    loop = asyncio.get_event_loop()
+    info = await loop.run_in_executor(None, _run_ytdlp)
 
-            actual_ext = EXTENSION_MAP.get(request.format, 'm4a')
+    title = request.title or info.get('title', 'Unknown')
+    artist = request.artist or info.get('uploader', 'Unknown')
+    duration = info.get('duration', 0)
 
-            original_title = info.get('title', 'video')
-            safe_title = "".join(c for c in original_title if c.isalnum() or c in ' _-').strip()[:50]
-            expected_file = output_dir / f"{safe_title}_{file_id}.{actual_ext}"
+    actual_ext = {'m4a': 'm4a', 'mp3': 'mp3', 'wav': 'wav',
+                  'flac': 'flac', 'ogg': 'ogg', 'mp4': 'mp4',
+                  'mkv': 'mkv', 'webm': 'webm'}.get(request.format, 'm4a')
 
-            downloaded_file = None
-            if expected_file.exists():
-                downloaded_file = expected_file
-            else:
-                for f in output_dir.glob(f"*{file_id}*"):
-                    if f.is_file():
-                        downloaded_file = f
-                        break
+    original_title = info.get('title', 'video')
+    safe_title = "".join(c for c in original_title if c.isalnum() or c in ' _-').strip()[:50]
+    expected_file = output_dir / f"{safe_title}_{file_id}.{actual_ext}"
 
-            if not downloaded_file:
-                raise HTTPException(status_code=500, detail="Downloaded file not found")
+    downloaded_file = None
+    if expected_file.exists():
+        downloaded_file = expected_file
+    else:
+        for f in output_dir.glob(f"*{file_id}*"):
+            if f.is_file():
+                downloaded_file = f
+                break
 
-            file_path = str(downloaded_file)
-            is_video = request.format in VIDEO_FORMATS
-            media_type = "video" if is_video else "audio"
+    if not downloaded_file:
+        raise HTTPException(status_code=500, detail="Downloaded file not found")
 
-            db_song = SongService.create_song(
-                db=db,
-                title=title,
-                artist=artist,
-                file_path=file_path,
-                duration=float(duration),
-                album=None,
-                media_type=media_type
-            )
+    file_path = str(downloaded_file)
+    is_video = request.format in ['mp4', 'mkv', 'webm']
+    media_type = "video" if is_video else "audio"
 
-            return SongResponse(
-                id=db_song.id,
-                title=db_song.title,
-                artist=db_song.artist,
-                album=db_song.album,
-                duration=db_song.duration,
-                media_type=db_song.media_type,
-                created_at=db_song.created_at
-            )
+    db_song, _ = SongService.create_song(
+        db=db,
+        title=title,
+        artist=artist,
+        file_path=file_path,
+        duration=float(duration),
+        album=None,
+        media_type=media_type
+    )
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"YouTube download error: {e}")
-        raise HTTPException(status_code=500, detail=f"Error downloading: {str(e)}")
+    task.status = "done"
+    task.result = {"song_id": db_song.id}
+    task.progress = 100
+    db.commit()
+
+    return SongResponse(
+        id=db_song.id,
+        title=db_song.title,
+        artist=db_song.artist,
+        album=db_song.album,
+        duration=db_song.duration,
+        media_type=db_song.media_type,
+        created_at=db_song.created_at
+    )

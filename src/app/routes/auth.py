@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import create_access_token, decode_token
 from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.services.user_service import UserService
 from app.schemas import UserRegister, UserLogin, UserResponse, Token
 from datetime import timedelta
@@ -10,7 +11,8 @@ from datetime import timedelta
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse)
-def register(user: UserRegister, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def register(request: Request, user: UserRegister, db: Session = Depends(get_db)):
     existing_user = UserService.get_user_by_email(db, user.email)
     if existing_user:
         raise HTTPException(
@@ -29,7 +31,8 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     return new_user
 
 @router.post("/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
     db_user = UserService.verify_user_password(db, user.email, user.password)
     if not db_user:
         raise HTTPException(

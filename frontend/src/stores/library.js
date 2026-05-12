@@ -65,19 +65,19 @@ export const useLibraryStore = defineStore('library', () => {
   }
 
   async function addFavorite(songId) {
-    await api.addFavorite(songId)
-    await fetchFavorites()
+    try {
+      await api.addFavorite(songId)
+      await fetchFavorites()
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
   }
 
   async function removeFavorite(songId) {
-    await api.removeFavorite(songId)
-    await fetchFavorites()
-  }
-
-  async function uploadSong(file, title, artist, album) {
     try {
-      await api.uploadSong(file, title, artist, album)
-      await fetchSongs()
+      await api.removeFavorite(songId)
+      await fetchFavorites()
     } catch (e) {
       error.value = e.message
       throw e
@@ -143,7 +143,6 @@ export const useLibraryStore = defineStore('library', () => {
     fetchFavorites,
     addFavorite,
     removeFavorite,
-    uploadSong,
     deleteSong,
     searchSongs,
     createPlaylist,

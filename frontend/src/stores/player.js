@@ -87,6 +87,12 @@ export const usePlayerStore = defineStore('player', () => {
       }
     }
     showFFT.value = !showFFT.value
+    if (!showFFT.value && audioContext.value) {
+      audioContext.value.close()
+      audioContext.value = null
+      analyser.value = null
+      sourceNode.value = null
+    }
     console.log('FFT toggle result:', showFFT.value)
   }
 

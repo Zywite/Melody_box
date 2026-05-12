@@ -89,6 +89,7 @@ Content-Range: bytes 0-4999999/10000000
 ### Backend — FastAPI (`src/app/routes/songs.py`)
 
 ```python
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -212,7 +213,7 @@ function seek(percent) {
 
 ```bash
 # 1. Ver si el archivo existe
-ls -la src/music_storage/
+ls -la data/music/
 
 # 2. Probar streaming con curl
 curl -I http://localhost:8001/songs/{id}/stream

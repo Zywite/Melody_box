@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     ALLOWED_AUDIO_EXTENSIONS: str = "mp3,wav,flac,ogg,m4a"
     ALLOWED_VIDEO_EXTENSIONS: str = "mp4,mkv,avi,webm,mov"
     
+    # Redis / Worker
+    REDIS_URL: str = ""
+    
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8001"
     

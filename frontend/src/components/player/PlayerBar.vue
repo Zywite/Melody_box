@@ -123,9 +123,17 @@ const playerStore = usePlayerStore()
 const libraryStore = useLibraryStore()
 const toast = useToast()
 
+const favoriteMap = computed(() => {
+  const map = new Map()
+  for (const f of libraryStore.favorites) {
+    map.set(f.song_id, true)
+  }
+  return map
+})
+
 const isFavorite = computed(() => {
   if (!playerStore.currentSong) return false
-  return libraryStore.favorites.some(f => f.song_id === playerStore.currentSong.id)
+  return favoriteMap.value.has(playerStore.currentSong.id)
 })
 
 const repeatTitle = computed(() => {

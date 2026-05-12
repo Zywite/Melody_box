@@ -9,7 +9,9 @@
         <main class="page-container scrollbar-thin">
           <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
-              <component :is="Component" />
+              <KeepAlive>
+                <component :is="Component" />
+              </KeepAlive>
             </transition>
           </router-view>
         </main>
@@ -30,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, KeepAlive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePlayerStore } from '@/stores/player'
 import AppSidebar from '@/components/layout/AppSidebar.vue'

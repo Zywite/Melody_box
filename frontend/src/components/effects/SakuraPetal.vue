@@ -22,28 +22,37 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const active = ref(true)
 const petals = ref([])
-const petalCount = 25
+const petalCount = 12
 
 function createPetal(id) {
   return {
     id,
     left: Math.random() * 100,
     delay: Math.random() * 10,
-    duration: 8 + Math.random() * 12,
+    duration: 10 + Math.random() * 14,
     sway: 2 + Math.random() * 4,
-    size: 15 + Math.random() * 20,
-    opacity: 0.3 + Math.random() * 0.5,
+    size: 12 + Math.random() * 16,
+    opacity: 0.2 + Math.random() * 0.4,
   }
+}
+
+function onVisibilityChange() {
+  active.value = !document.hidden
 }
 
 onMounted(() => {
   for (let i = 0; i < petalCount; i++) {
     petals.value.push(createPetal(i))
   }
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 
-<style scoped>
+<style>
 .sakura-container {
   position: fixed;
   top: 0;

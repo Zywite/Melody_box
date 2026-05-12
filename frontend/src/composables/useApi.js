@@ -79,15 +79,18 @@ export default {
     formData.append('title', title)
     formData.append('artist', artist)
     if (album) formData.append('album', album)
-
-    const token = localStorage.getItem('token')
-    const response = await axios.post(`${API_BASE_URL}/songs/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': token ? `Bearer ${token}` : ''
-      }
+    return api.post('/songs/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
-    return response.data
+  },
+
+  async uploadMultipleSongs(files, metadataArray) {
+    const formData = new FormData()
+    for (const file of files) {
+      formData.append('files', file)
+    }
+    formData.append('metadata', JSON.stringify(metadataArray))
+    return api.post('/songs/upload-multiple', formData)
   },
 
   async deleteSong(id) {

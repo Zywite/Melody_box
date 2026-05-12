@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models import Playlist, PlaylistSong, Song
 import uuid
 
@@ -18,11 +18,15 @@ class PlaylistService:
 
     @staticmethod
     def get_playlist(db: Session, playlist_id: str):
-        return db.query(Playlist).filter(Playlist.id == playlist_id).first()
+        return db.query(Playlist).options(
+            joinedload(Playlist.songs).joinedload(PlaylistSong.song)
+        ).filter(Playlist.id == playlist_id).first()
 
     @staticmethod
     def get_user_playlists(db: Session, user_id: str):
-        return db.query(Playlist).filter(Playlist.user_id == user_id).all()
+        return db.query(Playlist).options(
+            joinedload(Playlist.songs).joinedload(PlaylistSong.song)
+        ).filter(Playlist.user_id == user_id).all()
 
     @staticmethod
     def add_song_to_playlist(db: Session, playlist_id: str, song_id: str):

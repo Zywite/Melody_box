@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&family=Mochiy+Pop+P+One&family=Yomogi&family=JetBrains+Mono:wght@400;500&display=swap');
-
 *,
 *::before,
 *::after {
@@ -123,8 +121,6 @@
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px var(--accent-glow);
 }
-
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer base {
   * {
@@ -644,30 +640,6 @@
   75% { transform: scale(1.03); }
 }
 
-@keyframes sakura-fall {
-  0% {
-    transform: translateY(-10vh) rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateY(110vh) rotate(720deg);
-    opacity: 0;
-  }
-}
-
-@keyframes sakura-sway {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(30px); }
-  50% { transform: translateX(-20px); }
-  75% { transform: translateX(15px); }
-}
-
 @keyframes float-up {
   0% {
     transform: translateY(20px) scale(0);
@@ -692,18 +664,6 @@
 
 .animation-bouncy {
   animation: bouncy 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.sakura-petal {
-  position: fixed;
-  width: 20px;
-  height: 20px;
-  background: radial-gradient(ellipse at center, var(--accent-light) 0%, transparent 70%);
-  border-radius: 50% 0 50% 0;
-  pointer-events: none;
-  z-index: 9999;
-  animation: sakura-fall var(--duration, 10s) linear infinite, sakura-sway var(--sway, 3s) ease-in-out infinite;
-  opacity: 0;
 }
 
 .app-background {

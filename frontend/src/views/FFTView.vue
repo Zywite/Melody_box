@@ -54,7 +54,7 @@
       
       <div class="song-list">
         <div 
-          v-for="song in songsWithStatus" 
+          v-for="song in songs" 
           :key="song.id"
           @click="selectSong(song)"
           class="song-item"
@@ -173,11 +173,14 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLibraryStore } from '@/stores/library'
+import { usePlayerStore } from '@/stores/player'
+import { useToast } from '@/composables/useToast'
 import api from '@/composables/useApi'
 import { Music, Activity, ListMusic, CheckCircle, Clock, RefreshCw } from 'lucide-vue-next'
 
 const route = useRoute()
 const libraryStore = useLibraryStore()
+const toast = useToast()
 
 const songs = computed(() => libraryStore.songs || [])
 const selectedSongId = ref('')
@@ -195,7 +198,19 @@ let pollInterval = null
   
 const analyzedCount = computed(() => songs.value.filter(s => s.has_fft).length)
 const pendingCount = computed(() => songs.value.filter(s => !s.has_fft).length)
-const songsWithStatus = computed(() => songs.value)
+
+let themeColors = {}
+
+function readThemeColors() {
+  const style = getComputedStyle(document.documentElement)
+  themeColors = {
+    bgColor: style.getPropertyValue('--bg-secondary').trim() || '#ffe4ec',
+    textColor: style.getPropertyValue('--text-secondary').trim() || '#7a7a7a',
+    accentColor: style.getPropertyValue('--accent').trim() || '#ff9ebb',
+    accentLight: style.getPropertyValue('--accent-light').trim() || '#ffb7c5',
+    secondaryColor: style.getPropertyValue('--secondary').trim() || '#b19cd9',
+  }
+}
 
 function formatTime(seconds) {
   const mins = Math.floor(seconds / 60)
@@ -222,6 +237,15 @@ async function loadFFTData(songId) {
   try {
     console.log(`[FFTView] Loading FFT data for song ${songId}...`)
     const response = await api.get(`/songs/${songId}/fft`)
+    
+    // If response has task_id, the FFT is being computed asynchronously
+    if (response.task_id) {
+      console.log(`[FFTView] FFT enqueued as task ${response.task_id}, polling...`)
+      isLoading.value = false
+      await waitForFFT(songId)
+      return
+    }
+    
     result.value = response
     await nextTick()
     drawCanvas()
@@ -229,29 +253,58 @@ async function loadFFTData(songId) {
     console.log(`[FFTView] FFT data loaded successfully`)
   } catch (err) {
     console.error('[FFTView] Error loading FFT:', err)
+    toast.error('Error al cargar FFT', err.message)
   } finally {
     isLoading.value = false
   }
 }
 
-async function waitForFFT(songId, maxAttempts = 30) {
+async function waitForFFT(songId, maxAttempts = 60) {
   console.log(`[FFTView] Waiting for FFT analysis to complete for song ${songId}...`)
   isAnalyzingFFT.value = true
-  let attempts = 0
   
+  // First, call the FFT endpoint to get or create the task
+  let taskId = null
+  try {
+    const fftResponse = await api.get(`/songs/${songId}/fft`)
+    if (fftResponse.task_id) {
+      taskId = fftResponse.task_id
+    } else if (fftResponse.bins) {
+      // Already have data
+      isAnalyzingFFT.value = false
+      result.value = fftResponse
+      const song = songs.value.find(s => s.id === songId)
+      if (song) song.has_fft = true
+      await nextTick()
+      drawCanvas()
+      drawSpectrogram()
+      return
+    }
+  } catch (err) {
+    console.error('[FFTView] Error initiating FFT:', err)
+    toast.error('Error al iniciar análisis FFT', err.message)
+    isAnalyzingFFT.value = false
+    return
+  }
+  
+  if (!taskId) {
+    isAnalyzingFFT.value = false
+    return
+  }
+  
+  // Poll the task endpoint
+  let attempts = 0
   return new Promise((resolve, reject) => {
     pollInterval = setInterval(async () => {
       attempts++
-      console.log(`[FFTView] Polling FFT status, attempt ${attempts}/${maxAttempts}`)
       
       try {
-        const response = await api.get(`/songs/${songId}/fft`)
+        const task = await api.get(`/tasks/${taskId}`)
         
-        if (response && response.bins) {
-          console.log(`[FFTView] FFT analysis complete!`)
+        if (task.status === 'done') {
           clearInterval(pollInterval)
           pollInterval = null
-          result.value = response
+          result.value = task.result
           selectedSongId.value = songId
           const song = songs.value.find(s => s.id === songId)
           if (song) {
@@ -262,11 +315,14 @@ async function waitForFFT(songId, maxAttempts = 30) {
           drawCanvas()
           drawSpectrogram()
           isAnalyzingFFT.value = false
-          resolve(response)
+          resolve(task.result)
+        } else if (task.status === 'failed') {
+          clearInterval(pollInterval)
+          pollInterval = null
+          isAnalyzingFFT.value = false
+          reject(new Error(task.error || 'FFT analysis failed'))
         }
       } catch (err) {
-        console.error(`[FFTView] Poll attempt ${attempts} failed:`, err)
-        
         if (attempts >= maxAttempts) {
           clearInterval(pollInterval)
           pollInterval = null
@@ -274,7 +330,7 @@ async function waitForFFT(songId, maxAttempts = 30) {
           reject(new Error('FFT analysis timeout'))
         }
       }
-    }, 2000) // Poll every 2 seconds
+    }, 2000)
   })
 }
 
@@ -282,27 +338,16 @@ async function analyzeSingleSong(song) {
   console.log(`[FFT] Analyzing song: ${song.id} - ${song.title}`)
   analyzingSongId.value = song.id
   isAnalyzing.value = true
-  isAnalyzingFFT.value = true
   
   try {
-    console.log(`[FFT] Calling API for song ${song.id}...`)
-    const response = await api.get(`/songs/${song.id}/fft`)
-    console.log(`[FFT] Response received:`, response)
-    song.has_fft = true
-    result.value = response
-    selectedSongId.value = song.id
-    selectedSongTitle.value = `${song.title} - ${song.artist}`
-    await nextTick()
-    drawCanvas()
-    drawSpectrogram()
+    await waitForFFT(song.id)
     console.log(`[FFT] Analysis complete for ${song.title}`)
   } catch (err) {
     console.error('[FFT] Error analyzing:', err)
-    alert('Error al analizar: ' + (err.message || err))
+    toast.error('Error al analizar', err.message || err)
   } finally {
     isAnalyzing.value = false
     analyzingSongId.value = null
-    isAnalyzingFFT.value = false
   }
 }
 
@@ -318,6 +363,7 @@ async function analyzeAllPending() {
     analyzeProgress.value = pendingSongs.length
   } catch (err) {
     console.error('Error analyzing all:', err)
+    toast.error('Error al analizar todas', err.message)
   } finally {
     isAnalyzingAll.value = false
   }
@@ -335,12 +381,7 @@ function drawCanvas() {
   const width = canvas.value.width = 800
   const height = canvas.value.height = 300
   
-  // Get theme colors
-  const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffe4ec'
-  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#7a7a7a'
-  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff9ebb'
-  const accentLight = getComputedStyle(document.documentElement).getPropertyValue('--accent-light').trim() || '#ffb7c5'
-  const secondaryColor = getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim() || '#b19cd9'
+  const { bgColor, textColor, accentColor, accentLight, secondaryColor } = themeColors
   
   // Background
   ctx.fillStyle = bgColor
@@ -463,10 +504,9 @@ function drawSpectrogram() {
   const width = specCanvas.value.width = 800
   const height = specCanvas.value.height = 200
   
-  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#7a7a7a'
-  
-  // Background
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffe4ec'
+  const { textColor, bgColor } = themeColors
+
+  ctx.fillStyle = bgColor
   ctx.fillRect(0, 0, width, height)
   
   const spectrogram = result.value.spectrogram
@@ -558,6 +598,7 @@ function getSpectrogramColor(value) {
 }
 
 onMounted(async () => {
+  readThemeColors()
   if (!libraryStore.songs || libraryStore.songs.length === 0) {
     await libraryStore.fetchSongs()
   }
@@ -580,14 +621,6 @@ onMounted(async () => {
         })
       }
     }
-  }
-})
-
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-    console.log('[FFTView] Cleaned up poll interval')
   }
 })
 

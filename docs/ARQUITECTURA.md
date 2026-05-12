@@ -5,25 +5,31 @@
 MelodyBox es una aplicación web cliente-servidor para reproducir audio y video en una red local. El backend expone una API REST y sirve el frontend estático. La comunicación es HTTP sobre la red local, permitiendo que cualquier dispositivo conectado acceda al contenido.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Red Local (WiFi)                  │
-│                                                     │
-│  ┌──────────────┐    HTTP/REST    ┌───────────────┐ │
-│  │  Navegador   │ ──────────────► │   FastAPI     │ │
-│  │  (Cliente)   │ ◄────────────── │   Server      │ │
-│  │  HTML/JS/CSS │                 │   :8001       │ │
-│  └──────────────┘                 └───────┬───────┘ │
-│                                           │         │
-│                                    ┌──────▼───────┐ │
-│                                    │  PostgreSQL  │ │
-│                                    │  /  SQLite   │ │
-│                                    └──────┬───────┘ │
-│                                           │         │
-│                                    ┌──────▼───────┐ │
-│                                    │ music_storage│ │
-│                                    │  (archivos)  │ │
-│                                    └──────────────┘ │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Red Local (WiFi)                              │
+│                                                                      │
+│  ┌──────────────┐    HTTP          ┌──────────┐   proxy   ┌───────┐ │
+│  │  Navegador   │ ───────────────► │  Nginx   │ ────────► │FastAPI│ │
+│  │  (Cliente)   │ ◄─────────────── │  :8001   │ ◄──────── │Uvicorn│ │
+│  │  HTML/JS/CSS │                 │          │           │:8000  │ │
+│  └──────────────┘                 │ /assets/ │           └───┬───┘ │
+│                                   │   directo│               │     │
+│                                   └──────────┘       ┌───────▼───┐ │
+│                                                       │PostgreSQL │ │
+│                                                       │ / SQLite  │ │
+│                                                       └───────┬───┘ │
+│                                                               │     │
+│                                   ┌──────────────┐  ┌────────▼───┐ │
+│                                   │  Redis       │  │ music_data │ │
+│                                   │ (cache/colas)│  │ (archivos) │ │
+│                                   └──────┬───────┘  └────────────┘ │
+│                                          │                          │
+│                                   ┌──────▼───────┐                  │
+│                                   │   Worker     │                  │
+│                                   │  (ARQ)       │                  │
+│                                   │ FFT + YouTube│                  │
+│                                   └──────────────┘                  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -36,53 +42,66 @@ MelodyBox/
 │   ├── app/
 │   │   ├── core/
 │   │   │   ├── config.py        # Configuración con pydantic-settings
-│   │   │   ├── database.py      # Motor SQL + sesión
-│   │   │   └── security.py      # JWT + bcrypt
+│   │   │   ├── database.py      # Motor SQL + sesión (pool_size=20)
+│   │   │   ├── security.py      # JWT + bcrypt
+│   │   │   └── redis_helper.py  # Conexión Redis, colas ARQ, cache FFT
 │   │   ├── models/
 │   │   │   ├── __init__.py      # Exporta todos los modelos
 │   │   │   ├── user.py          # Modelo User
-│   │   │   └── music.py         # Song, Playlist, PlaylistSong, Favorite
+│   │   │   ├── music.py         # Song, Playlist, PlaylistSong, Favorite
+│   │   │   └── task.py          # Task (tareas async: FFT, YouTube)
 │   │   ├── routes/
 │   │   │   ├── auth.py          # /auth/register, /auth/login
-│   │   │   ├── songs.py         # /songs (CRUD + upload + stream)
+│   │   │   ├── songs.py         # /songs (CRUD + upload + stream + FFT + batch)
 │   │   │   ├── playlists.py     # /playlists (CRUD + songs)
 │   │   │   ├── favorites.py     # /favorites (CRUD)
+│   │   │   ├── youtube.py       # /youtube/search, /youtube/download
+│   │   │   ├── tasks.py         # /tasks/{id} (polling de tareas async)
 │   │   │   └── dependencies.py  # Dependencias compartidas de auth
 │   │   ├── services/
 │   │   │   ├── user_service.py      # Lógica de usuarios
 │   │   │   ├── song_service.py      # Lógica de canciones
-│   │   │   └── playlist_service.py  # Lógica de playlists
+│   │   │   ├── playlist_service.py  # Lógica de playlists
+│   │   │   └── fft_service.py       # Cálculos FFT (librosa/numpy)
 │   │   ├── schemas.py           # Schemas Pydantic (DTOs)
-│   │   └── main.py              # FastAPI app, middleware, routers, SPA fallback
-│   ├── .env                     # Configuración (no incluir en git)
-│   └── music_storage/          # Archivos subidos
+│   │   └── main.py              # FastAPI app, GZip, CachedStaticFiles, routers
+│   ├── worker.py                # Worker ARQ (compute_fft, download_youtube)
+│   └── .env                     # Configuración (no incluir en git)
 ├── frontend/                   # Frontend Vue 3 + Vite + Tailwind
 │   ├── src/
 │   │   ├── assets/
-│   │   │   └── main.css         # Estilos globales, variables CSS, glassmorphism
+│   │   │   └── main.css         # Estilos globales, variables CSS, kawaii theme
 │   │   ├── components/
-│   │   │   ├── common/          # SongCard, PlaylistCard, SearchInput, etc.
+│   │   │   ├── common/          # SongCard, PlaylistCard, YouTubeDownloader, etc.
 │   │   │   ├── layout/          # AppSidebar, MobileNav, ToastContainer
-│   │   │   └── player/          # PlayerBar, VideoFlyout, ModeSelector
+│   │   │   ├── player/          # PlayerBar, VideoFlyout, ModeSelector, QueuePanel
+│   │   │   └── effects/         # SakuraPetal (animación)
 │   │   ├── composables/        # useApi.js, useToast.js
 │   │   ├── stores/              # Pinia stores (auth, library, player)
-│   │   ├── views/               # Vue components (HomeView, SearchView, etc.)
-│   │   ├── router/              # Vue Router config
+│   │   ├── views/               # 9 vistas (Home, Search, Upload, FFT, etc.)
+│   │   ├── router/              # Vue Router config + scrollBehavior
 │   │   ├── App.vue
 │   │   └── main.js
 │   ├── index.html
 │   ├── package.json
-│   ├── vite.config.js
+│   ├── vite.config.js           # manualChunks, compression plugin
 │   └── tailwind.config.js
-├── docs/                       # Documentación
-├── scripts/                    # Scripts de utilidad
-│   ├── start_server.py         # Script de inicio
-│   ├── run_server.bat          # Script Windows
-│   └── run_server.sh           # Script Linux/Mac
-├── .gitignore                  # Archivos a ignorar
-├── .env.example                # Ejemplo de configuración
-├── requirements.txt            # Dependencias Python
-└── README.md                   # Documentación principal
+├── nginx.conf                   # Proxy inverso: /assets/ directo, /api proxy
+├── Dockerfile                   # Build multi-stage (Node 20 → Python 3.11)
+├── docker-compose.yml           # 4 servicios: nginx, backend, redis, worker
+├── data/
+│   └── music/                   # Archivos de audio/video subidos
+├── docs/                        # Documentación
+├── scripts/                     # Scripts de utilidad
+│   ├── start_server.py          # Script de inicio local
+│   ├── presentar.bat            # Inicio rápido Windows
+│   ├── presentar.sh             # Inicio rápido Linux/Mac
+│   ├── run_worker.bat           # Lanzar worker Windows
+│   └── run_worker.sh            # Lanzar worker Linux/Mac
+├── .gitignore
+├── .env.example
+├── requirements.txt
+└── README.md
 ```
 
 ---
@@ -92,32 +111,36 @@ MelodyBox/
 ### Diagrama de tablas
 
 ```
-┌──────────────────┐     ┌──────────────────┐
-│      users       │     │      songs       │
-├──────────────────┤     ├──────────────────┤
-│ id (PK, UUID)    │     │ id (PK, UUID)    │
-│ username (UNQ)   │     │ title            │
-│ email (UNQ)      │     │ artist           │
-│ hashed_password  │     │ album (NULL)     │
-│ is_active        │     │ duration         │
-│ created_at       │     │ file_path (UNQ)  │
-└───────┬──────────┘     │ media_type       │
-        │                │ created_at       │
-        │                └───────┬──────────┘
+┌──────────────────┐     ┌──────────────────────┐
+│      users       │     │        songs         │
+├──────────────────┤     ├──────────────────────┤
+│ id (PK, UUID)    │     │ id (PK, UUID)        │
+│ username (UNQ)   │     │ title                │
+│ email (UNQ)      │     │ artist               │
+│ hashed_password  │     │ album (NULL)         │
+│ is_active        │     │ duration             │
+│ created_at       │     │ file_path (UNQ)      │
+└───────┬──────────┘     │ media_type           │
+        │                │ fft_data (JSON/NULL) │
+        │                │ created_at           │
+        │                └───────┬──────────────┘
         │                        │
-        │          ┌─────────────┼──────────────┐
-        │          │             │              │
-        ▼          ▼             ▼              ▼
-┌──────────────┐ ┌──────────────────┐ ┌──────────────────┐
-│  playlists   │ │  playlist_songs  │ │    favorites     │
-├──────────────┤ ├──────────────────┤ ├──────────────────┤
-│ id (PK)      │ │ id (PK)          │ │ id (PK)          │
-│ name         │ │ playlist_id (FK) │ │ user_id (FK)     │
-│ description  │ │ song_id (FK)     │ │ song_id (FK)     │
-│ user_id (FK) │ │ position         │ │ added_at         │
-│ created_at   │ │ added_at         │ └──────────────────┘
-│ updated_at   │ └──────────────────┘
-└──────────────┘
+        │          ┌─────────────┼──────────────┬──────────────────┐
+        │          │             │              │                  │
+        ▼          ▼             ▼              ▼                  ▼
+┌──────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│  playlists   │ │  playlist_songs  │ │    favorites     │ │      tasks       │
+├──────────────┤ ├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+│ id (PK)      │ │ id (PK)          │ │ id (PK)          │ │ id (PK, UUID)    │
+│ name         │ │ playlist_id (FK) │ │ user_id (FK)     │ │ type (fft|yt)    │
+│ description  │ │ song_id (FK)     │ │ song_id (FK)     │ │ status           │
+│ user_id (FK) │ │ position         │ │ added_at         │ │ progress (0-100) │
+│ created_at   │ │ added_at         │ └──────────────────┘ │ song_id (FK)     │
+│ updated_at   │ └──────────────────┘                      │ result (JSON)    │
+└──────────────┘                                           │ error (TEXT)     │
+                                                            │ created_at       │
+                                                            │ updated_at       │
+                                                            └──────────────────┘
 ```
 
 ### Relaciones
@@ -127,6 +150,7 @@ MelodyBox/
 | User → Playlists | 1:N | — |
 | User → Favorites | 1:N | — |
 | Song → Favorites | 1:N | — |
+| Song → Tasks | 1:N | — |
 | Playlist → Songs | N:M | `playlist_songs` |
 
 ### Notas de diseño
@@ -134,6 +158,8 @@ MelodyBox/
 - **UUID como claves primarias** — Evita colisiones y no expone IDs secuenciales
 - **`file_path` UNIQUE** — Previene subir el mismo archivo dos veces
 - **`media_type`** — Diferencia audio de video para el streaming correcto
+- **`fft_data`** — Almacena el JSON del análisis espectral (cache en disco)
+- **`tasks`** — Registro de tareas asíncronas (FFT, YouTube download) con polling de estado
 
 ---
 
@@ -147,11 +173,22 @@ Cliente → POST /songs/upload (multipart/form-data)
     ├─ 1. Validar token JWT
     ├─ 2. Validar extensión del archivo
     ├─ 3. Determinar media_type (audio/video)
-    ├─ 4. Guardar archivo en music_storage/
+    ├─ 4. Guardar archivo en data/music/ (streaming a disco)
     ├─ 5. Detectar duración (librosa para audio, ffprobe para video)
     ├─ 6. Crear registro en BD (ruta absoluta)
-    └─ 7. Retornar SongResponse
+    ├─ 7. Crear Task con type="fft", status="pending"
+    ├─ 8. Encolar job en Redis (ARQ): compute_fft(song_id)
+    │      │
+    │      ├─ Worker recibe → procesa FFT (librosa)
+    │      ├─ Guarda resultado en song.fft_data
+    │      ├─ Cachea en Redis (cache_get_fft / cache_set_fft)
+    │      └─ Marca Task como "done"
+    └─ 9. Retornar SongResponse + fft_task_id
 ```
+
+También disponible `POST /songs/upload-multiple` para subir N archivos en una sola request.
+
+### Streaming
 
 ### Streaming
 
@@ -214,7 +251,7 @@ class SongService:
         db.add(db_song)
         db.commit()
         db.refresh(db_song)
-        return db_song
+        return db_song, False  # False = FFT async (ya no se hace en el service)
 
     @staticmethod
     def get_song(db, song_id):
@@ -225,9 +262,13 @@ class SongService:
 # backend/app/routes/songs.py
 @router.post("/upload")
 async def upload_song(...):
-    # El endpoint solo valida y delega
-    song = SongService.create_song(db, title, artist, file_path, duration, album, media_type)
-    return {"id": song.id, "title": song.title, ...}
+    song, _ = SongService.create_song(db, title, artist, file_path, duration, album, media_type)
+    # Encolar FFT en worker async
+    task = Task(id=str(uuid.uuid4()), type="fft", status="pending", song_id=song.id)
+    db.add(task)
+    db.commit()
+    job_id = await enqueue_job("compute_fft", song.id, _job_id=task.id)
+    return {"id": song.id, "title": song.title, "fft_task_id": task.id, ...}
 ```
 
 **Ventaja:** La lógica de negocio es reutilizable y testeable independientemente de FastAPI.
@@ -442,8 +483,8 @@ audio.addEventListener('timeupdate', () => playerStore.updateProgress())
 | Paquete | Versión | Propósito |
 |---|---|---|
 | `fastapi` | 0.104.1 | Framework web |
-| `uvicorn` | 0.24.0 | Servidor ASGI |
-| `sqlalchemy` | 2.0.48 | ORM |
+| `uvicorn` | 0.24.0 | Servidor ASGI (4 workers en Docker) |
+| `sqlalchemy` | 2.0.48 | ORM (pool_size=20, max_overflow=10) |
 | `psycopg2-binary` | 2.9.9 | Driver PostgreSQL |
 | `pydantic` | 2.5.0 | Validación de datos |
 | `pydantic-settings` | 2.1.0 | Configuración desde .env |
@@ -451,14 +492,20 @@ audio.addEventListener('timeupdate', () => playerStore.updateProgress())
 | `bcrypt` | 5.0.0 | Hash de contraseñas |
 | `email-validator` | 2.3.0 | Validación de emails |
 | `python-multipart` | 0.0.6 | Parseo de formularios |
+| `redis` | >=5.0.0 | Conexión a Redis (cache + colas) |
+| `arq` | >=0.26.0 | Worker de tareas asíncronas |
+| `yt-dlp` | — | Descarga de YouTube |
+| `librosa` | — | Análisis FFT y duración de audio |
+| `scipy` | — | Procesamiento de señales para FFT |
 
 ### Externas
 
 | Herramienta | Propósito |
 |---|---|
-| `librosa` | Detección de duración de audio (opcional) |
+| `Redis` | Cache FFT + cola de tareas ARQ |
 | `ffprobe` (ffmpeg) | Detección de duración de video (opcional) |
-| `PostgreSQL` | Base de datos principal |
+| `PostgreSQL` | Base de datos principal (con SQLite fallback) |
+| `Nginx` | Proxy inverso, servidor de assets estáticos |
 
 ---
 
@@ -498,7 +545,7 @@ Las rutas relativas (`./music_storage/...`) fallan si el servidor se inicia desd
 
 1. **Las canciones no tienen dueño** — Cualquier usuario autenticado puede eliminar cualquier canción
 2. **Sin paginación en favoritos/playlists** — Se retornan todos los registros
-3. **Sin interfaz para favoritos** — Solo accesible vía API
-4. **Sin rate limiting** — Los endpoints de auth son vulnerables a fuerza bruta
-5. **SECRET_KEY por defecto** — Debe cambiarse en producción
-6. **Sin migraciones de BD** — Se usa `create_all()` que no maneja cambios de schema
+3. **Sin rate limiting** — Los endpoints de auth son vulnerables a fuerza bruta
+4. **SECRET_KEY por defecto** — Debe cambiarse en producción
+5. **Sin migraciones de BD** — Se usa `create_all()` que no maneja cambios de schema
+6. **FFT requiere Redis** — Sin Redis, el análisis cae a fallback síncrono en el mismo request

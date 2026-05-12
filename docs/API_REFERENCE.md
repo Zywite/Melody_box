@@ -365,7 +365,9 @@ fetch('/songs/upload', {
   "album": "Mi Álbum",
   "duration": 245.5,
   "media_type": "audio",
-  "message": "Archivo subido exitosamente"
+  "fft_ready": false,
+  "fft_task_id": "task-uuid-abc",
+  "message": "Archivo subido exitosamente (FFT en cola, tarea: task-uuid-abc)"
 }
 ```
 
@@ -376,8 +378,126 @@ fetch('/songs/upload', {
 | 401 | Token requerido o inválido |
 | 400 | Formato de archivo no permitido |
 | 400 | Nombre de archivo requerido |
-| 409 | Ya existe un archivo con esa ruta |
 | 500 | Error al procesar el archivo |
+
+---
+
+### Subir múltiples archivos
+
+Sube varios archivos de audio/video en una sola petición, cada uno con su propia metadata.
+
+```
+POST /songs/upload-multiple
+Content-Type: multipart/form-data
+Authorization: Bearer {token}
+```
+
+**Form fields:**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|----------|-------------|
+| `files` | binary[] | Sí | Uno o más archivos de audio/video |
+| `metadata` | string | Sí | JSON string: array de objetos con `title`, `artist`, `album` (opcional) por archivo |
+
+**Ejemplo con curl:**
+
+```bash
+curl -X POST http://localhost:8001/songs/upload-multiple \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -F "files=@cancion1.mp3" \
+  -F "files=@cancion2.mp3" \
+  -F 'metadata=[{"title":"Canción 1","artist":"Artista 1"},{"title":"Canción 2","artist":"Artista 2"}]'
+```
+
+**Respuesta (200):**
+```json
+{
+  "results": [
+    {
+      "id": "song-uuid-1",
+      "title": "Canción 1",
+      "artist": "Artista 1",
+      "media_type": "audio",
+      "fft_task_id": "task-uuid-1"
+    },
+    {
+      "id": "song-uuid-2",
+      "title": "Canción 2",
+      "artist": "Artista 2",
+      "media_type": "audio",
+      "fft_task_id": "task-uuid-2"
+    }
+  ],
+  "total": 2,
+  "success_count": 2,
+  "error_count": 0,
+  "errors": []
+}
+```
+
+**Errores:** Cada archivo se procesa independientemente. Los errores individuales aparecen en el array `errors` sin afectar al resto.
+
+---
+
+### Obtener análisis FFT
+
+Obtiene el análisis espectral de una canción. Si no existe, lo encola automáticamente.
+
+```
+GET /songs/{song_id}/fft
+Authorization: Bearer {token}
+```
+
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `song_id` | string | UUID de la canción |
+
+**Respuesta (200) — cuando el FFT está listo:**
+```json
+{
+  "frequencies": [20, 50, 100, 200, ...],
+  "magnitudes": [0.12, 0.45, 0.78, ...],
+  "spectrogram": [[...], [...]],
+  "bass_power": 0.65,
+  "mid_power": 0.32,
+  "treble_power": 0.18,
+  "sample_rate": 22050,
+  "nfft": 2048,
+  "hop_length": 512
+}
+```
+
+**Respuesta (202) — cuando el FFT está en cola:**
+```json
+{
+  "task_id": "task-uuid-abc",
+  "status": "pending"
+}
+```
+
+Usa `GET /tasks/{task_id}` para hacer polling hasta que esté listo.
+
+---
+
+### Analizar todas las canciones
+
+Analiza el espectro FFT de todas las canciones que aún no tienen datos.
+
+```
+POST /songs/analyze-all
+Authorization: Bearer {token}
+```
+
+**Respuesta (200):**
+```json
+{
+  "message": "Analyzed 5 songs, 2 failed"
+}
+```
+
+> Este endpoint ejecuta el análisis **sincrónicamente** (no usa el worker). Para canciones individuales, prefiere el endpoint FFT que usa el worker async.
 
 ---
 
@@ -790,7 +910,15 @@ curl -X POST http://localhost:8001/youtube/download \
   -d '{"video_id": "dQw4w9WgXcQ", "format": "mp3", "quality": "320"}'
 ```
 
-**Respuesta (201):**
+**Respuesta (202) — Async (cuando el worker está disponible):**
+```json
+{
+  "task_id": "task-uuid-abc",
+  "status": "pending"
+}
+```
+
+**Respuesta (201) — Síncrono (fallback sin worker):**
 ```json
 {
   "id": "song-uuid-nuevo",
@@ -803,6 +931,8 @@ curl -X POST http://localhost:8001/youtube/download \
 }
 ```
 
+En el modo async, usa `GET /tasks/{task_id}` para hacer polling hasta que el estado sea `"done"`, luego la canción estará disponible en la biblioteca.
+
 **Errores:**
 
 | Código | Descripción |
@@ -811,15 +941,53 @@ curl -X POST http://localhost:8001/youtube/download \
 | 401 | Token requerido o inválido |
 | 500 | Error al descargar desde YouTube |
 
-**Nota:** Este endpoint requiere que `yt-dlp` esté instalado:
+---
 
-```bash
-pip install yt-dlp
+## 6. Tareas (Task polling)
+
+Consulta el estado de una tarea asíncrona (FFT, descarga de YouTube, etc.).
+
+### Obtener estado de una tarea
+
 ```
+GET /tasks/{task_id}
+```
+
+**Parámetros de path:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `task_id` | string | UUID de la tarea |
+
+**Respuesta (200):**
+```json
+{
+  "id": "task-uuid-abc",
+  "type": "fft",
+  "status": "done",
+  "progress": 100,
+  "song_id": "song-uuid-123",
+  "result": {},
+  "error": null,
+  "created_at": "2026-04-21T10:30:00",
+  "updated_at": "2026-04-21T10:30:05"
+}
+```
+
+**Estados posibles:**
+
+| Estado | Significado |
+|--------|-------------|
+| `pending` | Tarea encolada, esperando ejecución |
+| `processing` | Tarea en ejecución |
+| `done` | Tarea completada exitosamente |
+| `failed` | Tarea falló (revisar `error`) |
+
+Puedes hacer polling cada 2-3 segundos hasta que el estado sea `done` o `failed`.
 
 ---
 
-## 6. Códigos de respuesta
+## 7. Códigos de respuesta
 
 | Código | Significado | Descripción |
 |--------|------------|-------------|
@@ -834,7 +1002,7 @@ pip install yt-dlp
 
 ---
 
-## 7. Documentación interactiva
+## 8. Documentación interactiva
 
 Prueba la API directamente desde el navegador:
 
@@ -851,7 +1019,7 @@ Ambas interfaces permiten:
 
 ---
 
-## Resumen de endpoints
+## 9. Resumen de endpoints
 
 | Endpoint | Método | Autenticado | Descripción |
 |----------|--------|------------|-------------|
@@ -863,7 +1031,10 @@ Ambas interfaces permiten:
 | `/songs/search` | GET | Sí | Buscar canciones |
 | `/songs/{id}` | GET | Sí | Obtener canción |
 | `/songs/{id}/stream` | GET | No | Reproducir archivo |
+| `/songs/{id}/fft` | GET | Sí | Análisis FFT |
 | `/songs/upload` | POST | Sí | Subir archivo |
+| `/songs/upload-multiple` | POST | Sí | Subir múltiples archivos |
+| `/songs/analyze-all` | POST | Sí | Analizar FFT de todas |
 | `/songs/{id}` | DELETE | Sí | Eliminar canción |
 | `/playlists` | GET | Sí | Listar playlists |
 | `/playlists` | POST | Sí | Crear playlist |
@@ -876,3 +1047,4 @@ Ambas interfaces permiten:
 | `/favorites/{song_id}` | DELETE | Sí | Quitar favorito |
 | `/youtube/search` | GET | No | Buscar en YouTube |
 | `/youtube/download` | POST | Sí | Descargar desde YouTube |
+| `/tasks/{id}` | GET | No | Estado de tarea async |

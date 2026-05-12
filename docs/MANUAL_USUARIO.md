@@ -66,15 +66,17 @@ Ve a la sección **"Subir"** en el menú lateral.
 ### Método 1: Arrastrar y soltar
 
 1. Arrastra archivos desde tu explorador al área punteada
-2. Se te pedirá un **artista/creador por defecto** para todos los archivos
-3. Se te pedirá un **álbum/colección** (opcional)
-4. Para cada archivo se pedirá el **título** (viene prellenado con el nombre del archivo)
+2. Para cada archivo aparece un campo de **título** (prellenado) y **artista**
+3. Opcional: ingresa un **álbum** que aplica a todos los archivos
+4. Haz click en **"Subir N archivos"**
 
 ### Método 2: Seleccionar archivos
 
-1. Haz click en **"Seleccionar archivos"**
+1. Haz click en el área de upload para abrir el selector
 2. Elige uno o más archivos
 3. Sigue los mismos pasos que arriba
+
+> Todos los archivos se suben en una sola petición. El análisis FFT (espectro de frecuencias) se encola automáticamente en segundo plano.
 
 ### Formatos aceptados
 
@@ -85,7 +87,22 @@ Ve a la sección **"Subir"** en el menú lateral.
 
 ---
 
-## 5. Biblioteca
+## 5. Descargar desde YouTube
+
+Ve a la sección **"Subir"** → pestaña **"YouTube"**.
+
+1. Busca un video por nombre o artista
+2. Selecciona el **formato** de salida (MP3, M4A, WAV, FLAC, MP4, etc.)
+3. Selecciona la **calidad** (320kbps, 256kbps, 128kbps para audio; 1080p, 720p para video)
+4. Opcional: personaliza **título** y **artista**
+5. Haz click en **"Descargar"**
+6. La descarga se procesa en segundo plano; la canción aparece automáticamente en la biblioteca
+
+> Requiere `yt-dlp` instalado. En Docker ya viene incluido.
+
+---
+
+## 6. Biblioteca
 
 Ve a **"Biblioteca"** en el menú lateral.
 
@@ -146,7 +163,22 @@ Al reproducir un archivo, toda la biblioteca se carga como playlist. Puedes avan
 
 ---
 
-## 7. Buscar
+## 7. Visualización FFT (Espectro de frecuencias)
+
+MelodyBox puede analizar el espectro de frecuencias de tus canciones.
+
+1. Reproduce una canción desde la biblioteca
+2. Abre el **FFT Analyzer** desde el menú lateral o haciendo click en "Ver FFT"
+3. Verás dos gráficos:
+   - **Espectro** — Frecuencias en tiempo real (bass, mid, treble)
+   - **Espectrograma** — Evolución del espectro en el tiempo
+4. El análisis se ejecuta en segundo plano; si es la primera vez, espera unos segundos
+
+> El análisis FFT se encola automáticamente al subir archivos y se procesa en un worker asíncrono.
+
+---
+
+## 9. Buscar
 
 Ve a **"Buscar"** en el menú lateral.
 
@@ -157,7 +189,7 @@ Ve a **"Buscar"** en el menú lateral.
 
 ---
 
-## 8. Playlists
+## 10. Playlists
 
 Ve a **"Playlists"** en el menú lateral.
 
@@ -176,15 +208,10 @@ Ve a **"Playlists"** en el menú lateral.
 
 ### Agregar canciones a una playlist
 
-> Actualmente se hace desde la API. En futuras versiones se agregará desde la interfaz.
-
-```bash
-# Ejemplo con curl
-curl -X POST http://localhost:8001/playlists/{playlist_id}/songs \
-  -H "Authorization: Bearer {token}" \
-  -H "Content-Type: application/json" \
-  -d '{"song_id": "{song_id}"}'
-```
+1. Desde la biblioteca, pasa el mouse sobre una canción
+2. Haz click en el botón **"Agregar a playlist"**
+3. Selecciona la playlist deseada del menú
+4. La canción se agrega automáticamente
 
 ### Eliminar una playlist
 
@@ -197,29 +224,20 @@ curl -X DELETE http://localhost:8001/playlists/{playlist_id} \
 
 ---
 
-## 9. Favoritos
+## 11. Favoritos
 
-> Actualmente se gestiona desde la API. En futuras versiones se agregará interfaz.
+### Marcar como favorito
 
-```bash
-# Agregar a favoritos
-curl -X POST http://localhost:8001/favorites \
-  -H "Authorization: Bearer {token}" \
-  -H "Content-Type: application/json" \
-  -d '{"song_id": "{song_id}"}'
+1. En la biblioteca, pasa el mouse sobre una canción
+2. Haz click en el **corazón** (♡) que aparece
+3. El corazón se llena () indicando que es favorito
+4. Vuelve a hacer click para quitarlo de favoritos
 
-# Ver favoritos
-curl http://localhost:8001/favorites \
-  -H "Authorization: Bearer {token}"
-
-# Quitar de favoritos
-curl -X DELETE http://localhost:8001/favorites/{song_id} \
-  -H "Authorization: Bearer {token}"
-```
+También puedes marcar/desmarcar favoritos desde la barra de reproducción mientras la canción está sonando.
 
 ---
 
-## 10. Acceder desde otro dispositivo
+## 12. Acceder desde otro dispositivo
 
 1. Asegúrate de que ambos dispositivos estén en la **misma red WiFi**
 2. En tu laptop, averigua tu IP:
@@ -235,15 +253,17 @@ curl -X DELETE http://localhost:8001/favorites/{song_id} \
 
 ---
 
-## 11. Cerrar sesión
+## 13. Cerrar sesión
 
 Haz click en **"Cerrar sesión"** en la parte inferior del menú lateral.
 
 ---
 
-## Atajos y consejos
+## 14. Atajos y consejos
 
+- **Modo oscuro** — Usa el botón de tema (/) en el menú lateral para alternar
 - **Ctrl+Shift+R** — Hard refresh si la interfaz no se actualiza
-- **Arrastra múltiples archivos** — Se pide el artista una sola vez para todos
+- **Arrastra múltiples archivos** — Cada archivo tiene su propio título y artista
 - **Barra de progreso** — Haz click en cualquier punto para saltar
-- **Volumen** — Click en el icono 🔊 para silenciar/activar
+- **Volumen** — Click en el icono  para silenciar/activar
+- **FFT Analyzer** — Disponible desde el menú lateral para cualquier canción reproducida

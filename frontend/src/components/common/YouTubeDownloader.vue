@@ -180,7 +180,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
@@ -290,6 +290,8 @@ function formatViews(views) {
   return views.toString()
 }
 
+let pollInterval = null
+
 async function downloadVideo() {
   if (!selectedVideo.value) return
 
@@ -300,10 +302,10 @@ async function downloadVideo() {
   downloadComplete.value = false
 
   try {
-    downloadStatus.value = 'Descargando video...'
-    downloadProgress.value = 30
+    downloadStatus.value = 'Enviando solicitud...'
+    downloadProgress.value = 15
 
-    const song = await api.youtubeDownload(
+    const response = await api.youtubeDownload(
       selectedVideo.value.video_id,
       selectedFormat.value,
       selectedQuality.value,
@@ -311,26 +313,85 @@ async function downloadVideo() {
       customArtist.value || null
     )
 
+    // If async, poll the task
+    if (response.task_id) {
+      downloadStatus.value = 'Descarga en cola...'
+      downloadProgress.value = 20
+
+      const song = await pollTask(response.task_id)
+      downloadedSong.value = song
+    } else {
+      // Synchronous fallback (song returned directly)
+      downloadedSong.value = response
+    }
+
     downloadStatus.value = 'Guardando en biblioteca...'
     downloadProgress.value = 90
 
-    downloadedSong.value = song
     downloadComplete.value = true
     downloadProgress.value = 100
     downloadStatus.value = 'Completado!'
 
     await libraryStore.fetchSongs()
 
-    toast.success('Descargado', `"${song.title}" agregado a tu biblioteca`)
+    toast.success('Descargado', `"${downloadedSong.value?.title || ''}" agregado a tu biblioteca`)
 
-    emit('downloaded', song)
+    emit('downloaded', downloadedSong.value)
 
   } catch (e) {
     downloadError.value = e.message || 'Error al descargar el video'
     toast.error('Error', downloadError.value)
   } finally {
     isDownloading.value = false
+    if (pollInterval) {
+      clearInterval(pollInterval)
+      pollInterval = null
+    }
   }
+}
+
+function pollTask(taskId) {
+  return new Promise((resolve, reject) => {
+    const maxAttempts = 120
+    let attempts = 0
+
+    pollInterval = setInterval(async () => {
+      attempts++
+
+      try {
+        const task = await api.get(`/tasks/${taskId}`)
+
+        if (task.status === 'done') {
+          clearInterval(pollInterval)
+          pollInterval = null
+          downloadProgress.value = 80
+          downloadStatus.value = 'Procesado!'
+
+          // Fetch the song data
+          const songId = task.result?.song_id
+          if (songId) {
+            const song = await api.get(`/songs/${songId}`)
+            resolve(song)
+          } else {
+            resolve(null)
+          }
+        } else if (task.status === 'failed') {
+          clearInterval(pollInterval)
+          pollInterval = null
+          reject(new Error(task.error || 'Download failed'))
+        } else {
+          downloadStatus.value = task.status === 'processing' ? 'Descargando...' : 'En cola...'
+          downloadProgress.value = Math.min(70, 20 + attempts * 2)
+        }
+      } catch (err) {
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval)
+          pollInterval = null
+          reject(new Error('Download timeout'))
+        }
+      }
+    }, 2000)
+  })
 }
 
 function playDownloaded() {
@@ -338,6 +399,13 @@ function playDownloaded() {
     playerStore.playSong(downloadedSong.value, libraryStore.songs)
   }
 }
+
+onUnmounted(() => {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+})
 </script>
 
 <style scoped>
