@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Optional, List
 from datetime import datetime
 from pathlib import Path
@@ -19,8 +19,7 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):
     access_token: str
@@ -45,8 +44,7 @@ class SongResponse(BaseModel):
     has_fft: Optional[bool] = False
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
     
     @classmethod
     def from_orm(cls, song):
@@ -75,8 +73,7 @@ class PlaylistSongResponse(BaseModel):
     position: Optional[int]
     added_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PlaylistResponse(BaseModel):
     id: str
@@ -86,8 +83,7 @@ class PlaylistResponse(BaseModel):
     updated_at: Optional[datetime]
     songs: Optional[List[PlaylistSongResponse]] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class FavoriteCreate(BaseModel):
     song_id: str
@@ -99,8 +95,7 @@ class FavoriteResponse(BaseModel):
     added_at: Optional[datetime]
     song: Optional[dict] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class SongAddRequest(BaseModel):
     song_id: str

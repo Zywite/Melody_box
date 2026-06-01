@@ -13,11 +13,8 @@ from slowapi import _rate_limit_exceeded_handler
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.rate_limit import limiter
-
-from app.core.config import settings
-from app.core.database import Base, engine
-from app.models import Favorite, Playlist, PlaylistSong, Song, User
-from app.routes import auth, favorites, playlists, songs, youtube
+from app.models import Favorite, Playlist, PlaylistSong, Song, User  # noqa: F401 - needed for Base.metadata
+from app.routes import auth, favorites, playlists, songs, youtube, tasks
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +81,7 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 
 @app.exception_handler(Exception)
@@ -131,8 +128,6 @@ if PUBLIC_DIR.exists():
     static_path = PUBLIC_DIR / "static"
     if static_path.exists():
         app.mount("/static", StaticFiles(directory=str(static_path)), name="public-static")
-
-from app.routes import auth, songs, playlists, favorites, youtube, tasks
 
 app.include_router(auth.router)
 app.include_router(songs.router)

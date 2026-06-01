@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 from pathlib import Path
 import os
@@ -31,9 +31,7 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8001"
     
-    class Config:
-        env_file = str(BASE_DIR / ".env")
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(env_file=str(BASE_DIR / ".env"), env_file_encoding="utf-8")
     
     def get_allowed_extensions(self) -> tuple:
         """Obtener todas las extensiones permitidas (audio + video)"""

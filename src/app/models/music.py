@@ -31,7 +31,7 @@ class Playlist(Base):
     
     # Relaciones
     user = relationship("User", back_populates="playlists")
-    songs = relationship("PlaylistSong", back_populates="playlist")
+    songs = relationship("PlaylistSong", back_populates="playlist", cascade="all")
 
 class PlaylistSong(Base):
     __tablename__ = "playlist_songs"
