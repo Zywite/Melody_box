@@ -146,6 +146,7 @@ MelodyBox/
 │   └── package.json
 ├── data/
 │   └── music/               # Archivos de audio/video subidos
+├── src/tests/               # Tests (unitarios, integración, e2e)
 ├── docs/                    # Documentación
 ├── scripts/                 # Scripts de utilidad (presentar, run_worker)
 ├── nginx.conf               # Configuración Nginx
@@ -155,6 +156,42 @@ MelodyBox/
 ├── requirements.txt
 └── README.md
 ```
+
+## Tests
+
+El proyecto incluye **133 tests** en 3 categorías:
+
+| Tipo | Carpeta | Tests | Qué cubren |
+|------|---------|-------|------------|
+| **Unitarios** | `src/tests/test_*service*`, `test_security*` | 55 | Hashing, JWT, CRUD de servicios sin IO |
+| **Integración** | `src/tests/test_*api*`, `test_youtube*`, `test_rate_limiting*` | 71 | API vía TestClient (SQLite en memoria, Redis mockeado) |
+| **E2E** | `src/tests/e2e/` | 7 | Archivos `.wav` reales, upload → stream → delete, full user journey |
+
+Cobertura: **48/49 reglas de negocio (~98%)**.
+
+### Ejecutar tests
+
+```bash
+# Todos los tests
+pytest src/tests/ -q
+
+# Solo unitarios
+pytest src/tests/ -q -k "not api and not e2e and not rate"
+
+# Solo integración
+pytest src/tests/ -q -k "api and not e2e and not rate" --ignore=src/tests/e2e
+
+# Solo e2e
+pytest src/tests/e2e/ -q
+
+# Rate limiting (requiere Redis, se salta en CI)
+pytest src/tests/test_rate_limiting.py -q
+
+# Con Docker
+docker compose run --build test
+```
+
+> Los tests se ejecutan automáticamente antes de cada `git push` vía pre-push hook.
 
 ## Documentación adicional
 
