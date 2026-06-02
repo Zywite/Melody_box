@@ -20,6 +20,9 @@ data/music/
 .vscode/
 .idea/
 
+# Frontend
+frontend/node_modules/
+
 # Docs
 docs/
 README.md
