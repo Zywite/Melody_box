@@ -47,20 +47,20 @@ class SongResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     @classmethod
-    def from_orm(cls, song):
-        filename = Path(song.file_path).name if song.file_path else None
+    def from_orm(cls, obj):
+        filename = Path(obj.file_path).name if obj.file_path else None
         file_url = f"/music/{filename}" if filename else None
         return cls(
-            id=song.id,
-            title=song.title,
-            artist=song.artist,
-            album=song.album,
-            duration=song.duration,
-            media_type=song.media_type,
+            id=obj.id,
+            title=obj.title,
+            artist=obj.artist,
+            album=obj.album,
+            duration=obj.duration,
+            media_type=obj.media_type,
             file=file_url,
             file_path=filename,
-            has_fft=bool(song.fft_data),
-            created_at=song.created_at
+            has_fft=bool(obj.fft_data),
+            created_at=obj.created_at
         )
 
 class PlaylistCreate(BaseModel):
