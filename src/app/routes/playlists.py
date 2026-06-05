@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.constants import (
+    ERROR_PLAYLIST_NOT_FOUND,
+    ERROR_SONG_NOT_FOUND,
+    ERROR_PLAYLIST_FORBIDDEN,
+)
 from app.services.playlist_service import PlaylistService
 from app.services.song_service import SongService
 from app.routes.dependencies import get_current_user
@@ -8,6 +13,15 @@ from app.schemas import PlaylistCreate, PlaylistResponse, SongAddRequest
 from app.models import User
 
 router = APIRouter(prefix="/playlists", tags=["playlists"])
+
+
+def _check_ownership(playlist, current_user):
+    """Raise 403 if ``playlist`` is not owned by ``current_user``."""
+    if playlist.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail=ERROR_PLAYLIST_FORBIDDEN
+        )
 
 
 @router.get("", response_model=list[PlaylistResponse])
@@ -45,10 +59,9 @@ def get_playlist(
     """Obtener detalles de una playlist"""
     playlist = PlaylistService.get_playlist(db, playlist_id)
     if not playlist:
-        raise HTTPException(status_code=404, detail="Playlist no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_PLAYLIST_NOT_FOUND)
     
-    if playlist.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta playlist")
+    _check_ownership(playlist, current_user)
     
     return playlist
 
@@ -63,14 +76,13 @@ def add_song_to_playlist(
     """Agregar canción a una playlist"""
     playlist = PlaylistService.get_playlist(db, playlist_id)
     if not playlist:
-        raise HTTPException(status_code=404, detail="Playlist no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_PLAYLIST_NOT_FOUND)
 
-    if playlist.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta playlist")
+    _check_ownership(playlist, current_user)
 
     song = SongService.get_song(db, song_data.song_id)
     if not song:
-        raise HTTPException(status_code=404, detail="Canción no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_SONG_NOT_FOUND)
 
     PlaylistService.add_song_to_playlist(db, playlist_id, song.id)
     return {"message": "Canción agregada a la playlist"}
@@ -86,10 +98,9 @@ def remove_song_from_playlist(
     """Eliminar canción de una playlist"""
     playlist = PlaylistService.get_playlist(db, playlist_id)
     if not playlist:
-        raise HTTPException(status_code=404, detail="Playlist no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_PLAYLIST_NOT_FOUND)
     
-    if playlist.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta playlist")
+    _check_ownership(playlist, current_user)
     
     PlaylistService.remove_song_from_playlist(db, playlist_id, song_id)
     return {"message": "Canción eliminada de la playlist"}
@@ -104,10 +115,9 @@ def delete_playlist(
     """Eliminar una playlist"""
     playlist = PlaylistService.get_playlist(db, playlist_id)
     if not playlist:
-        raise HTTPException(status_code=404, detail="Playlist no encontrada")
+        raise HTTPException(status_code=404, detail=ERROR_PLAYLIST_NOT_FOUND)
     
-    if playlist.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta playlist")
+    _check_ownership(playlist, current_user)
     
     PlaylistService.delete_playlist(db, playlist_id)
     return {"message": "Playlist eliminada"}

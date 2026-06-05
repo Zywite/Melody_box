@@ -32,19 +32,24 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8001"
     
     model_config = SettingsConfigDict(env_file=str(BASE_DIR / ".env"), env_file_encoding="utf-8")
-    
+
+    @staticmethod
+    def _split_and_strip(value: str) -> list[str]:
+        """Split a comma-separated string and strip whitespace from each item."""
+        return [item.strip() for item in value.split(",")]
+
     def get_allowed_extensions(self) -> tuple:
-        """Obtener todas las extensiones permitidas (audio + video)"""
-        audio = tuple(ext.strip() for ext in self.ALLOWED_AUDIO_EXTENSIONS.split(","))
-        video = tuple(ext.strip() for ext in self.ALLOWED_VIDEO_EXTENSIONS.split(","))
+        """Return the full tuple of accepted audio + video file extensions."""
+        audio = tuple(self._split_and_strip(self.ALLOWED_AUDIO_EXTENSIONS))
+        video = tuple(self._split_and_strip(self.ALLOWED_VIDEO_EXTENSIONS))
         return audio + video
 
     def is_video(self, ext: str) -> bool:
-        """Verificar si una extensión es de video"""
-        return ext.lower() in tuple(e.strip() for e in self.ALLOWED_VIDEO_EXTENSIONS.split(","))
-    
+        """Return True if ``ext`` is in the configured video-extension list."""
+        return ext.lower() in self._split_and_strip(self.ALLOWED_VIDEO_EXTENSIONS)
+
     def get_allowed_origins(self) -> list:
-        """Obtener orígenes permitidos como lista"""
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
+        """Return the list of CORS-allowed origins parsed from settings."""
+        return self._split_and_strip(self.ALLOWED_ORIGINS)
 
 settings = Settings()

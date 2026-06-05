@@ -5,8 +5,23 @@ from arq.connections import RedisSettings
 
 from app.core.database import SessionLocal
 from app.core.config import settings
-from app.core.redis_helper import cache_set_fft
+from app.core.constants import (
+    TASK_STATUS_DONE,
+    TASK_STATUS_FAILED,
+    TASK_STATUS_PROCESSING,
+    TASK_PROGRESS_COMPLETE,
+    YOUTUBE_WATCH_URL_TEMPLATE,
+    YOUTUBE_OUTPUT_TEMPLATE_PATTERN,
+    YT_FALLBACK_TITLE,
+    YT_FALLBACK_ARTIST,
+    YT_FALLBACK_VIDEO_TITLE,
+    ERROR_DOWNLOADED_FILE_NOT_FOUND,
+)
 from app.services.fft_service import FFTService
+from app.services.youtube_service import (
+    build_ydl_opts, resolve_downloaded_file, compute_expected_path,
+    EXT_MAP, create_song_from_info,
+)
 from app.models.task import Task
 from app.models.music import Song
 
@@ -16,35 +31,21 @@ async def compute_fft(ctx, song_id: str):
     try:
         task = db.query(Task).filter(Task.id == ctx['job_id']).first()
         if task:
-            task.status = "processing"
+            task.status = TASK_STATUS_PROCESSING
             db.commit()
 
         song = db.query(Song).filter(Song.id == song_id).first()
         if not song:
             if task:
-                task.status = "failed"
+                task.status = TASK_STATUS_FAILED
                 task.error = "Song not found"
                 db.commit()
             return
 
-        result = FFTService.compute_fft_from_file(song.file_path)
-        if result:
-            fft_json = FFTService.to_json(result)
-            song.fft_data = fft_json
-            if task:
-                task.status = "done"
-                task.result = result
-                task.progress = 100
-            db.commit()
-            await cache_set_fft(song_id, fft_json)
-        else:
-            if task:
-                task.status = "failed"
-                task.error = "FFT returned no result"
-                db.commit()
+        await FFTService.process_and_store_fft(db, song, task)
     except Exception as e:
         if task:
-            task.status = "failed"
+            task.status = TASK_STATUS_FAILED
             task.error = str(e)
             db.commit()
     finally:
@@ -53,111 +54,50 @@ async def compute_fft(ctx, song_id: str):
 
 async def download_youtube(ctx, video_id: str, fmt: str, quality: str, title: str = None, artist: str = None):
     import yt_dlp
-    from app.services.song_service import SongService
 
     db = SessionLocal()
     try:
         task = db.query(Task).filter(Task.id == ctx['job_id']).first()
         if task:
-            task.status = "processing"
+            task.status = TASK_STATUS_PROCESSING
             db.commit()
 
         output_dir = Path(settings.MUSIC_STORAGE_PATH)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         file_id = str(uuid.uuid4())
-        ext = fmt if fmt in ['mp4', 'mkv', 'webm'] else fmt
-        output_template = str(output_dir / f"%(title)s_{file_id}.%(ext)s")
+        output_template = str(output_dir / YOUTUBE_OUTPUT_TEMPLATE_PATTERN.format(file_id=file_id))
 
-        YTDLP_FORMAT_MAP = {
-            "m4a": "bestaudio[ext=m4a]/bestaudio/best",
-            "mp3": "bestaudio[ext=mp3]/bestaudio/best",
-            "wav": "bestaudio[ext=wav]/bestaudio/best",
-            "flac": "bestaudio[ext=flac]/bestaudio/best",
-            "ogg": "bestaudio[ext=ogg]/bestaudio/best",
-            "mp4": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-            "mkv": "bestvideo[ext=mkv]+bestaudio[ext=m4a]/best[ext=mkv]/best",
-            "webm": "bestvideo[ext=webm]+bestaudio[ext=webm]/best[ext=webm]/best",
-        }
-
-        QUALITY_MAP = {
-            "320": "320k", "256": "256k", "128": "128k",
-            "1080p": "1080", "720p": "720", "480p": "480",
-        }
-
-        ydl_opts = {
-            'format': YTDLP_FORMAT_MAP[fmt],
-            'outtmpl': output_template,
-            'quiet': True,
-            'no_warnings': True,
-            'postprocessors': [],
-        }
-
-        if fmt in ['m4a', 'mp3', 'wav', 'flac', 'ogg']:
-            q = QUALITY_MAP.get(quality, '320k')
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': fmt if fmt != 'mp3' else 'mp3',
-                'preferredquality': q,
-            }]
-
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        ydl_opts = build_ydl_opts(fmt, quality, output_template)
+        video_url = YOUTUBE_WATCH_URL_TEMPLATE.format(video_id=video_id)
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=True)
-            actual_title = title or info.get('title', 'Unknown')
-            actual_artist = artist or info.get('uploader', 'Unknown')
-            duration = info.get('duration', 0)
+            actual_title = title or info.get('title', YT_FALLBACK_TITLE)
+            actual_artist = artist or info.get('uploader', YT_FALLBACK_ARTIST)
 
-            EXT_MAP = {
-                'm4a': 'm4a', 'mp3': 'mp3', 'wav': 'wav',
-                'flac': 'flac', 'ogg': 'ogg', 'mp4': 'mp4',
-                'mkv': 'mkv', 'webm': 'webm'
-            }
             actual_ext = EXT_MAP[fmt]
-
-            original_title = info.get('title', 'video')
-            safe_title = "".join(c for c in original_title if c.isalnum() or c in ' _-').strip()[:50]
-            expected_file = output_dir / f"{safe_title}_{file_id}.{actual_ext}"
-
-            downloaded_file = None
-            if expected_file.exists():
-                downloaded_file = expected_file
-            else:
-                for f in output_dir.glob(f"*{file_id}*"):
-                    if f.is_file():
-                        downloaded_file = f
-                        break
+            expected_file = compute_expected_path(output_dir, file_id, actual_ext, info.get('title', YT_FALLBACK_VIDEO_TITLE))
+            downloaded_file = resolve_downloaded_file(output_dir, file_id, expected_file)
 
             if not downloaded_file:
                 if task:
-                    task.status = "failed"
-                    task.error = "Downloaded file not found"
+                    task.status = TASK_STATUS_FAILED
+                    task.error = ERROR_DOWNLOADED_FILE_NOT_FOUND
                     db.commit()
                 return
 
-            is_video = fmt in ['mp4', 'mkv', 'webm']
-            media_type = "video" if is_video else "audio"
-
-            song, _ = SongService.create_song(
-                db=db,
-                title=actual_title,
-                artist=actual_artist,
-                file_path=str(downloaded_file),
-                duration=float(duration),
-                album=None,
-                media_type=media_type
-            )
+            song, _ = create_song_from_info(db, info, actual_title, actual_artist, fmt, str(downloaded_file))
 
             if task:
-                task.status = "done"
+                task.status = TASK_STATUS_DONE
                 task.result = {"song_id": song.id}
-                task.progress = 100
+                task.progress = TASK_PROGRESS_COMPLETE
                 db.commit()
 
     except Exception as e:
         if task:
-            task.status = "failed"
+            task.status = TASK_STATUS_FAILED
             task.error = str(e)
             db.commit()
     finally:
