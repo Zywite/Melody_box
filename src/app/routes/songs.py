@@ -200,6 +200,13 @@ async def upload_multiple(
                 db, file, meta["title"], meta["artist"], meta.get("album", "")
             )
             results.append(result)
+        except HTTPException as e:
+            db.rollback()
+            errors.append({
+                "index": i,
+                "filename": file.filename or f"file_{i}",
+                "error": e.detail
+            })
         except Exception as e:
             db.rollback()
             errors.append({
