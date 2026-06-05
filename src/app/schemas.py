@@ -26,12 +26,6 @@ class Token(BaseModel):
     token_type: str
     username: str
 
-class SongCreate(BaseModel):
-    title: str
-    artist: str
-    album: Optional[str] = None
-    duration: float
-
 class SongResponse(BaseModel):
     id: str
     title: str
@@ -48,6 +42,7 @@ class SongResponse(BaseModel):
     
     @classmethod
     def from_orm(cls, obj):
+        """Build a SongResponse from a Song ORM row, exposing a public ``file`` URL."""
         filename = Path(obj.file_path).name if obj.file_path else None
         file_url = f"/music/{filename}" if filename else None
         return cls(
