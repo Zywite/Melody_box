@@ -44,13 +44,13 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useLibraryStore } from '@/stores/library'
+import { usePlaylistsStore } from '@/stores/playlists'
 import { useToast } from '@/composables/useToast'
 import { X } from 'lucide-vue-next'
 
 const emit = defineEmits(['close', 'created'])
 
-const libraryStore = useLibraryStore()
+const playlistsStore = usePlaylistsStore()
 const toast = useToast()
 
 const name = ref('')
@@ -62,7 +62,7 @@ async function create() {
 
   isLoading.value = true
   try {
-    await libraryStore.createPlaylist(name.value, description.value)
+    await playlistsStore.createPlaylist(name.value, description.value)
     toast.success('Playlist creada')
     emit('created')
   } catch (e) {

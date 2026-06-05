@@ -30,7 +30,7 @@
     </div>
 
     <div class="song-meta">
-      <span v-if="song.duration" class="song-duration">{{ formatDuration(song.duration) }}</span>
+      <span v-if="song.duration" class="song-duration">{{ formatTime(song.duration) }}</span>
     </div>
 
     <div class="song-actions">
@@ -67,6 +67,7 @@ import { ref, computed } from 'vue'
 import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
+import { formatTime } from '@/utils/format'
 import api from '@/composables/useApi'
 import { Music2, Video, Play, Heart, ListPlus, MoreHorizontal, Trash2 } from 'lucide-vue-next'
 
@@ -88,13 +89,6 @@ const showMenu = ref(false)
 
 const isCurrentlyPlaying = computed(() => playerStore.currentSong?.id === props.song.id)
 const isPlaying = computed(() => isCurrentlyPlaying.value && playerStore.isPlaying)
-
-function formatDuration(seconds) {
-  if (!seconds) return ''
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
 
 function toggleFavorite() {
   emit('toggle-favorite', props.song)

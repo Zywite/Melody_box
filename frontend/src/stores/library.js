@@ -1,152 +1,44 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import api from '@/composables/useApi'
-import { useAuthStore } from './auth'
+import { computed } from 'vue'
+import { useSongsStore } from './songs'
+import { usePlaylistsStore } from './playlists'
+import { useFavoritesStore } from './favorites'
 
 export const useLibraryStore = defineStore('library', () => {
-  const songs = ref([])
-  const playlists = ref([])
-  const favorites = ref([])
-  const isLoading = ref(false)
-  const error = ref(null)
-  const filterType = ref('all') // all, audio, video
+  const songsStore = useSongsStore()
+  const playlistsStore = usePlaylistsStore()
+  const favoritesStore = useFavoritesStore()
 
-  const authStore = useAuthStore()
-
-  const filteredSongs = computed(() => {
-    if (filterType.value === 'all') return songs.value
-    return songs.value.filter(s => s.media_type === filterType.value)
-  })
-
-  const audioCount = computed(() => songs.value.filter(s => s.media_type !== 'video').length)
-  const videoCount = computed(() => songs.value.filter(s => s.media_type === 'video').length)
-  const playlistCount = computed(() => playlists.value.length)
-
-  async function fetchSongs(page = 1, limit = 50, append = false) {
-    if (!authStore.isAuthenticated) return
-    isLoading.value = true
-    error.value = null
-    try {
-      const newSongs = await api.getSongs(page, limit)
-      if (append) {
-        const existingIds = new Set(songs.value.map(s => s.id))
-        const uniqueNewSongs = newSongs.filter(s => !existingIds.has(s.id))
-        songs.value = [...songs.value, ...uniqueNewSongs]
-      } else {
-        songs.value = newSongs
-      }
-    } catch (e) {
-      error.value = e.message
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  async function fetchPlaylists() {
-    if (!authStore.isAuthenticated) return
-    isLoading.value = true
-    error.value = null
-    try {
-      playlists.value = await api.getPlaylists()
-    } catch (e) {
-      error.value = e.message
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  async function fetchFavorites() {
-    if (!authStore.isAuthenticated) return
-    try {
-      favorites.value = await api.getFavorites()
-    } catch (e) {
-      error.value = e.message
-    }
-  }
-
-  async function addFavorite(songId) {
-    try {
-      await api.addFavorite(songId)
-      await fetchFavorites()
-    } catch (e) {
-      error.value = e.message
-      throw e
-    }
-  }
-
-  async function removeFavorite(songId) {
-    try {
-      await api.removeFavorite(songId)
-      await fetchFavorites()
-    } catch (e) {
-      error.value = e.message
-      throw e
-    }
-  }
-
-  async function deleteSong(id) {
-    try {
-      await api.deleteSong(id)
-      songs.value = songs.value.filter(s => s.id !== id)
-    } catch (e) {
-      error.value = e.message
-      throw e
-    }
-  }
-
-  async function searchSongs(query) {
-    if (query.length < 2) return []
-    try {
-      return await api.searchSongs(query)
-    } catch (e) {
-      error.value = e.message
-      return []
-    }
-  }
-
-  async function createPlaylist(name, description = '') {
-    try {
-      await api.createPlaylist(name, description)
-      await fetchPlaylists()
-    } catch (e) {
-      error.value = e.message
-      throw e
-    }
-  }
-
-  async function getPlaylist(id) {
-    try {
-      return await api.getPlaylist(id)
-    } catch (e) {
-      error.value = e.message
-      throw e
-    }
-  }
-
-  function setFilter(type) {
-    filterType.value = type
-  }
+  const isLoading = computed(
+    () => songsStore.isLoading || playlistsStore.isLoading
+  )
+  const error = computed(
+    () => songsStore.error || playlistsStore.error || favoritesStore.error
+  )
 
   return {
-    songs,
-    playlists,
-    favorites,
+    songs: songsStore.songs,
+    filteredSongs: songsStore.filteredSongs,
+    audioCount: songsStore.audioCount,
+    videoCount: songsStore.videoCount,
+    filterType: songsStore.filterType,
+    fetchSongs: songsStore.fetchSongs,
+    deleteSong: songsStore.deleteSong,
+    searchSongs: songsStore.searchSongs,
+    setFilter: songsStore.setFilter,
+
+    playlists: playlistsStore.playlists,
+    playlistCount: playlistsStore.playlistCount,
+    fetchPlaylists: playlistsStore.fetchPlaylists,
+    createPlaylist: playlistsStore.createPlaylist,
+    getPlaylist: playlistsStore.getPlaylist,
+
+    favorites: favoritesStore.favorites,
+    fetchFavorites: favoritesStore.fetchFavorites,
+    addFavorite: favoritesStore.addFavorite,
+    removeFavorite: favoritesStore.removeFavorite,
+
     isLoading,
     error,
-    filterType,
-    filteredSongs,
-    audioCount,
-    videoCount,
-    playlistCount,
-    fetchSongs,
-    fetchPlaylists,
-    fetchFavorites,
-    addFavorite,
-    removeFavorite,
-    deleteSong,
-    searchSongs,
-    createPlaylist,
-    getPlaylist,
-    setFilter
   }
 })

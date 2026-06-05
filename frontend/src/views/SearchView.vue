@@ -39,17 +39,21 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useLibraryStore } from '@/stores/library'
+import { useSongsStore } from '@/stores/songs'
+import { useFavoritesStore } from '@/stores/favorites'
 import { usePlayerStore } from '@/stores/player'
 import { useToast } from '@/composables/useToast'
+import { useFavorite } from '@/composables/useFavorite'
 import api from '@/composables/useApi'
 import SongCard from '@/components/common/SongCard.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
 import { Search } from 'lucide-vue-next'
 
-const libraryStore = useLibraryStore()
+const songsStore = useSongsStore()
+const favoritesStore = useFavoritesStore()
 const playerStore = usePlayerStore()
 const toast = useToast()
+const { isSongFavorite, toggleFavorite } = useFavorite()
 
 const searchQuery = ref('')
 const results = ref([])
@@ -57,15 +61,15 @@ const isLoading = ref(false)
 
 onMounted(async () => {
   await Promise.all([
-    libraryStore.fetchSongs(),
-    libraryStore.fetchFavorites()
+    songsStore.fetchSongs(),
+    favoritesStore.fetchFavorites()
   ])
-  results.value = libraryStore.songs.slice(0, 20)
+  results.value = songsStore.songs.slice(0, 20)
 })
 
 async function handleSearch() {
   if (!searchQuery.value.trim()) {
-    results.value = libraryStore.songs.slice(0, 20)
+    results.value = songsStore.songs.slice(0, 20)
     return
   }
 
@@ -87,22 +91,6 @@ function showAddToPlaylist(song) {
   // TODO: Implement
 }
 
-function isSongFavorite(songId) {
-  return libraryStore.favorites.some(f => f.song_id === songId)
-}
-
-async function toggleFavorite(song) {
-  try {
-    const isFav = libraryStore.favorites.some(f => f.song_id === song.id)
-    if (isFav) {
-      await libraryStore.removeFavorite(song.id)
-    } else {
-      await libraryStore.addFavorite(song.id)
-    }
-  } catch (e) {
-    console.error('Error toggling favorite:', e)
-  }
-}
 </script>
 
 <style scoped>

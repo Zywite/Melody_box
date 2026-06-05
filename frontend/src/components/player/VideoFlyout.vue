@@ -93,6 +93,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePlayerStore } from '@/stores/player'
+import { formatTime } from '@/utils/format'
 import { X, Headphones, Maximize2, Minimize2, SkipBack, Play, Pause, SkipForward, VolumeX, Volume2, Heart, ListPlus } from 'lucide-vue-next'
 
 const playerStore = usePlayerStore()
@@ -173,13 +174,6 @@ function handleVolume(event) {
 
 function toggleMute() {
   playerStore.toggleMute()
-}
-
-function formatTime(seconds) {
-  if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '0:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 function onTimeUpdate() {

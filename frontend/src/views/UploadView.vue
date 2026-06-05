@@ -93,15 +93,16 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLibraryStore } from '@/stores/library'
-import { usePlayerStore } from '@/stores/player'
 import { useToast } from '@/composables/useToast'
+import { formatSize } from '@/utils/format'
 import api from '@/composables/useApi'
 import YouTubeDownloader from '@/components/common/YouTubeDownloader.vue'
 import { Upload, Music, X, Youtube } from 'lucide-vue-next'
 
+const ALLOWED_EXTENSIONS = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.mp4', '.mkv', '.avi', '.webm', '.mov']
+
 const router = useRouter()
 const libraryStore = useLibraryStore()
-const playerStore = usePlayerStore()
 const toast = useToast()
 
 const activeTab = ref('file')
@@ -120,19 +121,16 @@ function triggerFileInput() {
 }
 
 function handleFileSelect(event) {
-  const files = Array.from(event.target.files)
-  addFiles(files)
+  addFiles(Array.from(event.target.files))
 }
 
 function handleDrop(event) {
-  const files = Array.from(event.dataTransfer.files)
-  addFiles(files)
+  addFiles(Array.from(event.dataTransfer.files))
 }
 
 function addFiles(files) {
-  const validExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.mp4', '.mkv', '.avi', '.webm', '.mov']
   const validFiles = files
-    .filter(f => validExtensions.some(ext => f.name.toLowerCase().endsWith(ext)))
+    .filter(f => ALLOWED_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext)))
     .map(f => ({
       file: f,
       title: f.name.replace(/\.[^/.]+$/, ''),
@@ -148,12 +146,6 @@ function removeFile(index) {
 function clearFiles() {
   selectedFiles.value = []
   uploadData.album = ''
-}
-
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
 async function uploadFiles() {
@@ -211,7 +203,7 @@ async function uploadFiles() {
   }
 }
 
-function onYouTubeDownloaded(song) {
+function onYouTubeDownloaded() {
   router.push('/library')
 }
 </script>

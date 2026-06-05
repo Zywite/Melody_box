@@ -170,17 +170,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLibraryStore } from '@/stores/library'
-import { usePlayerStore } from '@/stores/player'
 import { useToast } from '@/composables/useToast'
+import { usePolling } from '@/composables/usePolling'
+import { formatTime } from '@/utils/format'
+import { readThemeColors, drawSpectrumCanvas, drawSpectrogramCanvas } from '@/utils/fftCanvas'
 import api from '@/composables/useApi'
 import { Music, Activity, ListMusic, CheckCircle, Clock, RefreshCw } from 'lucide-vue-next'
 
 const route = useRoute()
 const libraryStore = useLibraryStore()
 const toast = useToast()
+const { startPolling } = usePolling()
 
 const songs = computed(() => libraryStore.songs || [])
 const selectedSongId = ref('')
@@ -193,66 +196,40 @@ const isAnalyzing = ref(false)
 const isAnalyzingAll = ref(false)
 const analyzeProgress = ref(0)
 const analyzingSongId = ref(null)
-const isAnalyzingFFT = ref(false) // For pending analysis display
-let pollInterval = null
-  
+const isAnalyzingFFT = ref(false)
+
 const analyzedCount = computed(() => songs.value.filter(s => s.has_fft).length)
 const pendingCount = computed(() => songs.value.filter(s => !s.has_fft).length)
 
 let themeColors = {}
 
-function readThemeColors() {
-  const style = getComputedStyle(document.documentElement)
-  themeColors = {
-    bgColor: style.getPropertyValue('--bg-secondary').trim() || '#ffe4ec',
-    textColor: style.getPropertyValue('--text-secondary').trim() || '#7a7a7a',
-    accentColor: style.getPropertyValue('--accent').trim() || '#ff9ebb',
-    accentLight: style.getPropertyValue('--accent-light').trim() || '#ffb7c5',
-    secondaryColor: style.getPropertyValue('--secondary').trim() || '#b19cd9',
-  }
-}
-
-function formatTime(seconds) {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
+function redrawCanvases() {
+  drawSpectrumCanvas(canvas.value, result.value, themeColors)
+  drawSpectrogramCanvas(specCanvas.value, result.value, themeColors)
 }
 
 function selectSong(song) {
   selectedSongId.value = song.id
   selectedSongTitle.value = `${song.title} - ${song.artist}`
   isAnalyzingFFT.value = false
-  
-  if (song.has_fft) {
-    loadFFTData(song.id)
-  } else {
-    result.value = null
-  }
+  result.value = null
+  if (song.has_fft) loadFFTData(song.id)
 }
 
 async function loadFFTData(songId) {
   isLoading.value = true
   result.value = null
-  
   try {
-    console.log(`[FFTView] Loading FFT data for song ${songId}...`)
     const response = await api.get(`/songs/${songId}/fft`)
-    
-    // If response has task_id, the FFT is being computed asynchronously
     if (response.task_id) {
-      console.log(`[FFTView] FFT enqueued as task ${response.task_id}, polling...`)
       isLoading.value = false
       await waitForFFT(songId)
       return
     }
-    
     result.value = response
     await nextTick()
-    drawCanvas()
-    drawSpectrogram()
-    console.log(`[FFTView] FFT data loaded successfully`)
+    redrawCanvases()
   } catch (err) {
-    console.error('[FFTView] Error loading FFT:', err)
     toast.error('Error al cargar FFT', err.message)
   } finally {
     isLoading.value = false
@@ -260,90 +237,63 @@ async function loadFFTData(songId) {
 }
 
 async function waitForFFT(songId, maxAttempts = 60) {
-  console.log(`[FFTView] Waiting for FFT analysis to complete for song ${songId}...`)
   isAnalyzingFFT.value = true
-  
-  // First, call the FFT endpoint to get or create the task
   let taskId = null
   try {
     const fftResponse = await api.get(`/songs/${songId}/fft`)
     if (fftResponse.task_id) {
       taskId = fftResponse.task_id
     } else if (fftResponse.bins) {
-      // Already have data
       isAnalyzingFFT.value = false
       result.value = fftResponse
       const song = songs.value.find(s => s.id === songId)
       if (song) song.has_fft = true
       await nextTick()
-      drawCanvas()
-      drawSpectrogram()
+      redrawCanvases()
       return
     }
   } catch (err) {
-    console.error('[FFTView] Error initiating FFT:', err)
     toast.error('Error al iniciar análisis FFT', err.message)
     isAnalyzingFFT.value = false
     return
   }
-  
+
   if (!taskId) {
     isAnalyzingFFT.value = false
     return
   }
-  
-  // Poll the task endpoint
-  let attempts = 0
-  return new Promise((resolve, reject) => {
-    pollInterval = setInterval(async () => {
-      attempts++
-      
-      try {
-        const task = await api.get(`/tasks/${taskId}`)
-        
-        if (task.status === 'done') {
-          clearInterval(pollInterval)
-          pollInterval = null
-          result.value = task.result
-          selectedSongId.value = songId
-          const song = songs.value.find(s => s.id === songId)
-          if (song) {
-            song.has_fft = true
-            selectedSongTitle.value = `${song.title} - ${song.artist}`
-          }
-          await nextTick()
-          drawCanvas()
-          drawSpectrogram()
-          isAnalyzingFFT.value = false
-          resolve(task.result)
-        } else if (task.status === 'failed') {
-          clearInterval(pollInterval)
-          pollInterval = null
-          isAnalyzingFFT.value = false
-          reject(new Error(task.error || 'FFT analysis failed'))
+
+  try {
+    await startPolling({
+      taskId,
+      fetchTask: (id) => api.get(`/tasks/${id}`),
+      interval: 2000,
+      maxAttempts,
+      onDone: (taskResult) => {
+        result.value = taskResult
+        selectedSongId.value = songId
+        const song = songs.value.find(s => s.id === songId)
+        if (song) {
+          song.has_fft = true
+          selectedSongTitle.value = `${song.title} - ${song.artist}`
         }
-      } catch (err) {
-        if (attempts >= maxAttempts) {
-          clearInterval(pollInterval)
-          pollInterval = null
-          isAnalyzingFFT.value = false
-          reject(new Error('FFT analysis timeout'))
-        }
-      }
-    }, 2000)
-  })
+      },
+    })
+    await nextTick()
+    redrawCanvases()
+  } catch {
+    // handled by composable
+  } finally {
+    isAnalyzingFFT.value = false
+  }
 }
 
 async function analyzeSingleSong(song) {
-  console.log(`[FFT] Analyzing song: ${song.id} - ${song.title}`)
   analyzingSongId.value = song.id
   isAnalyzing.value = true
-  
   try {
     await waitForFFT(song.id)
-    console.log(`[FFT] Analysis complete for ${song.title}`)
   } catch (err) {
-    console.error('[FFT] Error analyzing:', err)
     toast.error('Error al analizar', err.message || err)
   } finally {
     isAnalyzing.value = false
@@ -355,14 +305,11 @@ async function analyzeAllPending() {
   isAnalyzingAll.value = true
   analyzeProgress.value = 0
   const pendingSongs = songs.value.filter(s => !s.has_fft)
-  
   try {
-    const response = await api.post('/songs/analyze-all')
-    // Reload songs to get updated status
+    await api.post('/songs/analyze-all')
     await libraryStore.fetchSongs()
     analyzeProgress.value = pendingSongs.length
   } catch (err) {
-    console.error('Error analyzing all:', err)
     toast.error('Error al analizar todas', err.message)
   } finally {
     isAnalyzingAll.value = false
@@ -374,236 +321,11 @@ function clearResults() {
   selectedSongId.value = ''
 }
 
-function drawCanvas() {
-  if (!result.value || !canvas.value) return
-  
-  const ctx = canvas.value.getContext('2d')
-  const width = canvas.value.width = 800
-  const height = canvas.value.height = 300
-  
-  const { bgColor, textColor, accentColor, accentLight, secondaryColor } = themeColors
-  
-  // Background
-  ctx.fillStyle = bgColor
-  ctx.fillRect(0, 0, width, height)
-  
-  // Calculate nyquist frequency from sample rate
-  const nyquist = result.value.sample_rate / 2
-  const bins = result.value.bins
-  const BAR_COUNT = 64
-  const barWidth = (width - 80) / BAR_COUNT  // Leave space for labels
-  const barMaxHeight = height * 0.75
-  
-  const step = Math.floor(bins.length / BAR_COUNT)
-  
-  // Draw grid lines
-  ctx.strokeStyle = 'rgba(128,128,128,0.2)'
-  ctx.lineWidth = 1
-  for (let i = 0; i <= 10; i++) {
-    const y = (height - 30) * (i / 10)
-    ctx.beginPath()
-    ctx.moveTo(60, y)
-    ctx.lineTo(width - 20, y)
-    ctx.stroke()
-  }
-  
-  // Amplitude labels on left (normalized 0-100%)
-  ctx.fillStyle = textColor
-  ctx.font = '10px Nunito'
-  ctx.textAlign = 'right'
-  const ampLabels = ['100%', '90%', '80%', '70%', '60%', '50%', '40%', '30%', '20%', '10%', '0%']
-  for (let i = 0; i <= 10; i++) {
-    const y = (height - 30) * (i / 10) + 4
-    ctx.fillText(ampLabels[i], 55, y)
-  }
-  
-  // Find peak frequency
-  let maxValue = 0
-  let maxIndex = 0
-  for (let i = 0; i < bins.length; i++) {
-    if (bins[i] > maxValue) {
-      maxValue = bins[i]
-      maxIndex = i
-    }
-  }
-  const peakFreq = (maxIndex / bins.length) * nyquist
-  
-  // Draw bars
-  for (let i = 0; i < BAR_COUNT; i++) {
-    let sum = 0
-    for (let j = 0; j < step && (i * step + j) < bins.length; j++) {
-      sum += bins[i * step + j]
-    }
-    const value = (sum / step) / 255
-    const barHeight = value * barMaxHeight
-    
-    const x = 60 + i * (barWidth + 2)
-    const y = (height - 30) - barHeight
-    
-    // Create gradient
-    const gradient = ctx.createLinearGradient(x, (height - 30), x, y)
-    gradient.addColorStop(0, accentColor)
-    gradient.addColorStop(0.5, accentLight)
-    gradient.addColorStop(1, secondaryColor)
-    
-    ctx.fillStyle = gradient
-    ctx.beginPath()
-    ctx.roundRect(x, y, barWidth, barHeight, 3)
-    ctx.fill()
-  }
-  
-  // Frequency labels at bottom
-  ctx.fillStyle = textColor
-  ctx.font = '10px Nunito'
-  ctx.textAlign = 'center'
-  const freqLabels = [
-    { freq: 20, label: '20' },
-    { freq: 100, label: '100' },
-    { freq: 500, label: '500' },
-    { freq: 1000, label: '1K' },
-    { freq: 5000, label: '5K' },
-    { freq: 10000, label: '10K' },
-    { freq: 20000, label: '20K' }
-  ]
-  
-  for (const label of freqLabels) {
-    const x = 60 + (Math.log10(label.freq / 20) / Math.log10(nyquist / 20)) * (width - 80)
-    if (x >= 60 && x <= width - 20) {
-      ctx.fillText(label.label, x, height - 10)
-    }
-  }
-  
-  // Hz label
-  ctx.fillText('Frecuencia (Hz)', width / 2, height - 2)
-  
-  // Peak indicator
-  ctx.fillStyle = accentColor
-  ctx.font = 'bold 11px Nunito'
-  ctx.textAlign = 'left'
-  ctx.fillText(`🔺 Pico: ${Math.round(peakFreq)} Hz`, width - 120, 20)
-  
-  // Title inside the canvas
-  ctx.fillStyle = textColor
-  ctx.font = 'bold 12px Nunito'
-  ctx.fillText('Espectro de Frecuencias', 70, 15)
-  
-  // Amplitud label
-  ctx.font = '10px Nunito'
-  ctx.save()
-  ctx.translate(12, height / 2)
-  ctx.rotate(-Math.PI / 2)
-  ctx.textAlign = 'center'
-  ctx.fillText('Amplitud', 0, 0)
-  ctx.restore()
-}
-
-function drawSpectrogram() {
-  if (!result.value || !specCanvas.value || !result.value.spectrogram) return
-  
-  const ctx = specCanvas.value.getContext('2d')
-  const width = specCanvas.value.width = 800
-  const height = specCanvas.value.height = 200
-  
-  const { textColor, bgColor } = themeColors
-
-  ctx.fillStyle = bgColor
-  ctx.fillRect(0, 0, width, height)
-  
-  const spectrogram = result.value.spectrogram
-  const numFrames = spectrogram.length
-  const numFreqBins = spectrogram[0].length
-  
-  // Leave space for labels
-  const graphLeft = 50
-  const graphTop = 20
-  const graphWidth = width - 70
-  const graphHeight = height - 40
-  
-  const colsPerFrame = graphWidth / numFrames
-  
-  for (let frame = 0; frame < numFrames; frame++) {
-    const x = graphLeft + frame * colsPerFrame
-    const bins = spectrogram[frame]
-    
-    for (let bin = 0; bin < numFreqBins; bin++) {
-      const value = bins[bin] / 255
-      const y = graphTop + (bin / numFreqBins) * graphHeight
-      
-      const binHeight = Math.max(1, graphHeight / numFreqBins)
-      
-      ctx.fillStyle = getColor(value)
-      ctx.fillRect(x, graphHeight + graphTop - y - binHeight, Math.ceil(colsPerFrame), binHeight)
-    }
-  }
-  
-  // Frequency axis (left side)
-  ctx.fillStyle = textColor
-  ctx.font = '9px Nunito'
-  ctx.textAlign = 'right'
-  const nyquist = result.value.sample_rate / 2
-  const freqLabels = [20, 100, 1000, 10000]
-  for (const freq of freqLabels) {
-    const y = graphTop + graphHeight - (Math.log10(freq / 20) / Math.log10(nyquist / 20)) * graphHeight
-    if (y >= graphTop && y <= graphTop + graphHeight) {
-      const label = freq >= 1000 ? `${freq/1000}K` : freq.toString()
-      ctx.fillText(label, graphLeft - 5, y + 4)
-    }
-  }
-  
-  // Time axis (bottom)
-  ctx.textAlign = 'center'
-  const timeLabels = ['Inicio', '50%', 'Fin']
-  ctx.fillText('Tiempo →', width / 2 + 20, height - 5)
-  
-  // Frequency label (rotated)
-  ctx.save()
-  ctx.translate(10, height / 2)
-  ctx.rotate(-Math.PI / 2)
-  ctx.textAlign = 'center'
-  ctx.fillText('Frecuencia', 0, 0)
-  ctx.restore()
-  
-  // Title
-  ctx.fillStyle = textColor
-  ctx.font = 'bold 12px Nunito'
-  ctx.textAlign = 'left'
-  ctx.fillText('Espectrograma (frecuencia vs tiempo)', graphLeft, 12)
-  
-  // Legend
-  ctx.font = '9px Nunito'
-  ctx.textAlign = 'left'
-  ctx.fillText('🔵 Bajo', width - 80, 15)
-  ctx.fillText('🟢 Medio', width - 80, 28)
-  ctx.fillText('🔴 Alto', width - 80, 41)
-}
-
-function getColor(value) {
-  if (value < 0.25) {
-    const t = value / 0.25
-    return `rgb(0, ${Math.round(t * 255)}, ${Math.round(255 - t * 100)})`
-  } else if (value < 0.5) {
-    const t = (value - 0.25) / 0.25
-    return `rgb(0, ${Math.round(255 - t * 100)}, ${Math.round(155 + t * 100)})`
-  } else if (value < 0.75) {
-    const t = (value - 0.5) / 0.25
-    return `rgb(${Math.round(t * 255)}, ${Math.round(155 + t * 100)}, 0)`
-  } else {
-    const t = (value - 0.75) / 0.25
-    return `rgb(255, ${Math.round(255 - t * 200)}, 0)`
-  }
-}
-
-function getSpectrogramColor(value) {
-  return getColor(value)
-}
-
 onMounted(async () => {
-  readThemeColors()
+  themeColors = readThemeColors()
   if (!libraryStore.songs || libraryStore.songs.length === 0) {
     await libraryStore.fetchSongs()
   }
-  
-  // Check if songId is provided in route query
   const songId = route.query.songId
   if (songId) {
     selectedSongId.value = songId
@@ -613,7 +335,6 @@ onMounted(async () => {
       if (song.has_fft) {
         await loadFFTData(songId)
       } else {
-        // Wait for FFT analysis to complete (poll backend)
         isAnalyzingFFT.value = true
         waitForFFT(songId).catch(err => {
           console.error('[FFTView] Failed to wait for FFT:', err)
@@ -621,14 +342,6 @@ onMounted(async () => {
         })
       }
     }
-  }
-})
-
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-    console.log('[FFTView] Cleaned up poll interval')
   }
 })
 </script>

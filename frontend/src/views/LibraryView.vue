@@ -89,9 +89,9 @@
         </button>
       </div>
       
-      <div v-if="libraryStore.playlists.length" class="playlist-list">
+      <div v-if="playlistsStore.playlists.length" class="playlist-list">
         <div
-          v-for="playlist in libraryStore.playlists"
+          v-for="playlist in playlistsStore.playlists"
           :key="playlist.id"
           class="playlist-item"
           @click="goToPlaylist(playlist.id)"
@@ -146,19 +146,24 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useLibraryStore } from '@/stores/library'
+import { useSongsStore } from '@/stores/songs'
+import { usePlaylistsStore } from '@/stores/playlists'
+import { useFavoritesStore } from '@/stores/favorites'
 import { usePlayerStore } from '@/stores/player'
 import { useToast } from '@/composables/useToast'
-import api from '@/composables/useApi'
+import { useFavorite } from '@/composables/useFavorite'
 import SongCard from '@/components/common/SongCard.vue'
 import PlaylistCard from '@/components/common/PlaylistCard.vue'
 import CreatePlaylistModal from '@/components/common/CreatePlaylistModal.vue'
 import { Music, ListMusic, Heart, Plus, MoreHorizontal, Video } from 'lucide-vue-next'
 
 const router = useRouter()
-const libraryStore = useLibraryStore()
+const songsStore = useSongsStore()
+const playlistsStore = usePlaylistsStore()
+const favoritesStore = useFavoritesStore()
 const playerStore = usePlayerStore()
 const toast = useToast()
+const { isSongFavorite, toggleFavorite: toggleFav } = useFavorite()
 
 const activeTab = ref('songs')
 const showCreatePlaylist = ref(false)
@@ -169,9 +174,9 @@ const pageSize = ref(50)
 
 const filteredSongs = computed(() => {
   if (songFilter.value === 'all') {
-    return libraryStore.songs
+    return songsStore.songs
   }
-  return libraryStore.songs.filter(song => song.media_type === songFilter.value)
+  return songsStore.songs.filter(song => song.media_type === songFilter.value)
 })
 
 const hasMoreSongs = computed(() => {
@@ -182,7 +187,7 @@ async function loadMore() {
   isLoading.value = true
   currentPage.value++
   try {
-    await libraryStore.fetchSongs(currentPage.value, pageSize.value, true)
+    await songsStore.fetchSongs(currentPage.value, pageSize.value, true)
   } catch (e) {
     toast.error('Error', 'No se pudieron cargar más canciones')
     currentPage.value--
@@ -192,7 +197,7 @@ async function loadMore() {
 }
 
 const favorites = computed(() => {
-  return libraryStore.favorites
+  return favoritesStore.favorites
     .filter(f => f.song)
     .map(f => ({
       ...f.song,
@@ -200,20 +205,16 @@ const favorites = computed(() => {
     }))
 })
 
-function isSongFavorite(songId) {
-  return libraryStore.favorites.some(f => f.song_id === songId)
-}
-
 onMounted(async () => {
   await Promise.all([
-    libraryStore.fetchSongs(),
-    libraryStore.fetchPlaylists(),
-    libraryStore.fetchFavorites()
+    songsStore.fetchSongs(),
+    playlistsStore.fetchPlaylists(),
+    favoritesStore.fetchFavorites()
   ])
 })
 
 function playSong(song) {
-  playerStore.playSong(song, libraryStore.songs)
+  playerStore.playSong(song, songsStore.songs)
 }
 
 function goToPlaylist(id) {
@@ -221,20 +222,10 @@ function goToPlaylist(id) {
 }
 
 async function toggleFavorite(song) {
-  try {
-    // El song puede venir de la lista de canciones o de favoritos
-    // Verificamos si está en la lista de favoritos
-    const isFav = libraryStore.favorites.some(f => f.song_id === song.id)
-    if (isFav) {
-      await libraryStore.removeFavorite(song.id)
-      toast.success('Eliminado de favoritos')
-    } else {
-      await libraryStore.addFavorite(song.id)
-      toast.success('Agregado a favoritos')
-    }
-  } catch (e) {
-    toast.error('Error', e.message)
-  }
+  await toggleFav(song, {
+    onSuccess: (msg) => toast.success(msg),
+    onError: (msg) => toast.error('Error', msg),
+  })
 }
 
 function showAddToPlaylist(song) {
@@ -243,7 +234,7 @@ function showAddToPlaylist(song) {
 
 async function onPlaylistCreated() {
   showCreatePlaylist.value = false
-  await libraryStore.fetchPlaylists()
+  await playlistsStore.fetchPlaylists()
 }
 </script>
 

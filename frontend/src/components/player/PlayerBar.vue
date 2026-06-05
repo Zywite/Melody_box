@@ -116,6 +116,7 @@ import { computed } from 'vue'
 import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
+import { formatTime } from '@/utils/format'
 import api from '@/composables/useApi'
 import { SkipBack, Play, Pause, SkipForward, Heart, ListMusic, VolumeX, Volume2, Volume1, Music2, Shuffle, Repeat, Repeat1, Activity } from 'lucide-vue-next'
 
@@ -144,13 +145,6 @@ const repeatTitle = computed(() => {
   }
   return modes[playerStore.repeat] || 'Repetir'
 })
-
-function formatTime(seconds) {
-  if (!seconds || isNaN(seconds) || !isFinite(seconds) || seconds < 0) return '0:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
 
 function handleSeek(event) {
   const rect = event.currentTarget.getBoundingClientRect()

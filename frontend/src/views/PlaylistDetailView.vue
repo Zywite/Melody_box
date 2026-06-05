@@ -57,18 +57,20 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useLibraryStore } from '@/stores/library'
+import { useFavoritesStore } from '@/stores/favorites'
 import { usePlayerStore } from '@/stores/player'
 import { useToast } from '@/composables/useToast'
+import { useFavorite } from '@/composables/useFavorite'
 import api from '@/composables/useApi'
 import SongCard from '@/components/common/SongCard.vue'
 import { ListMusic, Play, Shuffle, Trash2, Music } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
-const libraryStore = useLibraryStore()
+const favoritesStore = useFavoritesStore()
 const playerStore = usePlayerStore()
 const toast = useToast()
+const { isSongFavorite, toggleFavorite } = useFavorite()
 
 const playlist = ref(null)
 const allSongs = ref([])
@@ -76,7 +78,7 @@ const allSongs = ref([])
 onMounted(async () => {
   const playlistId = route.params.id
   try {
-    await libraryStore.fetchFavorites()
+    await favoritesStore.fetchFavorites()
     playlist.value = await api.getPlaylist(playlistId)
     allSongs.value = await api.getSongs()
   } catch (e) {
@@ -134,20 +136,4 @@ async function deletePlaylist() {
   }
 }
 
-function isSongFavorite(songId) {
-  return libraryStore.favorites.some(f => f.song_id === songId)
-}
-
-async function toggleFavorite(song) {
-  try {
-    const isFav = libraryStore.favorites.some(f => f.song_id === song.id)
-    if (isFav) {
-      await libraryStore.removeFavorite(song.id)
-    } else {
-      await libraryStore.addFavorite(song.id)
-    }
-  } catch (e) {
-    console.error('Error toggling favorite:', e)
-  }
-}
 </script>

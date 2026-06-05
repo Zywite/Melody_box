@@ -61,7 +61,7 @@
         >
           <div class="video-thumbnail">
             <img :src="video.thumbnail" :alt="video.title" />
-            <span class="video-duration">{{ formatDuration(video.duration) }}</span>
+            <span class="video-duration">{{ formatTime(video.duration) }}</span>
             <div class="video-play-overlay">
               <Play :size="24" fill="white" />
             </div>
@@ -180,10 +180,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
+import { usePolling } from '@/composables/usePolling'
+import { formatTime } from '@/utils/format'
 import api from '@/composables/useApi'
 import { Search, X, Play, Youtube, Download, CheckCircle, AlertCircle } from 'lucide-vue-next'
 
@@ -249,6 +251,8 @@ const isAudioFormat = computed(() => {
   return ['m4a', 'mp3', 'wav', 'flac', 'ogg'].includes(selectedFormat.value)
 })
 
+const { startPolling, stopPolling } = usePolling()
+
 async function searchYouTube() {
   if (!searchQuery.value.trim()) return
 
@@ -276,21 +280,12 @@ function selectVideo(video) {
   customArtist.value = ''
 }
 
-function formatDuration(seconds) {
-  if (!seconds) return '0:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
 function formatViews(views) {
   if (!views) return ''
   if (views >= 1000000) return (views / 1000000).toFixed(1) + 'M'
   if (views >= 1000) return (views / 1000).toFixed(1) + 'K'
   return views.toString()
 }
-
-let pollInterval = null
 
 async function downloadVideo() {
   if (!selectedVideo.value) return
@@ -313,15 +308,28 @@ async function downloadVideo() {
       customArtist.value || null
     )
 
-    // If async, poll the task
     if (response.task_id) {
       downloadStatus.value = 'Descarga en cola...'
       downloadProgress.value = 20
 
-      const song = await pollTask(response.task_id)
-      downloadedSong.value = song
+      const taskResult = await startPolling({
+        taskId: response.task_id,
+        fetchTask: (id) => api.get(`/tasks/${id}`),
+        interval: 2000,
+        maxAttempts: 120,
+        onProgress: (status, attempts) => {
+          downloadStatus.value = status === 'processing' ? 'Descargando...' : 'En cola...'
+          downloadProgress.value = Math.min(70, 20 + attempts * 2)
+        },
+        onDone: () => {
+          downloadProgress.value = 80
+          downloadStatus.value = 'Procesado!'
+        },
+      })
+
+      const songId = taskResult?.song_id
+      downloadedSong.value = songId ? await api.get(`/songs/${songId}`) : null
     } else {
-      // Synchronous fallback (song returned directly)
       downloadedSong.value = response
     }
 
@@ -343,55 +351,7 @@ async function downloadVideo() {
     toast.error('Error', downloadError.value)
   } finally {
     isDownloading.value = false
-    if (pollInterval) {
-      clearInterval(pollInterval)
-      pollInterval = null
-    }
   }
-}
-
-function pollTask(taskId) {
-  return new Promise((resolve, reject) => {
-    const maxAttempts = 120
-    let attempts = 0
-
-    pollInterval = setInterval(async () => {
-      attempts++
-
-      try {
-        const task = await api.get(`/tasks/${taskId}`)
-
-        if (task.status === 'done') {
-          clearInterval(pollInterval)
-          pollInterval = null
-          downloadProgress.value = 80
-          downloadStatus.value = 'Procesado!'
-
-          // Fetch the song data
-          const songId = task.result?.song_id
-          if (songId) {
-            const song = await api.get(`/songs/${songId}`)
-            resolve(song)
-          } else {
-            resolve(null)
-          }
-        } else if (task.status === 'failed') {
-          clearInterval(pollInterval)
-          pollInterval = null
-          reject(new Error(task.error || 'Download failed'))
-        } else {
-          downloadStatus.value = task.status === 'processing' ? 'Descargando...' : 'En cola...'
-          downloadProgress.value = Math.min(70, 20 + attempts * 2)
-        }
-      } catch (err) {
-        if (attempts >= maxAttempts) {
-          clearInterval(pollInterval)
-          pollInterval = null
-          reject(new Error('Download timeout'))
-        }
-      }
-    }, 2000)
-  })
 }
 
 function playDownloaded() {
@@ -399,13 +359,6 @@ function playDownloaded() {
     playerStore.playSong(downloadedSong.value, libraryStore.songs)
   }
 }
-
-onUnmounted(() => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-  }
-})
 </script>
 
 <style scoped>

@@ -11,9 +11,9 @@
       </button>
     </div>
 
-    <div v-if="libraryStore.playlists.length" class="playlist-grid mt-6">
+    <div v-if="playlistsStore.playlists.length" class="playlist-grid mt-6">
       <PlaylistCard
-        v-for="playlist in libraryStore.playlists"
+        v-for="playlist in playlistsStore.playlists"
         :key="playlist.id"
         :playlist="playlist"
         @click="goToPlaylist(playlist.id)"
@@ -34,18 +34,18 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useLibraryStore } from '@/stores/library'
+import { usePlaylistsStore } from '@/stores/playlists'
 import PlaylistCard from '@/components/common/PlaylistCard.vue'
 import CreatePlaylistModal from '@/components/common/CreatePlaylistModal.vue'
 import { Plus, ListMusic } from 'lucide-vue-next'
 
 const router = useRouter()
-const libraryStore = useLibraryStore()
+const playlistsStore = usePlaylistsStore()
 
 const showCreateModal = ref(false)
 
 onMounted(async () => {
-  await libraryStore.fetchPlaylists()
+  await playlistsStore.fetchPlaylists()
 })
 
 function goToPlaylist(id) {
@@ -54,6 +54,6 @@ function goToPlaylist(id) {
 
 async function onPlaylistCreated() {
   showCreateModal.value = false
-  await libraryStore.fetchPlaylists()
+  await playlistsStore.fetchPlaylists()
 }
 </script>
