@@ -78,7 +78,7 @@ def _restore_limiter():
 def client():
     _limiter.limit = lambda *args, **kwargs: lambda func: func
     for mod in list(sys.modules):
-        if mod.startswith("app.routes.") or mod in ("app.main",):
+        if mod == "app.routes" or mod.startswith("app.routes.") or mod in ("app.main",):
             del sys.modules[mod]
     from app.main import app
     app.dependency_overrides[get_db] = override_get_db

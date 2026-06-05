@@ -1,3 +1,4 @@
+import math
 import struct
 import wave
 import io
@@ -15,11 +16,10 @@ def _generate_tone_wav(duration_sec: float = 0.3, sample_rate: int = 22050, freq
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         samples = []
-        for i in range(num_samples):
-            t = i / sample_rate
-            val = int(16000 * (1 + freq * 0.5 * t).as_integer_ratio()[0]) if False else 0
-            val = int(16000 * __import__("math").sin(2 * __import__("math").pi * freq * t))
-            samples.append(struct.pack("<h", val))
+        for sample_index in range(num_samples):
+            time_s = sample_index / sample_rate
+            value = int(16000 * math.sin(2 * math.pi * freq * time_s))
+            samples.append(struct.pack("<h", value))
         wf.writeframes(b"".join(samples))
     buf.seek(0)
     return buf
