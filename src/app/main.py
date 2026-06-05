@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 class CachedStaticFiles(StaticFiles):
+    """StaticFiles variant that emits a 1-year immutable Cache-Control header."""
     def file_response(self, *args, **kwargs):
+        """Wrap the parent file response and inject the cache header."""
         response = super().file_response(*args, **kwargs)
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
@@ -28,6 +30,7 @@ class CachedStaticFiles(StaticFiles):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """FastAPI lifespan: create schema, run lightweight migrations, log start/stop."""
     # Retry create_all with a brief delay for PostgreSQL readiness
     for attempt in range(3):
         try:
@@ -86,6 +89,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    """Log unhandled exceptions and return a generic 500 to the client."""
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
@@ -101,6 +105,7 @@ MUSIC_DIR = BASE_DIR / "data" / "music"
 
 @app.get("/")
 async def root():
+    """Serve the built SPA index.html, or a JSON banner if no build exists."""
     index_path = FRONTEND_DIR / "index.html"
     if index_path.exists():
         return FileResponse(index_path)
@@ -113,6 +118,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    """Liveness probe used by docker / orchestrators."""
     return {"status": "healthy"}
 
 
