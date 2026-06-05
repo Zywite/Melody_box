@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.constants import ERROR_TASK_NOT_FOUND
 from app.models.task import Task
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -8,9 +9,10 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.get("/{task_id}")
 def get_task(task_id: str, db: Session = Depends(get_db)):
+    """Return the current status and result of an arq task by id."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail=ERROR_TASK_NOT_FOUND)
 
     return {
         "id": task.id,

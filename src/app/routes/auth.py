@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import create_access_token, decode_token
 from app.core.config import settings
+from app.core.constants import RATE_LIMIT_REGISTER, RATE_LIMIT_LOGIN
 from app.core.rate_limit import limiter
 from app.services.user_service import UserService
 from app.schemas import UserRegister, UserLogin, UserResponse, Token
@@ -11,8 +12,9 @@ from datetime import timedelta
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse)
-@limiter.limit("3/minute")
+@limiter.limit(RATE_LIMIT_REGISTER)
 def register(request: Request, user: UserRegister, db: Session = Depends(get_db)):
+    """Create a new user account. Rate limited to 3 requests per minute."""
     existing_user = UserService.get_user_by_email(db, user.email)
     if existing_user:
         raise HTTPException(
@@ -31,8 +33,9 @@ def register(request: Request, user: UserRegister, db: Session = Depends(get_db)
     return new_user
 
 @router.post("/login", response_model=Token)
-@limiter.limit("5/minute")
+@limiter.limit(RATE_LIMIT_LOGIN)
 def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
+    """Authenticate by email+password and return a JWT. Rate limited to 5/minute."""
     db_user = UserService.verify_user_password(db, user.email, user.password)
     if not db_user:
         raise HTTPException(
