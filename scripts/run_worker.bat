@@ -1,5 +1,6 @@
 @echo off
 cd /d "%~dp0.."
+set PYTHONPATH=%CD%\src
 echo ============================================
 echo   MelodyBox - Worker (ARQ)
 echo ============================================
@@ -11,6 +12,5 @@ if not exist ".venv\" (
 )
 echo Starting ARQ worker...
 echo.
-cd src
-.venv\Scripts\python.exe -m arq worker.WorkerSettings
+"%CD%\.venv\Scripts\python.exe" -m arq worker.WorkerSettings
 pause

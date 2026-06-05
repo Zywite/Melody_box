@@ -3,5 +3,4 @@ filterwarnings = [
     "ignore::DeprecationWarning:fastapi.testclient",
     "ignore::DeprecationWarning:sqlalchemy.sql.schema",
     "ignore::DeprecationWarning:audioread.rawread",
-    "ignore::starlette.exceptions.StarletteDeprecationWarning",
 ]

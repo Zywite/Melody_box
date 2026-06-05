@@ -131,7 +131,7 @@ async def _sync_download_youtube(request: YouTubeDownloadRequest, db: Session, t
     output_dir.mkdir(parents=True, exist_ok=True)
 
     file_id = str(uuid.uuid4())
-    ext = request.format if request.format in ['mp4', 'mkv', 'webm'] else f"({request.format})"
+    ext = request.format if request.format in ['mp4', 'mkv', 'webm'] else request.format
     output_template = str(output_dir / f"%(title)s_{file_id}.%(ext)s")
 
     ydl_opts = {

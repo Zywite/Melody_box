@@ -66,7 +66,7 @@ async def download_youtube(ctx, video_id: str, fmt: str, quality: str, title: st
         output_dir.mkdir(parents=True, exist_ok=True)
 
         file_id = str(uuid.uuid4())
-        ext = fmt if fmt in ['mp4', 'mkv', 'webm'] else f"({fmt})"
+        ext = fmt if fmt in ['mp4', 'mkv', 'webm'] else fmt
         output_template = str(output_dir / f"%(title)s_{file_id}.%(ext)s")
 
         YTDLP_FORMAT_MAP = {
