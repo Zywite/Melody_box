@@ -73,5 +73,4 @@ htmlcov/
 
 # Node (si se usa)
 node_modules/
-package-lock.json
 yarn.lock
