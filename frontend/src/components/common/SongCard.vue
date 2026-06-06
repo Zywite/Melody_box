@@ -11,7 +11,7 @@
     </div>
 
     <div class="song-artwork">
-      <img v-if="song.cover_url" :src="song.cover_url" :alt="song.title" />
+      <img v-if="song.cover_url" :src="song.cover_url" :alt="song.title" loading="lazy" />
       <div v-else class="artwork-placeholder">
         <Video v-if="song.media_type === 'video'" :size="24" />
         <Music2 v-else :size="24" />

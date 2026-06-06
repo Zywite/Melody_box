@@ -51,36 +51,42 @@
     <!-- Song List with FFT Status -->
     <section class="song-list-section">
       <h2 class="section-title">Canciones</h2>
-      
-      <div class="song-list">
-        <div 
-          v-for="song in songs" 
-          :key="song.id"
-          @click="selectSong(song)"
-          class="song-item"
-          :class="{ active: selectedSongId === song.id }"
-        >
-          <div class="song-status">
-            <CheckCircle v-if="song.has_fft" :size="18" class="status-done" />
-            <Clock v-else :size="18" class="status-pending" />
+
+      <VirtualList
+        v-if="songs.length"
+        class="song-list"
+        :items="songs"
+        :item-height="60"
+        :key-field="'id'"
+      >
+        <template #default="{ item: song }">
+          <div
+            @click="selectSong(song)"
+            class="song-item"
+            :class="{ active: selectedSongId === song.id }"
+          >
+            <div class="song-status">
+              <CheckCircle v-if="song.has_fft" :size="18" class="status-done" />
+              <Clock v-else :size="18" class="status-pending" />
+            </div>
+            <div class="song-info">
+              <p class="song-title">{{ song.title }}</p>
+              <p class="song-artist">{{ song.artist }}</p>
+            </div>
+            <div class="song-actions">
+              <button
+                v-if="!song.has_fft"
+                @click.stop="analyzeSingleSong(song)"
+                :disabled="isAnalyzing"
+                class="btn-analyze-single"
+              >
+                {{ analyzingSongId === song.id ? '...' : '🔍' }}
+              </button>
+              <span v-else class="fft-badge">FFT ✓</span>
+            </div>
           </div>
-          <div class="song-info">
-            <p class="song-title">{{ song.title }}</p>
-            <p class="song-artist">{{ song.artist }}</p>
-          </div>
-          <div class="song-actions">
-            <button 
-              v-if="!song.has_fft" 
-              @click.stop="analyzeSingleSong(song)"
-              :disabled="isAnalyzing"
-              class="btn-analyze-single"
-            >
-              {{ analyzingSongId === song.id ? '...' : '🔍' }}
-            </button>
-            <span v-else class="fft-badge">FFT ✓</span>
-          </div>
-        </div>
-      </div>
+        </template>
+      </VirtualList>
     </section>
 
     <!-- FFT Results -->
@@ -179,6 +185,7 @@ import { formatTime } from '@/utils/format'
 import { readThemeColors, drawSpectrumCanvas, drawSpectrogramCanvas } from '@/utils/fftCanvas'
 import api from '@/composables/useApi'
 import { Music, Activity, ListMusic, CheckCircle, Clock, RefreshCw } from 'lucide-vue-next'
+import VirtualList from '@/components/common/VirtualList.vue'
 
 const route = useRoute()
 const libraryStore = useLibraryStore()
@@ -496,21 +503,23 @@ onMounted(async () => {
 }
 
 .song-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  height: 60vh;
+  min-height: 400px;
 }
 
 .song-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 8px 18px;
+  height: 100%;
   background: var(--bg-secondary);
   border: 2px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
   transition: all var(--transition-fast);
+  box-sizing: border-box;
+  margin-bottom: 8px;
 }
 
 .song-item:hover {

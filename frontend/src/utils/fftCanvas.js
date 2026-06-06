@@ -6,6 +6,26 @@ const FALLBACK_THEME = {
   secondaryColor: '#b19cd9',
 }
 
+const MAX_CANVAS_PIXEL_RATIO = 2
+
+function _getDevicePixelRatio() {
+  if (typeof window === 'undefined') return 1
+  return Math.min(MAX_CANVAS_PIXEL_RATIO, window.devicePixelRatio || 1)
+}
+
+function _setupHiDPICanvas(canvas, cssWidth, cssHeight) {
+  const dpr = _getDevicePixelRatio()
+  // Backing-store size grows with DPR so the bitmap stays crisp on
+  // retina displays, while CSS controls the on-screen size.
+  canvas.width = Math.round(cssWidth * dpr)
+  canvas.height = Math.round(cssHeight * dpr)
+  const ctx = canvas.getContext('2d')
+  if (ctx && dpr !== 1) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }
+  return ctx
+}
+
 export function readThemeColors() {
   if (typeof document === 'undefined') return { ...FALLBACK_THEME }
   const style = getComputedStyle(document.documentElement)
@@ -18,21 +38,21 @@ export function readThemeColors() {
   }
 }
 
-function getColor(value) {
+function getColorRGB(value) {
   if (value < 0.25) {
     const t = value / 0.25
-    return `rgb(0, ${Math.round(t * 255)}, ${Math.round(255 - t * 100)})`
+    return [0, Math.round(t * 255), Math.round(255 - t * 100), 255]
   }
   if (value < 0.5) {
     const t = (value - 0.25) / 0.25
-    return `rgb(0, ${Math.round(255 - t * 100)}, ${Math.round(155 + t * 100)})`
+    return [0, Math.round(255 - t * 100), Math.round(155 + t * 100), 255]
   }
   if (value < 0.75) {
     const t = (value - 0.5) / 0.25
-    return `rgb(${Math.round(t * 255)}, ${Math.round(155 + t * 100)}, 0)`
+    return [Math.round(t * 255), Math.round(155 + t * 100), 0, 255]
   }
   const t = (value - 0.75) / 0.25
-  return `rgb(255, ${Math.round(255 - t * 200)}, 0)`
+  return [255, Math.round(255 - t * 200), 0, 255]
 }
 
 const FREQ_LABELS = [
@@ -51,9 +71,11 @@ const BAR_COUNT = 64
 export function drawSpectrumCanvas(canvas, result, themeColors) {
   if (!result || !canvas) return
   const colors = { ...FALLBACK_THEME, ...themeColors }
-  const ctx = canvas.getContext('2d')
-  const width = canvas.width = 800
-  const height = canvas.height = 300
+  const CSS_WIDTH = 800
+  const CSS_HEIGHT = 300
+  const ctx = _setupHiDPICanvas(canvas, CSS_WIDTH, CSS_HEIGHT)
+  const width = CSS_WIDTH
+  const height = CSS_HEIGHT
 
   const { bgColor, textColor, accentColor, accentLight, secondaryColor } = colors
   const nyquist = result.sample_rate / 2
@@ -147,9 +169,11 @@ export function drawSpectrumCanvas(canvas, result, themeColors) {
 export function drawSpectrogramCanvas(canvas, result, themeColors) {
   if (!result || !canvas || !result.spectrogram) return
   const colors = { ...FALLBACK_THEME, ...themeColors }
-  const ctx = canvas.getContext('2d')
-  const width = canvas.width = 800
-  const height = canvas.height = 200
+  const CSS_WIDTH = 800
+  const CSS_HEIGHT = 200
+  const ctx = _setupHiDPICanvas(canvas, CSS_WIDTH, CSS_HEIGHT)
+  const width = CSS_WIDTH
+  const height = CSS_HEIGHT
 
   const { textColor, bgColor } = colors
   const spectrogram = result.spectrogram
@@ -160,22 +184,31 @@ export function drawSpectrogramCanvas(canvas, result, themeColors) {
   const graphTop = 20
   const graphWidth = width - 70
   const graphHeight = height - 40
-  const colsPerFrame = graphWidth / numFrames
 
   ctx.fillStyle = bgColor
   ctx.fillRect(0, 0, width, height)
 
-  for (let frame = 0; frame < numFrames; frame++) {
-    const x = graphLeft + frame * colsPerFrame
+  const imageData = ctx.createImageData(graphWidth, graphHeight)
+  const data = imageData.data
+
+  for (let x = 0; x < graphWidth; x++) {
+    const frame = Math.min(numFrames - 1, Math.floor((x / graphWidth) * numFrames))
     const bins = spectrogram[frame]
-    for (let bin = 0; bin < numFreqBins; bin++) {
+    for (let y = 0; y < graphHeight; y++) {
+      const bin = Math.min(
+        numFreqBins - 1,
+        Math.floor(((graphHeight - 1 - y) / graphHeight) * numFreqBins)
+      )
       const value = bins[bin] / 255
-      const y = graphTop + (bin / numFreqBins) * graphHeight
-      const binHeight = Math.max(1, graphHeight / numFreqBins)
-      ctx.fillStyle = getColor(value)
-      ctx.fillRect(x, graphHeight + graphTop - y - binHeight, Math.ceil(colsPerFrame), binHeight)
+      const [r, g, b, a] = getColorRGB(value)
+      const pixelIndex = (y * graphWidth + x) * 4
+      data[pixelIndex] = r
+      data[pixelIndex + 1] = g
+      data[pixelIndex + 2] = b
+      data[pixelIndex + 3] = a
     }
   }
+  ctx.putImageData(imageData, graphLeft, graphTop)
 
   ctx.fillStyle = textColor
   ctx.font = '9px Nunito'

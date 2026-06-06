@@ -2,14 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-*,
-*::before,
-*::after {
-  transition-property: background-color, border-color, color;
-  transition-duration: 0.3s;
-  transition-timing-function: ease;
-}
-
 :root {
   /* Colores principales - Kawaii anime pastel */
   --bg-primary: #fff5f7;

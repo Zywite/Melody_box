@@ -60,7 +60,7 @@
           @click="selectVideo(video)"
         >
           <div class="video-thumbnail">
-            <img :src="video.thumbnail" :alt="video.title" />
+            <img :src="video.thumbnail" :alt="video.title" loading="lazy" />
             <span class="video-duration">{{ formatTime(video.duration) }}</span>
             <div class="video-play-overlay">
               <Play :size="24" fill="white" />

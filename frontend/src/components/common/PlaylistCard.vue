@@ -1,7 +1,7 @@
 <template>
   <div class="playlist-card" @click="emit('click', playlist)">
     <div class="playlist-cover">
-      <img v-if="playlist.cover_url" :src="playlist.cover_url" alt="" class="cover-img" />
+      <img v-if="playlist.cover_url" :src="playlist.cover_url" alt="" class="cover-img" loading="lazy" />
       <div v-else class="cover-icon">
         <ListMusic :size="40" />
       </div>
