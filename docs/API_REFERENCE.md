@@ -194,15 +194,17 @@ Authorization: Bearer {token}
 Busca canciones por título, artista o álbum.
 
 ```
-GET /songs/search?q=rock
+GET /songs/search?q=rock&skip=0&limit=100
 Authorization: Bearer {token}
 ```
 
 **Query parameters:**
 
-| Parámetro | Tipo | Requerido | Descripción |
-|-----------|------|----------|-------------|
-| `q` | string | Sí | Término de búsqueda |
+| Parámetro | Tipo   | Requerido | Default | Descripción                                     |
+|-----------|--------|-----------|---------|-------------------------------------------------|
+| `q`       | string | Sí        | —       | Término de búsqueda                             |
+| `skip`    | int    | No        | 0       | Número de filas a omitir (`>= 0`)               |
+| `limit`   | int    | No        | 100     | Máximo de filas a devolver (`1..200`)           |
 
 **Respuesta (200):** Array de canciones coincidentes (mismo formato que listar).
 
@@ -483,7 +485,9 @@ Usa `GET /tasks/{task_id}` para hacer polling hasta que esté listo.
 
 ### Analizar todas las canciones
 
-Analiza el espectro FFT de todas las canciones que aún no tienen datos.
+Encola un job de FFT por cada canción que aún no tiene datos. La
+operación es **asíncrona**: el endpoint retorna inmediatamente con
+el conteo de jobs encolados, y cada job corre en el worker ARQ.
 
 ```
 POST /songs/analyze-all
@@ -493,11 +497,26 @@ Authorization: Bearer {token}
 **Respuesta (200):**
 ```json
 {
-  "message": "Analyzed 5 songs, 2 failed"
+  "message": "Analyzed 5 songs, 0 failed",
+  "enqueued": 5,
+  "failed": 0
 }
 ```
 
-> Este endpoint ejecuta el análisis **sincrónicamente** (no usa el worker). Para canciones individuales, prefiere el endpoint FFT que usa el worker async.
+**Campos de la respuesta:**
+
+| Campo      | Tipo | Descripción                                                              |
+|------------|------|--------------------------------------------------------------------------|
+| `message`  | str  | Resumen legible, formateado con `MESSAGE_BULK_ANALYZE_RESULT`            |
+| `enqueued` | int  | Cantidad de canciones para las que se encoló un job ARQ con éxito         |
+| `failed`   | int  | Cantidad de canciones para las que no se pudo encolar (p. ej. Redis caído) |
+
+Para cada canción encolada se crea una fila `Task` (`type=fft`,
+`status=pending`, `song_id=...`) cuyo `id` se usa como `_job_id` de
+arq; el progreso se sigue por polling con `GET /tasks/{task_id}`. El
+endpoint de una sola canción (`GET /songs/{song_id}/fft`) tiene un
+fallback síncrono (corre en `asyncio.to_thread`) para cuando el
+worker no está disponible.
 
 ---
 

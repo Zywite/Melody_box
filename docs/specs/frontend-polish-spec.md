@@ -8,7 +8,13 @@ Items covered by the `frontend-polish` plan. New code is written in
 TypeScript (gradual migration). Existing `.js` files stay as-is until
 touched.
 
+> **Status (post `performance-tuning` round):** Only item 8
+> (TypeScript scaffolding) has shipped. Items 1–7 are still pending
+> and remain in the `active` plan.
+
 ## 1. AddToPlaylistModal.vue
+
+> **Status:** pending.
 
 **Purpose**: One modal used everywhere the "add to playlist" action is
 exposed. Removes the four `// TODO: Implement` stubs.
@@ -31,6 +37,8 @@ exposed. Removes the four `// TODO: Implement` stubs.
 
 ## 2. SearchInput debounce
 
+> **Status:** pending.
+
 **Component**: `frontend/src/components/common/SearchInput.vue`.
 
 - Internal `setTimeout` (300ms) + `clearTimeout` on each keystroke.
@@ -41,6 +49,8 @@ exposed. Removes the four `// TODO: Implement` stubs.
   the same selectors).
 
 ## 3. LibraryView virtual scroll
+
+> **Status:** pending.
 
 **Component**: `frontend/src/views/LibraryView.vue`.
 
@@ -55,6 +65,8 @@ exposed. Removes the four `// TODO: Implement` stubs.
 
 ## 4. PlaylistDetailView Map lookup
 
+> **Status:** pending.
+
 **Component**: `frontend/src/views/PlaylistDetailView.vue`.
 
 - In `onMounted`, build `songMap = new Map(allSongs.map(s => [s.id, s]))`.
@@ -64,6 +76,8 @@ exposed. Removes the four `// TODO: Implement` stubs.
   pass into `playAll` / `shuffleAll`).
 
 ## 5. Vitest setup
+
+> **Status:** pending.
 
 **Files**:
 - `frontend/vitest.config.ts` — jsdom env, alias `@` → `src`.
@@ -80,6 +94,8 @@ Mocks: stub `useApi` and `useAuthStore` with `vi.mock()`.
 
 ## 6. useApi 401 retry cap
 
+> **Status:** pending.
+
 **File**: `frontend/src/composables/useApi.js`.
 
 - The current `_retry` boolean only blocks immediate double-fire. A
@@ -90,6 +106,8 @@ Mocks: stub `useApi` and `useAuthStore` with `vi.mock()`.
 
 ## 7. SearchView loading state
 
+> **Status:** pending.
+
 **File**: `frontend/src/views/SearchView.vue`.
 
 - Local `isSearching` ref toggled around `api.searchSongs(q)`.
@@ -98,6 +116,9 @@ Mocks: stub `useApi` and `useAuthStore` with `vi.mock()`.
 - Cleared in `finally`.
 
 ## 8. TypeScript scaffolding
+
+> **Status:** done (shipped in the `performance-tuning` round, commit
+> `8dbf6cb`).
 
 **Files**:
 - `frontend/tsconfig.json` — strict-ish (`strict: true`,

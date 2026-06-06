@@ -6,9 +6,9 @@ Un reproductor de música y video para red local, construido con FastAPI y Vue 3
 
 - **Autenticación segura** — JWT con registro y login
 - **Audio y Video** — Sube y reproduce MP3, WAV, FLAC, OGG, M4A, MP4, MKV, AVI, WebM, MOV
-- **Streaming** — Reproducción por partes con soporte byte-range
+- **Streaming** — Reproducción por partes con soporte byte-range y compresión gzip/brotli
 - **YouTube** — Busca, filtra y descarga música desde YouTube
-- **Análisis FFT** — Espectro de frecuencias y espectrograma de tus canciones
+- **Análisis FFT** — Espectro de frecuencias y espectrograma de tus canciones (con canvas HiDPI)
 - **Playlists** — Crea y gestiona listas de reproducción
 - **Favoritos** — Marca canciones como favoritas
 - **Modo oscuro** — Alterna entre tema claro y oscuro
@@ -21,7 +21,7 @@ Un reproductor de música y video para red local, construido con FastAPI y Vue 3
 | Capa | Tecnología |
 |---|---|---|
 | Backend | FastAPI, SQLAlchemy, JWT, bcrypt, librosa, ARQ |
-| Frontend | Vue 3 + Vite + Tailwind CSS + Pinia |
+| Frontend | Vue 3 + Vite + Tailwind CSS + Pinia + TypeScript (scaffolding) |
 | Base de datos | PostgreSQL (+ SQLite fallback) |
 | Cache / Colas | Redis |
 | Worker async | ARQ (FFT, YouTube downloads) |
@@ -127,7 +127,7 @@ El servidor arranca en **http://localhost:8001**
 MelodyBox/
 ├── src/                     # Backend
 │   ├── app/
-│   │   ├── core/            # Config, BD, seguridad, Redis helper
+│   │   ├── core/            # Config, BD, seguridad, Redis helper, TTLCache, SelectiveGZip
 │   │   ├── models/          # Modelos SQLAlchemy (incl. Task)
 │   │   ├── routes/          # Endpoints API (incl. tasks, youtube)
 │   │   ├── services/        # Lógica de negocio (FFT, users, songs, playlists)

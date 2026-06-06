@@ -132,7 +132,7 @@ Usa las pestañas superiores:
 
 ---
 
-## 6. Reproducir contenido
+## 7. Reproducir contenido
 
 ### Reproducir una canción
 
@@ -163,7 +163,7 @@ Al reproducir un archivo, toda la biblioteca se carga como playlist. Puedes avan
 
 ---
 
-## 7. Visualización FFT (Espectro de frecuencias)
+## 8. Visualización FFT (Espectro de frecuencias)
 
 MelodyBox puede analizar el espectro de frecuencias de tus canciones.
 

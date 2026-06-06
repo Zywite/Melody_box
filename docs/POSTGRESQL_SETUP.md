@@ -77,8 +77,9 @@ docker run --name spotify-postgres -e POSTGRES_PASSWORD=spotify_password -p 5432
 
 **Próximos pasos**: Una vez configurado, ejecuta el servidor con:
 ```bash
-cd backend
-python -m app.main
+cd src
+.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+# Linux/Mac: ../../.venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 El servidor estará en: http://localhost:8001

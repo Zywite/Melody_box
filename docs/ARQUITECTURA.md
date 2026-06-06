@@ -41,10 +41,14 @@ MelodyBox/
 ├── src/                     # Backend
 │   ├── app/
 │   │   ├── core/
-│   │   │   ├── config.py        # Configuración con pydantic-settings
-│   │   │   ├── database.py      # Motor SQL + sesión (pool_size=20)
-│   │   │   ├── security.py      # JWT + bcrypt
-│   │   │   └── redis_helper.py  # Conexión Redis, colas ARQ, cache FFT
+│   │   │   ├── config.py             # Configuración con pydantic-settings
+│   │   │   ├── database.py           # Motor SQL + sesión (pool_size=20, connect_timeout=3)
+│   │   │   ├── security.py           # JWT + bcrypt
+│   │   │   ├── redis_helper.py       # Conexión Redis, colas ARQ, cache FFT
+│   │   │   ├── selective_gzip.py     # ASGI middleware: gzipea solo content-types comprimibles
+│   │   │   ├── ttl_cache.py          # LRU+TTL thread-safe (cache de user lookup)
+│   │   │   ├── rate_limit.py         # Limitador slowapi
+│   │   │   └── constants.py          # Constantes centralizadas (FFT, cache, DB, etc.)
 │   │   ├── models/
 │   │   │   ├── __init__.py      # Exporta todos los modelos
 │   │   │   ├── user.py          # Modelo User
@@ -64,7 +68,7 @@ MelodyBox/
 │   │   │   ├── playlist_service.py  # Lógica de playlists
 │   │   │   └── fft_service.py       # Cálculos FFT (librosa/numpy)
 │   │   ├── schemas.py           # Schemas Pydantic (DTOs)
-│   │   └── main.py              # FastAPI app, GZip, CachedStaticFiles, routers
+│   │   └── main.py              # FastAPI app, SelectiveGZipMiddleware, CachedStaticFiles, routers
 │   ├── worker.py                # Worker ARQ (compute_fft, download_youtube)
 │   └── .env                     # Configuración (no incluir en git)
 ├── frontend/                   # Frontend Vue 3 + Vite + Tailwind
@@ -187,8 +191,6 @@ Cliente → POST /songs/upload (multipart/form-data)
 ```
 
 También disponible `POST /songs/upload-multiple` para subir N archivos en una sola request.
-
-### Streaming
 
 ### Streaming
 
@@ -544,8 +546,8 @@ Las rutas relativas (`./music_storage/...`) fallan si el servidor se inicia desd
 ## Limitaciones conocidas
 
 1. **Las canciones no tienen dueño** — Cualquier usuario autenticado puede eliminar cualquier canción
-2. **Sin paginación en favoritos/playlists** — Se retornan todos los registros
+2. **Sin paginación en favoritos/playlists** — El endpoint `/songs/search` ya soporta `skip`/`limit`, pero `/favorites` y `/playlists` siguen retornando todos los registros del usuario
 3. **Sin rate limiting** — Los endpoints de auth son vulnerables a fuerza bruta
 4. **SECRET_KEY por defecto** — Debe cambiarse en producción
 5. **Sin migraciones de BD** — Se usa `create_all()` que no maneja cambios de schema
-6. **FFT requiere Redis** — Sin Redis, el análisis cae a fallback síncrono en el mismo request
+6. **FFT batch requiere Redis** — `POST /songs/analyze-all` encola un job ARQ por canción; sin Redis devuelve `failed > 0`. El endpoint individual `GET /songs/{id}/fft` tiene fallback síncrono (corre en `asyncio.to_thread`) que sigue funcionando sin Redis
