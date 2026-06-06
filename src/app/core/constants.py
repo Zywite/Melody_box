@@ -92,6 +92,8 @@ FFT_NORMALIZATION_EPSILON: float = 1e-10
 POWER_PERCENT_MULTIPLIER: int = 100
 BASS_FREQUENCY_CUTOFF_HZ: int = 250
 MID_FREQUENCY_CUTOFF_HZ: int = 2000
+MAX_FFT_INPUT_DURATION_SECONDS: int = 600
+FFT_TARGET_SAMPLE_RATE: int = 22050
 
 # ---------------------------------------------------------------------------
 # YouTube defaults
@@ -110,3 +112,9 @@ DEFAULT_AUDIO_QUALITY_KEY: str = "high"
 DB_RETRY_MAX_ATTEMPTS: int = 3
 DB_RETRY_BACKOFF_SECONDS: int = 2
 GZIP_MINIMUM_SIZE_BYTES: int = 1000
+
+# ---------------------------------------------------------------------------
+# In-process caches
+# ---------------------------------------------------------------------------
+USER_LOOKUP_CACHE_TTL_SECONDS: int = 30
+USER_LOOKUP_CACHE_MAXSIZE: int = 1024
