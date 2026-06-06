@@ -1,4 +1,5 @@
 import os
+import asyncio
 import json
 import logging
 import shutil
@@ -179,10 +180,12 @@ def get_all_songs(
 @router.get("/search", response_model=list[SongResponse])
 def search_songs(
     q: str = Query(..., min_length=MIN_SEARCH_QUERY_LENGTH),
+    skip: int = Query(DEFAULT_SONGS_PAGE_SKIP, ge=0),
+    limit: int = Query(DEFAULT_SONGS_PAGE_SIZE, ge=1, le=200),
     db: Session = Depends(get_db)
 ):
     """Case-insensitive search over title, artist, and album."""
-    songs = SongService.search_songs(db, q)
+    songs = SongService.search_songs(db, q, skip=skip, limit=limit)
     return [SongResponse.from_orm(song) for song in songs]
 
 
@@ -341,7 +344,7 @@ async def get_song_fft(request: Request, song_id: str, db: Session = Depends(get
         task.status = TASK_STATUS_PROCESSING
         db.commit()
         try:
-            fft_result = FFTService.compute_fft_from_file(song.file_path)
+            fft_result = await asyncio.to_thread(FFTService.compute_fft_from_file, song.file_path)
             if fft_result:
                 fft_json = FFTService.to_json(fft_result)
                 song.fft_data = fft_json
@@ -365,23 +368,44 @@ async def get_song_fft(request: Request, song_id: str, db: Session = Depends(get
 
 @router.post("/analyze-all")
 @limiter.limit(RATE_LIMIT_ANALYZE_ALL)
-def analyze_all_songs_fft(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Analyze all songs that don't have FFT data yet."""
+async def analyze_all_songs_fft(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Enqueue an FFT job for every song that still lacks analysis.
+
+    This no longer blocks the request thread. Each song gets its own
+    ``Task`` row (used as the arq ``_job_id``) and is dispatched to the
+    arq worker, so the route returns immediately. Progress is polled via
+    the existing ``/tasks/{id}`` endpoint.
+    """
     songs = SongService.get_all_songs(db, limit=MAX_BULK_ANALYZE_BATCH)
-    analyzed = 0
+    enqueued = 0
     failed = 0
-    
+
     for song in songs:
-        if not song.fft_data:
-            try:
-                fft_result = FFTService.compute_fft_from_file(song.file_path)
-                if fft_result:
-                    song.fft_data = FFTService.to_json(fft_result)
-                    analyzed += 1
-                else:
-                    failed += 1
-            except Exception:
+        if song.fft_data:
+            continue
+        try:
+            task = Task(
+                id=str(uuid.uuid4()),
+                type=TASK_TYPE_FFT,
+                status=TASK_STATUS_PENDING,
+                song_id=song.id,
+            )
+            db.add(task)
+            db.commit()
+            job_id = await enqueue_job(JOB_NAME_COMPUTE_FFT, song.id, _job_id=task.id)
+            if job_id:
+                enqueued += 1
+            else:
+                task.status = TASK_STATUS_FAILED
+                task.error = "Worker not available"
+                db.commit()
                 failed += 1
-    
-    db.commit()
-    return {"message": MESSAGE_BULK_ANALYZE_RESULT.format(analyzed=analyzed, failed=failed)}
+        except Exception as e:
+            logger.error("Failed to enqueue FFT for song %s: %s", song.id, e)
+            failed += 1
+
+    return {
+        "message": MESSAGE_BULK_ANALYZE_RESULT.format(analyzed=enqueued, failed=failed),
+        "enqueued": enqueued,
+        "failed": failed,
+    }

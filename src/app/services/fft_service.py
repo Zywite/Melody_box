@@ -11,11 +11,13 @@ from app.core.constants import (
     DEFAULT_FFT_SIZE,
     DEFAULT_FFT_HOP_SIZE,
     MAX_SPECTROGRAM_FRAMES,
+    MAX_FFT_INPUT_DURATION_SECONDS,
     FFT_NORMALIZATION_RANGE,
     FFT_NORMALIZATION_EPSILON,
     POWER_PERCENT_MULTIPLIER,
     BASS_FREQUENCY_CUTOFF_HZ,
     MID_FREQUENCY_CUTOFF_HZ,
+    FFT_TARGET_SAMPLE_RATE,
     TASK_STATUS_DONE,
     TASK_STATUS_FAILED,
     TASK_PROGRESS_COMPLETE,
@@ -65,8 +67,15 @@ class FFTService:
             else:
                 file_path = str(Path(file_path).resolve())
 
-            # Load audio file
-            y, sr = librosa.load(file_path, sr=None, mono=True)
+            # Load audio file. Downsample and clip duration to keep memory
+            # bounded for very long tracks (raw float32 at 44.1kHz mono is
+            # ~176KB/s; a 10-minute track would be ~100MB).
+            y, sr = librosa.load(
+                file_path,
+                sr=FFT_TARGET_SAMPLE_RATE,
+                mono=True,
+                duration=MAX_FFT_INPUT_DURATION_SECONDS,
+            )
 
             duration = len(y) / sr
 
@@ -160,8 +169,14 @@ class FFTService:
         """
         Compute FFT, store result on song and task, commit, and cache.
         Shared by worker.py and songs.py route fallback.
+
+        The CPU-bound librosa computation runs in a thread to avoid
+        blocking the async event loop.
         """
-        result = FFTService.compute_fft_from_file(song.file_path)
+        import asyncio
+        result = await asyncio.to_thread(
+            FFTService.compute_fft_from_file, song.file_path
+        )
         if result:
             fft_json = FFTService.to_json(result)
             song.fft_data = fft_json

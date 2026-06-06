@@ -2,14 +2,25 @@ from fastapi import Depends, Header, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.constants import ERROR_TOKEN_INVALID
+from app.core.constants import ERROR_TOKEN_INVALID, USER_LOOKUP_CACHE_TTL_SECONDS, USER_LOOKUP_CACHE_MAXSIZE
 from app.core.security import decode_token
+from app.core.ttl_cache import TTLCache
 from app.services.user_service import UserService
 from app.models import User
 
 
+_user_cache: TTLCache[User] = TTLCache(
+    maxsize=USER_LOOKUP_CACHE_MAXSIZE,
+    ttl_seconds=USER_LOOKUP_CACHE_TTL_SECONDS,
+)
+
+
 def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
     """Resolve the authenticated user from a ``Bearer`` token header.
+
+    The resolved user is cached in-process for a short TTL so that
+    repeated requests from the same client don't hit the database on
+    every call.
 
     Raises:
         HTTPException: 401 if the token is missing/invalid or the user no
@@ -27,6 +38,10 @@ def get_current_user(authorization: str = Header(None), db: Session = Depends(ge
     if not user_id:
         raise HTTPException(status_code=401, detail=ERROR_TOKEN_INVALID)
 
+    cached = _user_cache.get(user_id)
+    if cached is not None:
+        return cached
+
     try:
         user = UserService.get_user_by_id(db, user_id)
     except SQLAlchemyError:
@@ -35,6 +50,7 @@ def get_current_user(authorization: str = Header(None), db: Session = Depends(ge
     if not user:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
 
+    _user_cache.set(user_id, user)
     return user
 
 
@@ -56,7 +72,25 @@ def get_optional_user(authorization: str = Header(None), db: Session = Depends(g
     if not user_id:
         return None
 
+    cached = _user_cache.get(user_id)
+    if cached is not None:
+        return cached
+
     try:
-        return UserService.get_user_by_id(db, user_id)
+        user = UserService.get_user_by_id(db, user_id)
     except SQLAlchemyError:
         return None
+
+    if user is not None:
+        _user_cache.set(user_id, user)
+    return user
+
+
+def invalidate_user_cache(user_id: str) -> None:
+    """Drop a single user from the cache (e.g. after role change / deletion)."""
+    _user_cache.invalidate(user_id)
+
+
+def clear_user_cache() -> None:
+    """Drop the entire user cache (e.g. in tests or admin actions)."""
+    _user_cache.clear()

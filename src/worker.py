@@ -1,4 +1,5 @@
 import os
+import asyncio
 import uuid
 from pathlib import Path
 from arq.connections import RedisSettings
@@ -71,29 +72,33 @@ async def download_youtube(ctx, video_id: str, fmt: str, quality: str, title: st
         ydl_opts = build_ydl_opts(fmt, quality, output_template)
         video_url = YOUTUBE_WATCH_URL_TEMPLATE.format(video_id=video_id)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=True)
-            actual_title = title or info.get('title', YT_FALLBACK_TITLE)
-            actual_artist = artist or info.get('uploader', YT_FALLBACK_ARTIST)
+        def _do_download():
+            """Run the blocking yt-dlp extraction in a worker thread."""
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                return ydl.extract_info(video_url, download=True)
 
-            actual_ext = EXT_MAP[fmt]
-            expected_file = compute_expected_path(output_dir, file_id, actual_ext, info.get('title', YT_FALLBACK_VIDEO_TITLE))
-            downloaded_file = resolve_downloaded_file(output_dir, file_id, expected_file)
+        info = await asyncio.to_thread(_do_download)
+        actual_title = title or info.get('title', YT_FALLBACK_TITLE)
+        actual_artist = artist or info.get('uploader', YT_FALLBACK_ARTIST)
 
-            if not downloaded_file:
-                if task:
-                    task.status = TASK_STATUS_FAILED
-                    task.error = ERROR_DOWNLOADED_FILE_NOT_FOUND
-                    db.commit()
-                return
+        actual_ext = EXT_MAP[fmt]
+        expected_file = compute_expected_path(output_dir, file_id, actual_ext, info.get('title', YT_FALLBACK_VIDEO_TITLE))
+        downloaded_file = resolve_downloaded_file(output_dir, file_id, expected_file)
 
-            song, _ = create_song_from_info(db, info, actual_title, actual_artist, fmt, str(downloaded_file))
-
+        if not downloaded_file:
             if task:
-                task.status = TASK_STATUS_DONE
-                task.result = {"song_id": song.id}
-                task.progress = TASK_PROGRESS_COMPLETE
+                task.status = TASK_STATUS_FAILED
+                task.error = ERROR_DOWNLOADED_FILE_NOT_FOUND
                 db.commit()
+            return
+
+        song, _ = create_song_from_info(db, info, actual_title, actual_artist, fmt, str(downloaded_file))
+
+        if task:
+            task.status = TASK_STATUS_DONE
+            task.result = {"song_id": song.id}
+            task.progress = TASK_PROGRESS_COMPLETE
+            db.commit()
 
     except Exception as e:
         if task:

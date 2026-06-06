@@ -69,8 +69,19 @@ class SongService:
         return db.query(Song).offset(skip).limit(limit).all()
 
     @staticmethod
-    def search_songs(db: Session, query: str) -> list[Song]:
+    def search_songs(
+        db: Session,
+        query: str,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> list[Song]:
         """Case-insensitive substring search over title, artist, and album.
+
+        Args:
+            query: Search string. The leading ``%`` wildcard means this
+                always scans the full table; pagination caps the cost.
+            skip: Number of rows to skip.
+            limit: Maximum number of rows to return.
 
         Returns:
             A list of matching Song rows; empty if nothing matches.
@@ -79,7 +90,7 @@ class SongService:
             (Song.title.ilike(f"%{query}%")) |
             (Song.artist.ilike(f"%{query}%")) |
             (Song.album.ilike(f"%{query}%"))
-        ).all()
+        ).offset(skip).limit(limit).all()
 
     @staticmethod
     def delete_song(db: Session, song_id: str) -> Song | None:

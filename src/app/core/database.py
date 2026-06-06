@@ -2,6 +2,9 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from .config import settings, BASE_DIR
 
+DB_CONNECT_TIMEOUT_SECONDS = 3
+
+
 def _create_engine_with_fallback():
     """Create engine, testing connection. Falls back to SQLite on failure."""
     pool_kwargs = {"pool_size": 20, "max_overflow": 10, "pool_pre_ping": True}
@@ -13,7 +16,14 @@ def _create_engine_with_fallback():
             **pool_kwargs
         )
 
-    engine = create_engine(settings.DATABASE_URL, **pool_kwargs)
+    # 3s connect timeout prevents startup from hanging when the DB host
+    # is unreachable. libpq accepts ``connect_timeout`` in the URL.
+    db_url = settings.DATABASE_URL
+    if "connect_timeout" not in db_url:
+        sep = "&" if "?" in db_url else "?"
+        db_url = f"{db_url}{sep}connect_timeout={DB_CONNECT_TIMEOUT_SECONDS}"
+
+    engine = create_engine(db_url, **pool_kwargs)
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
@@ -28,7 +38,15 @@ def _create_engine_with_fallback():
 
 engine = _create_engine_with_fallback()
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    # Keep loaded attributes available after commit so that ORM objects
+    # stored in the in-process user cache (see ``routes/dependencies.py``)
+    # don't trigger ``DetachedInstanceError`` when the session is closed.
+    expire_on_commit=False,
+)
 Base = declarative_base()
 
 def get_db():
