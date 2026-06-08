@@ -24,10 +24,13 @@ from app.core import database
 from app.core.database import Base, get_db
 from app.core.config import BASE_DIR
 from app.core.security import create_access_token
-from app.models import User, Song, Playlist, PlaylistSong, Favorite, Task
+from app.models import User, UserRole, Song, Playlist, PlaylistSong, Favorite, Task
 from app.services.user_service import UserService
 from app.services.song_service import SongService
 from app.services.playlist_service import PlaylistService
+
+TEST_PASSWORD = "TestPass123!"  # nosec
+ADMIN_PASSWORD = "AdminPass123!"  # nosec
 
 _test_engine = create_engine(
     "sqlite://",
@@ -90,12 +93,20 @@ def client():
 
 @pytest.fixture
 def test_user(db):
-    return UserService.create_user(db, username="testuser", email="test@example.com", password="password123")
+    return UserService.create_user(db, username="testuser", email="test@example.com", password=TEST_PASSWORD)
 
 
 @pytest.fixture
 def other_user(db):
-    return UserService.create_user(db, username="otheruser", email="other@example.com", password="password456")
+    return UserService.create_user(db, username="otheruser", email="other@example.com", password=TEST_PASSWORD)
+
+@pytest.fixture
+def admin_user(db):
+    return UserService.create_user(db, username="adminuser", email="admin@test.com", password=ADMIN_PASSWORD, role=UserRole.admin)
+
+@pytest.fixture
+def other_admin_user(db):
+    return UserService.create_user(db, username="otheradmin", email="otheradmin@test.com", password=ADMIN_PASSWORD, role=UserRole.admin)
 
 
 @pytest.fixture

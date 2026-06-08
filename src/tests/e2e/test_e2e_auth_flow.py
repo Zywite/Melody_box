@@ -1,5 +1,6 @@
 import jwt
 from app.core.config import settings
+from tests.conftest import TEST_PASSWORD
 
 
 def test_e2e_auth_full_flow(client):
@@ -8,7 +9,7 @@ def test_e2e_auth_full_flow(client):
     resp = client.post("/auth/register", json={
         "username": "e2euser",
         "email": "e2e@test.com",
-        "password": "StrongPass1!",
+        "password": TEST_PASSWORD,
     })
     assert resp.status_code == 200
     user = resp.json()
@@ -18,7 +19,7 @@ def test_e2e_auth_full_flow(client):
     # 2. Login
     resp = client.post("/auth/login", json={
         "email": "e2e@test.com",
-        "password": "StrongPass1!",
+        "password": TEST_PASSWORD,
     })
     assert resp.status_code == 200
     token_data = resp.json()
@@ -39,7 +40,7 @@ def test_e2e_auth_full_flow(client):
     # 5. Wrong password → 401
     resp = client.post("/auth/login", json={
         "email": "e2e@test.com",
-        "password": "wrongpass",
+        "password": "wrong_credential",
     })
     assert resp.status_code == 401
 
@@ -55,7 +56,7 @@ def test_e2e_auth_full_flow(client):
     resp = client.post("/auth/register", json={
         "username": "e2euser2",
         "email": "e2e@test.com",
-        "password": "AnotherPass1!",
+        "password": TEST_PASSWORD,
     })
     assert resp.status_code == 400
 
@@ -63,7 +64,7 @@ def test_e2e_auth_full_flow(client):
     resp = client.post("/auth/register", json={
         "username": "e2euser",
         "email": "e2e2@test.com",
-        "password": "AnotherPass1!",
+        "password": TEST_PASSWORD,
     })
     assert resp.status_code == 400
 
@@ -73,11 +74,11 @@ def test_e2e_auth_login_then_register_same_credentials(client):
     client.post("/auth/register", json={
         "username": "uniqueuser",
         "email": "unique@test.com",
-        "password": "Pass1234!",
+        "password": TEST_PASSWORD,
     })
     resp = client.post("/auth/register", json={
         "username": "uniqueuser",
         "email": "unique@test.com",
-        "password": "Pass1234!",
+        "password": TEST_PASSWORD,
     })
     assert resp.status_code == 400

@@ -106,7 +106,11 @@ async def _process_upload_file(
     if not file.filename:
         raise HTTPException(status_code=400, detail=ERROR_FILENAME_REQUIRED)
 
-    file_ext = Path(file.filename).suffix.lower().lstrip('.')
+    safe_filename = Path(file.filename).name
+    if safe_filename.startswith("-"):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    file_ext = Path(safe_filename).suffix.lower().lstrip('.')
     allowed_exts = settings.get_allowed_extensions()
     if file_ext not in allowed_exts:
         raise HTTPException(
@@ -121,7 +125,7 @@ async def _process_upload_file(
     media_type = "video" if is_video else "audio"
 
     os.makedirs(settings.MUSIC_STORAGE_PATH, exist_ok=True)
-    file_path = os.path.join(settings.MUSIC_STORAGE_PATH, file.filename)
+    file_path = os.path.join(settings.MUSIC_STORAGE_PATH, safe_filename)
 
     try:
         with open(file_path, "wb") as f:

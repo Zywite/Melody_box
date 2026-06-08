@@ -1,11 +1,12 @@
 from app.core.security import create_access_token
+from tests.conftest import TEST_PASSWORD
 
 
 def test_register_success(client):
     response = client.post("/auth/register", json={
         "username": "newuser",
         "email": "new@example.com",
-        "password": "securepass123"
+        "password": TEST_PASSWORD
     })
     assert response.status_code == 200
     data = response.json()
@@ -19,7 +20,7 @@ def test_register_duplicate_email(client, test_user):
     response = client.post("/auth/register", json={
         "username": "another",
         "email": "test@example.com",
-        "password": "pass123"
+        "password": TEST_PASSWORD
     })
     assert response.status_code == 400
     assert "email" in response.json()["detail"].lower() or "registrado" in response.json()["detail"].lower()
@@ -29,7 +30,7 @@ def test_register_duplicate_username(client, test_user):
     response = client.post("/auth/register", json={
         "username": "testuser",
         "email": "other@example.com",
-        "password": "pass123"
+        "password": TEST_PASSWORD
     })
     assert response.status_code == 400
     assert "usuario" in response.json()["detail"].lower() or "exists" in response.json()["detail"].lower()
@@ -38,19 +39,21 @@ def test_register_duplicate_username(client, test_user):
 def test_login_success(client, test_user):
     response = client.post("/auth/login", json={
         "email": "test@example.com",
-        "password": "password123"
+        "password": TEST_PASSWORD
     })
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
     assert data["username"] == "testuser"
+    assert "user_id" in data
+    assert data["role"] == "user"
 
 
 def test_login_wrong_password(client, test_user):
     response = client.post("/auth/login", json={
         "email": "test@example.com",
-        "password": "wrongpassword"
+        "password": "wrong_credential"
     })
     assert response.status_code == 401
     assert "incorrectos" in response.json()["detail"].lower() or "invalid" in response.json()["detail"].lower()
@@ -59,7 +62,7 @@ def test_login_wrong_password(client, test_user):
 def test_login_nonexistent_email(client):
     response = client.post("/auth/login", json={
         "email": "noone@example.com",
-        "password": "pass123"
+        "password": TEST_PASSWORD
     })
     assert response.status_code == 401
 

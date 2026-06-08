@@ -35,6 +35,7 @@ def override_get_db():
         db.close()
 
 
+from tests.conftest import TEST_PASSWORD
 from app.main import app
 app.dependency_overrides[get_db] = override_get_db
 
@@ -45,12 +46,12 @@ failed = 0
 # Test A4: Register rate-limited to 3/min
 for i in range(3):
     resp = client.post("/auth/register", json={
-        "username": f"rluser{i}", "email": f"rluser{i}@test.com", "password": "pass123"
+        "username": f"rluser{i}", "email": f"rluser{i}@test.com", "password": TEST_PASSWORD
     })
     assert resp.status_code == 200, f"Register {i}: {resp.status_code}"
 
 resp = client.post("/auth/register", json={
-    "username": "rlextra", "email": "rlextra@test.com", "password": "pass123"
+    "username": "rlextra", "email": "rlextra@test.com", "password": TEST_PASSWORD
 })
 if resp.status_code != 429:
     print(f"FAIL: Register rate limit (expected 429, got {resp.status_code})")
@@ -60,17 +61,17 @@ else:
 
 # Test A7: Login rate-limited to 5/min
 db_session = database.SessionLocal()
-UserService.create_user(db_session, "loginuser", "login@test.com", "pass123")
+UserService.create_user(db_session, "loginuser", "login@test.com", TEST_PASSWORD)
 db_session.close()
 
 for i in range(5):
     resp = client.post("/auth/login", json={
-        "email": "login@test.com", "password": "pass123"
+        "email": "login@test.com", "password": TEST_PASSWORD
     })
     assert resp.status_code == 200, f"Login {i}: {resp.status_code}"
 
 resp = client.post("/auth/login", json={
-    "email": "login@test.com", "password": "pass123"
+    "email": "login@test.com", "password": TEST_PASSWORD
 })
 if resp.status_code != 429:
     print(f"FAIL: Login rate limit (expected 429, got {resp.status_code})")
@@ -80,7 +81,7 @@ else:
 
 # Test S4: Upload rate-limited to 10/min
 db_session = database.SessionLocal()
-user = UserService.create_user(db_session, "uploaduser", "upload@test.com", "pass123")
+user = UserService.create_user(db_session, "uploaduser", "upload@test.com", TEST_PASSWORD)
 db_session.close()
 
 from app.core.security import create_access_token
