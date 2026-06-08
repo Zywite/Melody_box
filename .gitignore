@@ -71,6 +71,7 @@ tmp/
 .pytest_cache/
 .coverage
 htmlcov/
+coverage.xml
 
 # Node (si se usa)
 node_modules/
