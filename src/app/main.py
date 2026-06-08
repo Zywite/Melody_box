@@ -6,15 +6,16 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import time
 import logging
+import os
 from sqlalchemy import text
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, SessionLocal
 from app.core.rate_limit import limiter
 from app.core.selective_gzip import SelectiveGZipMiddleware
-from app.models import Favorite, Playlist, PlaylistSong, Song, User  # noqa: F401 - needed for Base.metadata
-from app.routes import auth, favorites, playlists, songs, youtube, tasks
+from app.models import Favorite, Playlist, PlaylistSong, Song, User, UserRole  # noqa: F401 - needed for Base.metadata
+from app.routes import auth, admin, favorites, playlists, songs, youtube, tasks
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +58,57 @@ async def lifespan(app: FastAPI):
                 conn.execute(text("ALTER TABLE songs ADD COLUMN fft_data TEXT"))
                 print("Added fft_data column to songs table")
             
+            # Check if role column exists in users table
+            result = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'users' AND column_name = 'role'"
+            ))
+            role_columns = [row[0] for row in result]
+            
+            if 'role' not in role_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user' NOT NULL"))
+                print("Added role column to users table")
+            
             conn.commit()
+    except Exception:
+        # SQLite fallback for migrations
+        try:
+            with engine.connect() as conn:
+                # Check if role column exists via PRAGMA
+                result = conn.execute(text("PRAGMA table_info(users)"))
+                columns = [row[1] for row in result]
+                if 'role' not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user' NOT NULL"))
+                    print("Added role column to users table (SQLite)")
+                conn.commit()
+        except Exception as e:
+            print(f"Migration error (non-fatal): {e}")
+    
+    # Create default admin if none exists
+    try:
+        db = SessionLocal()
+        from app.services.user_service import UserService
+        from app.core.security import get_password_hash
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@melodybox.com")
+        admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+        admin_username = os.getenv("ADMIN_USERNAME", "Admin")
+        
+        existing = UserService.get_user_by_email(db, admin_email)
+        if not existing:
+            admin_user = User(
+                id=str(__import__('uuid').uuid4()),
+                username=admin_username,
+                email=admin_email,
+                hashed_password=get_password_hash(admin_password),
+                role=UserRole.admin,
+                is_active=True,
+            )
+            db.add(admin_user)
+            db.commit()
+            print(f"Default admin created: {admin_email} / {admin_password}")
+        db.close()
     except Exception as e:
-        print(f"Migration error: {e}")
+        print(f"Admin creation error (non-fatal): {e}")
     
     print("MelodyBox iniciando...")
     yield
@@ -136,6 +185,7 @@ if PUBLIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(static_path)), name="public-static")
 
 app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(songs.router)
 app.include_router(playlists.router)
 app.include_router(favorites.router)

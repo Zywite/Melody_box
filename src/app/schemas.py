@@ -16,15 +16,23 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: str
+    role: str = "user"
     is_active: bool
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str
     username: str
+    user_id: str
+    role: str = "user"
 
 class SongResponse(BaseModel):
     id: str

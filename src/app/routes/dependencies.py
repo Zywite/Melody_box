@@ -1,4 +1,4 @@
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -6,7 +6,7 @@ from app.core.constants import ERROR_TOKEN_INVALID, USER_LOOKUP_CACHE_TTL_SECOND
 from app.core.security import decode_token
 from app.core.ttl_cache import TTLCache
 from app.services.user_service import UserService
-from app.models import User
+from app.models import User, UserRole
 
 
 _user_cache: TTLCache[User] = TTLCache(
@@ -40,6 +40,8 @@ def get_current_user(authorization: str = Header(None), db: Session = Depends(ge
 
     cached = _user_cache.get(user_id)
     if cached is not None:
+        if not cached.is_active:
+            raise HTTPException(status_code=401, detail="Cuenta desactivada")
         return cached
 
     try:
@@ -50,8 +52,25 @@ def get_current_user(authorization: str = Header(None), db: Session = Depends(ge
     if not user:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
 
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Cuenta desactivada")
+
     _user_cache.set(user_id, user)
     return user
+
+
+def require_admin(current_user: User = Depends(get_current_user)):
+    """Require the authenticated user to have the ``admin`` role.
+
+    Raises:
+        HTTPException: 403 if the user is not an admin.
+    """
+    if current_user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren permisos de administrador",
+        )
+    return current_user
 
 
 def get_optional_user(authorization: str = Header(None), db: Session = Depends(get_db)):

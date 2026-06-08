@@ -56,6 +56,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('@/views/AdminUsersView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/content',
+    name: 'admin-content',
+    component: () => import('@/views/AdminContentView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/home'
   }
@@ -79,6 +91,8 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/')
   } else if (to.path === '/' && authStore.isAuthenticated) {
+    next('/home')
+  } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
     next('/home')
   } else {
     next()

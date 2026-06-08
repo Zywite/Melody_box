@@ -35,7 +35,7 @@ def override_get_db():
         db.close()
 
 
-from tests.conftest import TEST_PASSWORD
+TEST_PASSWORD = "TestPass123!"  # nosec
 from app.main import app
 app.dependency_overrides[get_db] = override_get_db
 
@@ -86,23 +86,26 @@ db_session.close()
 
 from app.core.security import create_access_token
 from datetime import timedelta
+from unittest.mock import patch
 token = create_access_token(data={"sub": user.id}, expires_delta=timedelta(hours=1))
 headers = {"Authorization": f"Bearer {token}"}
 
-for i in range(10):
+with patch("app.routes.songs._extract_duration", return_value=30.0):
+    for i in range(10):
+        resp = client.post(
+            "/songs/upload",
+            headers=headers,
+            files={"file": (f"rate{i}.mp3", b"x", "audio/mpeg")},
+            data={"title": f"Rate{i}", "artist": "A"}
+        )
+        assert resp.status_code == 200, f"Upload {i}: {resp.status_code}"
+
     resp = client.post(
         "/songs/upload",
         headers=headers,
-        files={"file": (f"rate{i}.mp3", b"x", "audio/mpeg")},
-        data={"title": f"Rate{i}", "artist": "A"}
+        files={"file": ("overflow.mp3", b"x", "audio/mpeg")},
+        data={"title": "Overflow", "artist": "A"}
     )
-
-resp = client.post(
-    "/songs/upload",
-    headers=headers,
-    files={"file": ("overflow.mp3", b"x", "audio/mpeg")},
-    data={"title": "Overflow", "artist": "A"}
-)
 if resp.status_code != 429:
     print(f"FAIL: Upload rate limit (expected 429, got {resp.status_code})")
     failed += 1

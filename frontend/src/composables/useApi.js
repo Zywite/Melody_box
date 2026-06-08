@@ -157,5 +157,49 @@ export default {
 
   async get(url) {
     return api.get(url)
-  }
+  },
+
+  // ── Admin API ──────────────────────────────────────────────────────────
+
+  async adminGetUsers(search, skip = 0, limit = 100) {
+    const params = { skip, limit }
+    if (search) params.search = search
+    return api.get('/admin/users', { params })
+  },
+
+  async adminCountUsers() {
+    return api.get('/admin/users/count')
+  },
+
+  async adminUpdateUser(userId, data) {
+    return api.patch(`/admin/users/${userId}`, data)
+  },
+
+  async adminDeleteUser(userId) {
+    return api.delete(`/admin/users/${userId}`)
+  },
+
+  async adminToggleUserActive(userId) {
+    return api.patch(`/admin/users/${userId}/toggle-active`)
+  },
+
+  async adminGetUserStats(userId) {
+    return api.get(`/admin/users/${userId}/stats`)
+  },
+
+  async adminGetSongs(skip = 0, limit = 100) {
+    return api.get('/admin/songs', { params: { skip, limit } })
+  },
+
+  async adminDeleteSong(songId) {
+    return api.delete(`/admin/songs/${songId}`)
+  },
+
+  async adminGetPlaylists(skip = 0, limit = 100) {
+    return api.get('/admin/playlists', { params: { skip, limit } })
+  },
+
+  async adminDeletePlaylist(playlistId) {
+    return api.delete(`/admin/playlists/${playlistId}`)
+  },
 }

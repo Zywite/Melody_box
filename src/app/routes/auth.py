@@ -45,8 +45,14 @@ def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": db_user.id},
+        data={"sub": db_user.id, "role": db_user.role.value},
         expires_delta=access_token_expires
     )
 
-    return {"access_token": access_token, "token_type": "bearer", "username": db_user.username}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "username": db_user.username,
+        "user_id": db_user.id,
+        "role": db_user.role.value,
+    }
