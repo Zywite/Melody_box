@@ -53,7 +53,7 @@ def test_login_success(client, test_user):
 def test_login_wrong_password(client, test_user):
     response = client.post("/auth/login", json={
         "email": "test@example.com",
-        "password": "wrong_credential"
+        "password": "wrong_credential",  # NOSONAR
     })
     assert response.status_code == 401
     assert "incorrectos" in response.json()["detail"].lower() or "invalid" in response.json()["detail"].lower()

@@ -40,7 +40,7 @@ def test_e2e_auth_full_flow(client):
     # 5. Wrong password → 401
     resp = client.post("/auth/login", json={
         "email": "e2e@test.com",
-        "password": "wrong_credential",
+        "password": "wrong_credential",  # NOSONAR
     })
     assert resp.status_code == 401
 

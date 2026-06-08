@@ -35,7 +35,7 @@ def override_get_db():
         db.close()
 
 
-TEST_PASSWORD = "TestPass123!"  # nosec
+TEST_PASSWORD = "TestPass123!"  # NOSONAR
 from app.main import app
 app.dependency_overrides[get_db] = override_get_db
 

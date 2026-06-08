@@ -90,22 +90,23 @@ async def lifespan(app: FastAPI):
         from app.services.user_service import UserService
         from app.core.security import get_password_hash
         admin_email = os.getenv("ADMIN_EMAIL", "admin@melodybox.com")
-        admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+        admin_password = os.getenv("ADMIN_PASSWORD")
         admin_username = os.getenv("ADMIN_USERNAME", "Admin")
         
-        existing = UserService.get_user_by_email(db, admin_email)
-        if not existing:
-            admin_user = User(
-                id=str(__import__('uuid').uuid4()),
-                username=admin_username,
-                email=admin_email,
-                hashed_password=get_password_hash(admin_password),
-                role=UserRole.admin,
-                is_active=True,
-            )
-            db.add(admin_user)
-            db.commit()
-            print(f"Default admin created: {admin_email} / {admin_password}")
+        if admin_password:
+            existing = UserService.get_user_by_email(db, admin_email)
+            if not existing:
+                admin_user = User(
+                    id=str(__import__('uuid').uuid4()),
+                    username=admin_username,
+                    email=admin_email,
+                    hashed_password=get_password_hash(admin_password),
+                    role=UserRole.admin,
+                    is_active=True,
+                )
+                db.add(admin_user)
+                db.commit()
+                print(f"Default admin created: {admin_email}")
         db.close()
     except Exception as e:
         print(f"Admin creation error (non-fatal): {e}")

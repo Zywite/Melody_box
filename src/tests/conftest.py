@@ -29,8 +29,8 @@ from app.services.user_service import UserService
 from app.services.song_service import SongService
 from app.services.playlist_service import PlaylistService
 
-TEST_PASSWORD = "TestPass123!"  # nosec
-ADMIN_PASSWORD = "AdminPass123!"  # nosec
+TEST_PASSWORD = "TestPass123!"  # NOSONAR
+ADMIN_PASSWORD = "AdminPass123!"  # NOSONAR
 
 _test_engine = create_engine(
     "sqlite://",

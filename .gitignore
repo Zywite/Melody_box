@@ -62,6 +62,7 @@ docs/*.tex
 
 # Proyecto específico
 data/music/
+src/data/music/
 uploads/
 temp/
 tmp/
