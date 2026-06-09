@@ -38,7 +38,7 @@ jobs:
         run: ruff format --check src/app
 
       - name: Run tests with coverage
-        run: pytest -v --cov=src/app --cov-report=xml
+        run: pytest -v --cov=src/app --cov-report=xml --cov-fail-under=70
         env:
           SECRET_KEY: ci-test-secret-key
 
@@ -48,7 +48,7 @@ jobs:
           name: coverage
           path: coverage.xml
 
-  sonarcloud:
+  sonarqube:
     needs: backend
     runs-on: ubuntu-latest
     steps:
@@ -61,8 +61,23 @@ jobs:
         with:
           name: coverage
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+      - name: Verify coverage file
+        run: |
+          if [ -f coverage.xml ]; then
+            echo "✅ coverage.xml exists"
+          else
+            echo "❌ coverage.xml NOT found"
+          fi
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate Check
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
