@@ -1,12 +1,8 @@
-import uuid
 from pathlib import Path
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.services.song_service import SongService
-
 
 YTDLP_FORMAT_MAP = {
     "m4a": "bestaudio[ext=m4a]/bestaudio/best",
@@ -20,17 +16,26 @@ YTDLP_FORMAT_MAP = {
 }
 
 QUALITY_MAP = {
-    "320": "320k", "256": "256k", "128": "128k",
-    "1080p": "1080", "720p": "720", "480p": "480",
+    "320": "320k",
+    "256": "256k",
+    "128": "128k",
+    "1080p": "1080",
+    "720p": "720",
+    "480p": "480",
 }
 
 AUDIO_FORMATS = {"m4a", "mp3", "wav", "flac", "ogg"}
 VIDEO_FORMATS = {"mp4", "mkv", "webm"}
 
 EXT_MAP = {
-    "m4a": "m4a", "mp3": "mp3", "wav": "wav",
-    "flac": "flac", "ogg": "ogg", "mp4": "mp4",
-    "mkv": "mkv", "webm": "webm",
+    "m4a": "m4a",
+    "mp3": "mp3",
+    "wav": "wav",
+    "flac": "flac",
+    "ogg": "ogg",
+    "mp4": "mp4",
+    "mkv": "mkv",
+    "webm": "webm",
 }
 
 TITLE_MAX_LENGTH = 50
@@ -47,15 +52,17 @@ def build_ydl_opts(fmt: str, quality: str, output_template: str) -> dict:
     }
     if fmt in AUDIO_FORMATS:
         quality_kbps = QUALITY_MAP.get(quality, "320k")
-        opts["postprocessors"] = [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": fmt if fmt != "mp3" else "mp3",
-            "preferredquality": quality_kbps,
-        }]
+        opts["postprocessors"] = [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": fmt if fmt != "mp3" else "mp3",
+                "preferredquality": quality_kbps,
+            }
+        ]
     return opts
 
 
-def resolve_downloaded_file(output_dir: Path, file_id: str, expected_file: Path) -> Optional[Path]:
+def resolve_downloaded_file(output_dir: Path, file_id: str, expected_file: Path) -> Path | None:
     """Return the expected file if it exists, otherwise glob for a fallback."""
     if expected_file.exists():
         return expected_file

@@ -1,36 +1,36 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
 from pathlib import Path
-import os
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Project root is 3 levels up: src/app/core/config.py -> core -> app -> src -> project root
 BASE_DIR = Path(__file__).parents[3]
 
+
 class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./data/spotify_local.db"
-    
+
     # API
     API_TITLE: str = "MelodyBox API"
     API_VERSION: str = "1.0.0"
     API_DESCRIPTION: str = "API para reproductor de música local en red"
-    
+
     # Security
     SECRET_KEY: str = "tu-clave-secreta-cambiar-en-produccion"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
-    
+
     # Media storage (absolute path) - files are in data/music after reorganization
     MUSIC_STORAGE_PATH: str = str(BASE_DIR / "data" / "music")
     ALLOWED_AUDIO_EXTENSIONS: str = "mp3,wav,flac,ogg,m4a"
     ALLOWED_VIDEO_EXTENSIONS: str = "mp4,mkv,avi,webm,mov"
-    
+
     # Redis / Worker
     REDIS_URL: str = ""
-    
+
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:8001"
-    
+
     model_config = SettingsConfigDict(env_file=str(BASE_DIR / ".env"), env_file_encoding="utf-8")
 
     @staticmethod
@@ -51,5 +51,6 @@ class Settings(BaseSettings):
     def get_allowed_origins(self) -> list:
         """Return the list of CORS-allowed origins parsed from settings."""
         return self._split_and_strip(self.ALLOWED_ORIGINS)
+
 
 settings = Settings()

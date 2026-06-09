@@ -20,7 +20,7 @@ class TTLCache(Generic[T]):
             raise ValueError("maxsize must be > 0")
         self.maxsize = maxsize
         self.ttl = ttl_seconds
-        self._data: "OrderedDict[str, tuple[float, T]]" = OrderedDict()
+        self._data: OrderedDict[str, tuple[float, T]] = OrderedDict()
         self._lock = Lock()
 
     def get(self, key: str) -> T | None:

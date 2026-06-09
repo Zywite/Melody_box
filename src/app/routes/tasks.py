@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.core.database import get_db
+
 from app.core.constants import ERROR_TASK_NOT_FOUND
+from app.core.database import get_db
 from app.models.task import Task
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])

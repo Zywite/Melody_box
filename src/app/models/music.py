@@ -1,7 +1,10 @@
-from sqlalchemy import Column, String, Integer, DateTime, Float, ForeignKey, Text, Index
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
 from app.core.database import Base
+
 
 class Song(Base):
     __tablename__ = "songs"
@@ -19,6 +22,7 @@ class Song(Base):
     playlists = relationship("PlaylistSong", back_populates="song")
     favorites = relationship("Favorite", back_populates="song")
 
+
 class Playlist(Base):
     __tablename__ = "playlists"
 
@@ -33,6 +37,7 @@ class Playlist(Base):
     user = relationship("User", back_populates="playlists")
     songs = relationship("PlaylistSong", back_populates="playlist", cascade="all")
 
+
 class PlaylistSong(Base):
     __tablename__ = "playlist_songs"
 
@@ -45,6 +50,7 @@ class PlaylistSong(Base):
     # Relaciones
     playlist = relationship("Playlist", back_populates="songs")
     song = relationship("Song", back_populates="playlists")
+
 
 class Favorite(Base):
     __tablename__ = "favorites"

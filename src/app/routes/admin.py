@@ -1,24 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
 from app.core.database import get_db
-from app.services.user_service import UserService
-from app.services.song_service import SongService
-from app.services.playlist_service import PlaylistService
-from app.routes.dependencies import require_admin, invalidate_user_cache
-from app.schemas import UserResponse, UserUpdate, SongResponse
 from app.models import User, UserRole
-from typing import Optional
+from app.routes.dependencies import invalidate_user_cache, require_admin
+from app.schemas import SongResponse, UserResponse, UserUpdate
+from app.services.playlist_service import PlaylistService
+from app.services.song_service import SongService
+from app.services.user_service import UserService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 # ── Users ──────────────────────────────────────────────────────────────────
 
+
 @router.get("/users", response_model=list[UserResponse])
 def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    search: Optional[str] = Query(None),
+    search: str | None = Query(None),
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -48,7 +49,8 @@ def update_user(
         raise HTTPException(status_code=400, detail="No puedes cambiarte el rol a ti mismo")
 
     updated = UserService.update_user(
-        db, user_id,
+        db,
+        user_id,
         username=data.username,
         email=data.email,
         role=UserRole(data.role) if data.role else None,
@@ -119,8 +121,8 @@ def user_stats(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    from app.models import Song, Playlist, Favorite
-    songs_count = db.query(Song).count()
+    from app.models import Favorite, Playlist
+
     playlists_count = db.query(Playlist).filter(Playlist.user_id == user_id).count()
     favorites_count = db.query(Favorite).filter(Favorite.user_id == user_id).count()
 
@@ -139,6 +141,7 @@ def user_stats(
 
 
 # ── Content ────────────────────────────────────────────────────────────────
+
 
 @router.get("/songs", response_model=list[SongResponse])
 def list_all_songs(
@@ -176,19 +179,22 @@ def list_all_playlists(
 ):
     """List all playlists from all users."""
     from app.models import Playlist
+
     playlists = db.query(Playlist).offset(skip).limit(limit).all()
     result = []
     for p in playlists:
         owner = UserService.get_user_by_id(db, p.user_id)
-        result.append({
-            "id": p.id,
-            "name": p.name,
-            "description": p.description,
-            "user_id": p.user_id,
-            "username": owner.username if owner else "Unknown",
-            "song_count": len(p.songs) if hasattr(p, 'songs') else 0,
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-        })
+        result.append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "user_id": p.user_id,
+                "username": owner.username if owner else "Unknown",
+                "song_count": len(p.songs) if hasattr(p, "songs") else 0,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            }
+        )
     return result
 
 

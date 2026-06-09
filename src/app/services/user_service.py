@@ -1,10 +1,11 @@
 """User service: persistence operations for User entities."""
 
-from typing import Optional
-from sqlalchemy.orm import Session
-from app.models import User, UserRole
-from app.core.security import get_password_hash, verify_password
 import uuid
+
+from sqlalchemy.orm import Session
+
+from app.core.security import get_password_hash, verify_password
+from app.models import User, UserRole
 
 
 class UserService:
@@ -51,14 +52,12 @@ class UserService:
         return user
 
     @staticmethod
-    def get_all_users(db: Session, skip: int = 0, limit: int = 100, search: Optional[str] = None):
+    def get_all_users(db: Session, skip: int = 0, limit: int = 100, search: str | None = None):
         """Return paginated list of users, optionally filtered by search."""
         query = db.query(User)
         if search:
             pattern = f"%{search}%"
-            query = query.filter(
-                User.username.ilike(pattern) | User.email.ilike(pattern)
-            )
+            query = query.filter(User.username.ilike(pattern) | User.email.ilike(pattern))
         return query.order_by(User.created_at.desc()).offset(skip).limit(limit).all()
 
     @staticmethod

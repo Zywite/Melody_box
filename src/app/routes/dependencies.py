@@ -1,13 +1,13 @@
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+from app.core.constants import ERROR_TOKEN_INVALID, USER_LOOKUP_CACHE_MAXSIZE, USER_LOOKUP_CACHE_TTL_SECONDS
 from app.core.database import get_db
-from app.core.constants import ERROR_TOKEN_INVALID, USER_LOOKUP_CACHE_TTL_SECONDS, USER_LOOKUP_CACHE_MAXSIZE
 from app.core.security import decode_token
 from app.core.ttl_cache import TTLCache
-from app.services.user_service import UserService
 from app.models import User, UserRole
-
+from app.services.user_service import UserService
 
 _user_cache: TTLCache[User] = TTLCache(
     maxsize=USER_LOOKUP_CACHE_MAXSIZE,
@@ -47,7 +47,7 @@ def get_current_user(authorization: str = Header(None), db: Session = Depends(ge
     try:
         user = UserService.get_user_by_id(db, user_id)
     except SQLAlchemyError:
-        raise HTTPException(status_code=503, detail="Servicio no disponible")
+        raise HTTPException(status_code=503, detail="Servicio no disponible") from None
 
     if not user:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")

@@ -10,30 +10,34 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.constants import (
     DEFAULT_YOUTUBE_SEARCH_RESULTS,
-    RATE_LIMIT_YT_SEARCH,
+    ERROR_DOWNLOADED_FILE_NOT_FOUND,
+    JOB_NAME_DOWNLOAD_YOUTUBE,
     RATE_LIMIT_YT_DOWNLOAD,
+    RATE_LIMIT_YT_SEARCH,
+    TASK_PROGRESS_COMPLETE,
     TASK_STATUS_DONE,
     TASK_STATUS_FAILED,
     TASK_STATUS_PENDING,
     TASK_STATUS_PROCESSING,
     TASK_TYPE_YOUTUBE_DOWNLOAD,
-    TASK_PROGRESS_COMPLETE,
-    JOB_NAME_DOWNLOAD_YOUTUBE,
-    YOUTUBE_WATCH_URL_TEMPLATE,
     YOUTUBE_OUTPUT_TEMPLATE_PATTERN,
-    YT_FALLBACK_TITLE,
+    YOUTUBE_WATCH_URL_TEMPLATE,
     YT_FALLBACK_ARTIST,
+    YT_FALLBACK_TITLE,
     YT_FALLBACK_VIDEO_TITLE,
-    ERROR_DOWNLOADED_FILE_NOT_FOUND,
 )
 from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.redis_helper import enqueue_job
-from app.schemas import YouTubeSearchResult, YouTubeDownloadRequest, SongResponse
 from app.models.task import Task
+from app.schemas import SongResponse, YouTubeDownloadRequest, YouTubeSearchResult
 from app.services.youtube_service import (
-    YTDLP_FORMAT_MAP, EXT_MAP, build_ydl_opts, resolve_downloaded_file,
-    compute_expected_path, create_song_from_info,
+    EXT_MAP,
+    YTDLP_FORMAT_MAP,
+    build_ydl_opts,
+    compute_expected_path,
+    create_song_from_info,
+    resolve_downloaded_file,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,9 +50,9 @@ router = APIRouter(prefix="/youtube", tags=["youtube"])
 async def search_youtube(request: Request, q: str, limit: int = DEFAULT_YOUTUBE_SEARCH_RESULTS):
     """Search for videos on YouTube."""
     ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'extract_flat': 'discard_infinite',
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": "discard_infinite",
     }
 
     try:
@@ -56,41 +60,38 @@ async def search_youtube(request: Request, q: str, limit: int = DEFAULT_YOUTUBE_
             search_query = f"ytsearch{limit}:{q}"
             results = ydl.extract_info(search_query, download=False)
 
-            if not results or 'entries' not in results:
+            if not results or "entries" not in results:
                 return []
 
             videos = []
-            for entry in results['entries']:
+            for entry in results["entries"]:
                 if entry:
-                    duration = entry.get('duration', 0)
-                    videos.append(YouTubeSearchResult(
-                        video_id=entry.get('id', ''),
-                        title=entry.get('title', YT_FALLBACK_TITLE),
-                        channel=entry.get('uploader', YT_FALLBACK_ARTIST),
-                        thumbnail=entry.get('thumbnail', ''),
-                        duration=duration,
-                        views=entry.get('view_count')
-                    ))
+                    duration = entry.get("duration", 0)
+                    videos.append(
+                        YouTubeSearchResult(
+                            video_id=entry.get("id", ""),
+                            title=entry.get("title", YT_FALLBACK_TITLE),
+                            channel=entry.get("uploader", YT_FALLBACK_ARTIST),
+                            thumbnail=entry.get("thumbnail", ""),
+                            duration=duration,
+                            views=entry.get("view_count"),
+                        )
+                    )
 
             return videos
 
     except (yt_dlp.utils.YoutubeDLError, OSError) as e:
         logger.error("YouTube search error: %s", e)
-        raise HTTPException(status_code=500, detail=f"Error searching YouTube: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error searching YouTube: {str(e)}") from e
 
 
 @router.post("/download")
 @limiter.limit(RATE_LIMIT_YT_DOWNLOAD)
-async def download_youtube(
-    fastapi_request: Request,
-    request: YouTubeDownloadRequest,
-    db: Session = Depends(get_db)
-):
+async def download_youtube(fastapi_request: Request, request: YouTubeDownloadRequest, db: Session = Depends(get_db)):
     """Download and convert a YouTube video (async via worker)."""
     if request.format not in YTDLP_FORMAT_MAP:
         raise HTTPException(
-            status_code=400,
-            detail=f"Format not supported. Choose: {', '.join(YTDLP_FORMAT_MAP.keys())}"
+            status_code=400, detail=f"Format not supported. Choose: {', '.join(YTDLP_FORMAT_MAP.keys())}"
         )
 
     # Create task record
@@ -123,7 +124,7 @@ async def download_youtube(
         task.status = TASK_STATUS_FAILED
         task.error = str(e)
         db.commit()
-        raise HTTPException(status_code=500, detail=f"Error downloading: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error downloading: {str(e)}") from e
 
 
 async def _sync_download_youtube(request: YouTubeDownloadRequest, db: Session, task: Task):
@@ -147,11 +148,11 @@ async def _sync_download_youtube(request: YouTubeDownloadRequest, db: Session, t
     loop = asyncio.get_event_loop()
     info = await loop.run_in_executor(None, _run_ytdlp)
 
-    title = request.title or info.get('title', YT_FALLBACK_TITLE)
-    artist = request.artist or info.get('uploader', YT_FALLBACK_ARTIST)
+    title = request.title or info.get("title", YT_FALLBACK_TITLE)
+    artist = request.artist or info.get("uploader", YT_FALLBACK_ARTIST)
 
     actual_ext = EXT_MAP[request.format]
-    expected_file = compute_expected_path(output_dir, file_id, actual_ext, info.get('title', YT_FALLBACK_VIDEO_TITLE))
+    expected_file = compute_expected_path(output_dir, file_id, actual_ext, info.get("title", YT_FALLBACK_VIDEO_TITLE))
     downloaded_file = resolve_downloaded_file(output_dir, file_id, expected_file)
 
     if not downloaded_file:
@@ -171,5 +172,5 @@ async def _sync_download_youtube(request: YouTubeDownloadRequest, db: Session, t
         album=db_song.album,
         duration=db_song.duration,
         media_type=db_song.media_type,
-        created_at=db_song.created_at
+        created_at=db_song.created_at,
     )

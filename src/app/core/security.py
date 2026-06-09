@@ -1,29 +1,24 @@
 """Security helpers: password hashing and JWT token utilities."""
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-import jwt
+from datetime import UTC, datetime, timedelta
+
 import bcrypt
+import jwt
+
 from .config import settings
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Return True if ``plain_password`` matches the stored bcrypt hash."""
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8")
-    )
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def get_password_hash(password: str) -> str:
     """Hash ``password`` with bcrypt and return the UTF-8 encoded digest."""
-    return bcrypt.hashpw(
-        password.encode("utf-8"),
-        bcrypt.gensalt()
-    ).decode("utf-8")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Build a signed JWT containing ``data`` and an ``exp`` claim.
 
     Args:
@@ -36,9 +31,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt

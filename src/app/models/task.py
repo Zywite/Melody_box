@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, JSON, Index
 from datetime import datetime
+
+from sqlalchemy import JSON, Column, DateTime, Index, Integer, String
+
 from app.core.database import Base
 
 
@@ -16,6 +18,4 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_task_type_status", "type", "status"),
-    )
+    __table_args__ = (Index("ix_task_type_status", "type", "status"),)

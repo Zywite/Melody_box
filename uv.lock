@@ -146,6 +146,8 @@ redis==5.3.1
     #   arq
 requests==2.34.2
     # via pooch
+ruff==0.15.16
+    # via -r requirements.txt
 scikit-learn==1.9.0
     # via librosa
 scipy==1.17.1

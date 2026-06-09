@@ -1,16 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.core.database import get_db
+
 from app.core.constants import (
+    ERROR_PLAYLIST_FORBIDDEN,
     ERROR_PLAYLIST_NOT_FOUND,
     ERROR_SONG_NOT_FOUND,
-    ERROR_PLAYLIST_FORBIDDEN,
 )
-from app.services.playlist_service import PlaylistService
-from app.services.song_service import SongService
+from app.core.database import get_db
+from app.models import User
 from app.routes.dependencies import get_current_user
 from app.schemas import PlaylistCreate, PlaylistResponse, SongAddRequest
-from app.models import User
+from app.services.playlist_service import PlaylistService
+from app.services.song_service import SongService
 
 router = APIRouter(prefix="/playlists", tags=["playlists"])
 
@@ -18,17 +19,11 @@ router = APIRouter(prefix="/playlists", tags=["playlists"])
 def _check_ownership(playlist, current_user):
     """Raise 403 if ``playlist`` is not owned by ``current_user``."""
     if playlist.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail=ERROR_PLAYLIST_FORBIDDEN
-        )
+        raise HTTPException(status_code=403, detail=ERROR_PLAYLIST_FORBIDDEN)
 
 
 @router.get("", response_model=list[PlaylistResponse])
-def get_playlists(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def get_playlists(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Obtener playlists del usuario"""
     playlists = PlaylistService.get_user_playlists(db, current_user.id)
     return playlists
@@ -36,33 +31,22 @@ def get_playlists(
 
 @router.post("", response_model=PlaylistResponse)
 def create_playlist(
-    playlist: PlaylistCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    playlist: PlaylistCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Crear nueva playlist"""
-    new_playlist = PlaylistService.create_playlist(
-        db,
-        current_user.id,
-        playlist.name,
-        playlist.description
-    )
+    new_playlist = PlaylistService.create_playlist(db, current_user.id, playlist.name, playlist.description)
     return new_playlist
 
 
 @router.get("/{playlist_id}", response_model=PlaylistResponse)
-def get_playlist(
-    playlist_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def get_playlist(playlist_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Obtener detalles de una playlist"""
     playlist = PlaylistService.get_playlist(db, playlist_id)
     if not playlist:
         raise HTTPException(status_code=404, detail=ERROR_PLAYLIST_NOT_FOUND)
-    
+
     _check_ownership(playlist, current_user)
-    
+
     return playlist
 
 
@@ -71,7 +55,7 @@ def add_song_to_playlist(
     playlist_id: str,
     song_data: SongAddRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Agregar canción a una playlist"""
     playlist = PlaylistService.get_playlist(db, playlist_id)
@@ -90,34 +74,27 @@ def add_song_to_playlist(
 
 @router.delete("/{playlist_id}/songs/{song_id}")
 def remove_song_from_playlist(
-    playlist_id: str,
-    song_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    playlist_id: str, song_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Eliminar canción de una playlist"""
     playlist = PlaylistService.get_playlist(db, playlist_id)
     if not playlist:
         raise HTTPException(status_code=404, detail=ERROR_PLAYLIST_NOT_FOUND)
-    
+
     _check_ownership(playlist, current_user)
-    
+
     PlaylistService.remove_song_from_playlist(db, playlist_id, song_id)
     return {"message": "Canción eliminada de la playlist"}
 
 
 @router.delete("/{playlist_id}")
-def delete_playlist(
-    playlist_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def delete_playlist(playlist_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Eliminar una playlist"""
     playlist = PlaylistService.get_playlist(db, playlist_id)
     if not playlist:
         raise HTTPException(status_code=404, detail=ERROR_PLAYLIST_NOT_FOUND)
-    
+
     _check_ownership(playlist, current_user)
-    
+
     PlaylistService.delete_playlist(db, playlist_id)
     return {"message": "Playlist eliminada"}

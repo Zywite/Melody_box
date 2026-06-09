@@ -1,12 +1,11 @@
 """Song service: persistence operations for Song entities."""
 
-from sqlalchemy.orm import Session
-from app.models import Song
-from app.core.config import settings
 import os
 import uuid
-import time
-from pathlib import Path
+
+from sqlalchemy.orm import Session
+
+from app.models import Song
 
 
 class SongService:
@@ -39,7 +38,7 @@ class SongService:
             album=album,
             duration=duration,
             file_path=file_path,
-            media_type=media_type
+            media_type=media_type,
         )
         db.add(db_song)
         db.commit()
@@ -86,11 +85,15 @@ class SongService:
         Returns:
             A list of matching Song rows; empty if nothing matches.
         """
-        return db.query(Song).filter(
-            (Song.title.ilike(f"%{query}%")) |
-            (Song.artist.ilike(f"%{query}%")) |
-            (Song.album.ilike(f"%{query}%"))
-        ).offset(skip).limit(limit).all()
+        return (
+            db.query(Song)
+            .filter(
+                (Song.title.ilike(f"%{query}%")) | (Song.artist.ilike(f"%{query}%")) | (Song.album.ilike(f"%{query}%"))
+            )
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     @staticmethod
     def delete_song(db: Session, song_id: str) -> Song | None:

@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, declarative_base
-from .config import settings, BASE_DIR
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from .config import BASE_DIR, settings
 
 DB_CONNECT_TIMEOUT_SECONDS = 3
 
@@ -10,11 +11,7 @@ def _create_engine_with_fallback():
     pool_kwargs = {"pool_size": 20, "max_overflow": 10, "pool_pre_ping": True}
 
     if "sqlite" in settings.DATABASE_URL:
-        return create_engine(
-            settings.DATABASE_URL,
-            connect_args={"check_same_thread": False},
-            **pool_kwargs
-        )
+        return create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False}, **pool_kwargs)
 
     # 3s connect timeout prevents startup from hanging when the DB host
     # is unreachable. libpq accepts ``connect_timeout`` in the URL.
@@ -31,10 +28,8 @@ def _create_engine_with_fallback():
     except Exception as e:
         print(f"Warning: Could not connect to PostgreSQL ({e}), falling back to SQLite")
         db_path = BASE_DIR / "data" / "spotify_local.db"
-        return create_engine(
-            f"sqlite:///{db_path}",
-            connect_args={"check_same_thread": False}
-        )
+        return create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+
 
 engine = _create_engine_with_fallback()
 
@@ -48,6 +43,7 @@ SessionLocal = sessionmaker(
     expire_on_commit=False,
 )
 Base = declarative_base()
+
 
 def get_db():
     """FastAPI dependency that yields a request-scoped DB session."""

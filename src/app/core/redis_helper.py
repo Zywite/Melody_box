@@ -1,11 +1,11 @@
 """Redis and arq helpers: connection pool, job enqueue, FFT cache."""
 
 import os
-from typing import Optional
+
 from arq import create_pool
 from arq.connections import RedisSettings
 
-from app.core.constants import FFT_CACHE_TTL_SECONDS, FFT_CACHE_KEY_PREFIX
+from app.core.constants import FFT_CACHE_KEY_PREFIX, FFT_CACHE_TTL_SECONDS
 
 _redis_pool = None
 
@@ -34,7 +34,7 @@ async def get_redis():
     return _redis_pool
 
 
-async def enqueue_job(func_name: str, *args, **kwargs) -> Optional[str]:
+async def enqueue_job(func_name: str, *args, **kwargs) -> str | None:
     """Enqueue an arq job by registered function name.
 
     Returns:
@@ -65,7 +65,7 @@ async def cache_set_fft(song_id: str, fft_json: str) -> None:
         pass
 
 
-async def cache_get_fft(song_id: str) -> Optional[str]:
+async def cache_get_fft(song_id: str) -> str | None:
     """Return cached FFT JSON for a song, or None on miss or error."""
     redis = await get_redis()
     if redis is None:

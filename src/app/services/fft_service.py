@@ -1,27 +1,26 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional, List
 
 import librosa
 import numpy as np
 from typing_extensions import TypedDict
 
 from app.core.constants import (
-    DEFAULT_FFT_SIZE,
-    DEFAULT_FFT_HOP_SIZE,
-    MAX_SPECTROGRAM_FRAMES,
-    MAX_FFT_INPUT_DURATION_SECONDS,
-    FFT_NORMALIZATION_RANGE,
-    FFT_NORMALIZATION_EPSILON,
-    POWER_PERCENT_MULTIPLIER,
     BASS_FREQUENCY_CUTOFF_HZ,
-    MID_FREQUENCY_CUTOFF_HZ,
+    DEFAULT_FFT_HOP_SIZE,
+    DEFAULT_FFT_SIZE,
+    ERROR_FFT_NO_RESULT,
+    FFT_NORMALIZATION_EPSILON,
+    FFT_NORMALIZATION_RANGE,
     FFT_TARGET_SAMPLE_RATE,
+    MAX_FFT_INPUT_DURATION_SECONDS,
+    MAX_SPECTROGRAM_FRAMES,
+    MID_FREQUENCY_CUTOFF_HZ,
+    POWER_PERCENT_MULTIPLIER,
+    TASK_PROGRESS_COMPLETE,
     TASK_STATUS_DONE,
     TASK_STATUS_FAILED,
-    TASK_PROGRESS_COMPLETE,
-    ERROR_FFT_NO_RESULT,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,8 +30,8 @@ class FFTResult(TypedDict):
     duration: float
     sample_rate: int
     channels: int
-    bins: List[int]
-    spectrogram: List[List[int]]
+    bins: list[int]
+    spectrogram: list[list[int]]
     bass_power: float
     mid_power: float
     treble_power: float
@@ -45,10 +44,8 @@ class FFTResult(TypedDict):
 class FFTService:
     @staticmethod
     def compute_fft_from_file(
-        file_path: str,
-        fft_size: int = DEFAULT_FFT_SIZE,
-        hop_size: int = DEFAULT_FFT_HOP_SIZE
-    ) -> Optional[FFTResult]:
+        file_path: str, fft_size: int = DEFAULT_FFT_SIZE, hop_size: int = DEFAULT_FFT_HOP_SIZE
+    ) -> FFTResult | None:
         """
         Compute FFT analysis from an audio file.
         Returns a dictionary with FFT data that can be stored as JSON.
@@ -90,7 +87,9 @@ class FFTService:
             avg_spectrum_norm = np.clip(
                 (avg_spectrum - avg_spectrum.min())
                 / (avg_spectrum.max() - avg_spectrum.min() + FFT_NORMALIZATION_EPSILON)
-                * FFT_NORMALIZATION_RANGE, 0, FFT_NORMALIZATION_RANGE
+                * FFT_NORMALIZATION_RANGE,
+                0,
+                FFT_NORMALIZATION_RANGE,
             ).astype(int)
 
             # Compute spectrogram for visualization (reduce frames for storage)
@@ -103,7 +102,9 @@ class FFTService:
             spectrogram_norm = np.clip(
                 (spectrogram_data - spec_min)
                 / (spec_max - spec_min + FFT_NORMALIZATION_EPSILON)
-                * FFT_NORMALIZATION_RANGE, 0, FFT_NORMALIZATION_RANGE
+                * FFT_NORMALIZATION_RANGE,
+                0,
+                FFT_NORMALIZATION_RANGE,
             ).astype(int)
 
             # Compute frequency bands
@@ -133,7 +134,7 @@ class FFTService:
                 "fft_size": fft_size,
                 "hop_size": hop_size,
                 "nyquist": nyquist,
-                "bin_count": bins
+                "bin_count": bins,
             }
 
             return result
@@ -146,7 +147,7 @@ class FFTService:
             return None
 
     @staticmethod
-    def get_fft_data_json(fft_data: Optional[str]) -> Optional[FFTResult]:
+    def get_fft_data_json(fft_data: str | None) -> FFTResult | None:
         """
         Parse FFT data from JSON string stored in database.
         """
@@ -174,9 +175,8 @@ class FFTService:
         blocking the async event loop.
         """
         import asyncio
-        result = await asyncio.to_thread(
-            FFTService.compute_fft_from_file, song.file_path
-        )
+
+        result = await asyncio.to_thread(FFTService.compute_fft_from_file, song.file_path)
         if result:
             fft_json = FFTService.to_json(result)
             song.fft_data = fft_json
@@ -186,6 +186,7 @@ class FFTService:
                 task.progress = TASK_PROGRESS_COMPLETE
             db.commit()
             from app.core.redis_helper import cache_set_fft
+
             await cache_set_fft(song.id, fft_json)
         else:
             if task:

@@ -4,3 +4,16 @@ filterwarnings = [
     "ignore::DeprecationWarning:sqlalchemy.sql.schema",
     "ignore::DeprecationWarning:audioread.rawread",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+ignore = ["E501", "B008", "N806", "SIM105", "SIM108"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

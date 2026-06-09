@@ -1,16 +1,19 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
-from typing import Optional, List
 from datetime import datetime
 from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, EmailStr
+
 
 class UserRegister(BaseModel):
     username: str
     email: EmailStr
     password: str
 
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
 
 class UserResponse(BaseModel):
     id: str
@@ -22,10 +25,12 @@ class UserResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
-    email: Optional[EmailStr] = None
-    role: Optional[str] = None
+    username: str | None = None
+    email: EmailStr | None = None
+    role: str | None = None
+
 
 class Token(BaseModel):
     access_token: str
@@ -34,20 +39,21 @@ class Token(BaseModel):
     user_id: str
     role: str = "user"
 
+
 class SongResponse(BaseModel):
     id: str
     title: str
     artist: str
-    album: Optional[str]
+    album: str | None
     duration: float
-    media_type: Optional[str] = "audio"
-    file: Optional[str] = None
-    file_path: Optional[str] = None
-    has_fft: Optional[bool] = False
+    media_type: str | None = "audio"
+    file: str | None = None
+    file_path: str | None = None
+    has_fft: bool | None = False
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-    
+
     @classmethod
     def from_orm(cls, obj):
         """Build a SongResponse from a Song ORM row, exposing a public ``file`` URL."""
@@ -63,42 +69,48 @@ class SongResponse(BaseModel):
             file=file_url,
             file_path=filename,
             has_fft=bool(obj.fft_data),
-            created_at=obj.created_at
+            created_at=obj.created_at,
         )
+
 
 class PlaylistCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
+
 
 class PlaylistSongResponse(BaseModel):
     id: str
     song_id: str
-    position: Optional[int]
-    added_at: Optional[datetime]
+    position: int | None
+    added_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class PlaylistResponse(BaseModel):
     id: str
     name: str
-    description: Optional[str]
+    description: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
-    songs: Optional[List[PlaylistSongResponse]] = []
+    updated_at: datetime | None
+    songs: list[PlaylistSongResponse] | None = []
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class FavoriteCreate(BaseModel):
     song_id: str
+
 
 class FavoriteResponse(BaseModel):
     id: str
     user_id: str
     song_id: str
-    added_at: Optional[datetime]
-    song: Optional[dict] = None
+    added_at: datetime | None
+    song: dict | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class SongAddRequest(BaseModel):
     song_id: str
@@ -110,12 +122,12 @@ class YouTubeSearchResult(BaseModel):
     channel: str
     thumbnail: str
     duration: int
-    views: Optional[int] = None
+    views: int | None = None
 
 
 class YouTubeDownloadRequest(BaseModel):
     video_id: str
     format: str = "m4a"
     quality: str = "320"
-    title: Optional[str] = None
-    artist: Optional[str] = None
+    title: str | None = None
+    artist: str | None = None

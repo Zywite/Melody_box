@@ -9,10 +9,9 @@ payloads.
 """
 
 import gzip
-from typing import Iterable
+from collections.abc import Iterable
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
-
 
 COMPRESSIBLE_PREFIXES: tuple[str, ...] = (
     "text/",
