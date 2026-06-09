@@ -1,13 +1,12 @@
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.core.constants import ERROR_SONG_NOT_FOUND
 from app.core.database import get_db
-from app.models import Favorite, Song, User
+from app.models import User
 from app.routes.dependencies import get_current_user
 from app.schemas import FavoriteCreate, FavoriteResponse
+from app.services.favorite_service import FavoriteService
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
@@ -37,7 +36,7 @@ def _format_favorite(fav, song=None):
 @router.get("", response_model=list[FavoriteResponse])
 def get_favorites(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Obtener canciones favoritas del usuario"""
-    favorites = db.query(Favorite).options(joinedload(Favorite.song)).filter(Favorite.user_id == current_user.id).all()
+    favorites = FavoriteService.get_user_favorites(db, current_user.id)
     return [_format_favorite(f) for f in favorites]
 
 
@@ -46,34 +45,22 @@ def add_favorite(
     favorite: FavoriteCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Agregar canción a favoritos"""
-    song = db.query(Song).filter(Song.id == favorite.song_id).first()
+    song = FavoriteService.get_song(db, favorite.song_id)
     if not song:
         raise HTTPException(status_code=404, detail=ERROR_SONG_NOT_FOUND)
 
-    existing = (
-        db.query(Favorite).filter(Favorite.user_id == current_user.id, Favorite.song_id == favorite.song_id).first()
-    )
-
+    existing = FavoriteService.get_favorite(db, current_user.id, favorite.song_id)
     if existing:
         raise HTTPException(status_code=400, detail="La canción ya está en favoritos")
 
-    db_favorite = Favorite(id=str(uuid.uuid4()), user_id=current_user.id, song_id=favorite.song_id)
-    db.add(db_favorite)
-    db.commit()
-    db.refresh(db_favorite)
-
+    db_favorite = FavoriteService.add_favorite(db, current_user.id, favorite.song_id)
     return _format_favorite(db_favorite, song)
 
 
 @router.delete("/{song_id}")
 def remove_favorite(song_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Eliminar canción de favoritos"""
-    favorite = db.query(Favorite).filter(Favorite.user_id == current_user.id, Favorite.song_id == song_id).first()
-
+    favorite = FavoriteService.remove_favorite(db, current_user.id, song_id)
     if not favorite:
         raise HTTPException(status_code=404, detail="Canción no encontrada en favoritos")
-
-    db.delete(favorite)
-    db.commit()
-
     return {"message": "Canción eliminada de favoritos"}

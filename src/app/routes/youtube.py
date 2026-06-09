@@ -31,6 +31,7 @@ from app.core.rate_limit import limiter
 from app.core.redis_helper import enqueue_job
 from app.models.task import Task
 from app.schemas import SongResponse, YouTubeDownloadRequest, YouTubeSearchResult
+from app.services.task_service import TaskService
 from app.services.youtube_service import (
     EXT_MAP,
     YTDLP_FORMAT_MAP,
@@ -95,13 +96,7 @@ async def download_youtube(fastapi_request: Request, request: YouTubeDownloadReq
         )
 
     # Create task record
-    task = Task(
-        id=str(uuid.uuid4()),
-        type=TASK_TYPE_YOUTUBE_DOWNLOAD,
-        status=TASK_STATUS_PENDING,
-    )
-    db.add(task)
-    db.commit()
+    task = TaskService.create_task(db, TASK_TYPE_YOUTUBE_DOWNLOAD, TASK_STATUS_PENDING)
 
     job_id = await enqueue_job(
         JOB_NAME_DOWNLOAD_YOUTUBE,

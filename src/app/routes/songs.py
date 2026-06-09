@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import shutil
-import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
@@ -45,11 +44,11 @@ from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.redis_helper import cache_get_fft, cache_set_fft, enqueue_job
 from app.models import User
-from app.models.task import Task
 from app.routes.dependencies import get_current_user
 from app.schemas import SongResponse
 from app.services.fft_service import FFTService
 from app.services.song_service import SongService
+from app.services.task_service import TaskService
 
 router = APIRouter(prefix="/songs", tags=["songs"])
 
@@ -149,9 +148,7 @@ async def _process_upload_file(
 
         task_id = None
         try:
-            task = Task(id=str(uuid.uuid4()), type=TASK_TYPE_FFT, status=TASK_STATUS_PENDING, song_id=song.id)
-            db.add(task)
-            db.commit()
+            task = TaskService.create_task(db, TASK_TYPE_FFT, TASK_STATUS_PENDING, song_id=song.id)
             job_id = await enqueue_job(JOB_NAME_COMPUTE_FFT, song.id, _job_id=task.id)
             if job_id:
                 task_id = task.id
@@ -327,22 +324,12 @@ async def get_song_fft(request: Request, song_id: str, db: Session = Depends(get
             return JSONResponse(content=fft_json)
 
     # Check for existing pending/processing task
-    existing_task = (
-        db.query(Task)
-        .filter(
-            Task.song_id == song_id,
-            Task.type == TASK_TYPE_FFT,
-            Task.status.in_([TASK_STATUS_PENDING, TASK_STATUS_PROCESSING]),
-        )
-        .first()
-    )
+    existing_task = TaskService.get_pending_fft_task(db, song_id)
     if existing_task:
         return {"task_id": existing_task.id, "status": existing_task.status}
 
     # Create task and enqueue
-    task = Task(id=str(uuid.uuid4()), type=TASK_TYPE_FFT, status=TASK_STATUS_PENDING, song_id=song_id)
-    db.add(task)
-    db.commit()
+    task = TaskService.create_task(db, TASK_TYPE_FFT, TASK_STATUS_PENDING, song_id=song_id)
 
     job_id = await enqueue_job(JOB_NAME_COMPUTE_FFT, song_id, _job_id=task.id)
     if job_id:
@@ -394,14 +381,7 @@ async def analyze_all_songs_fft(
         if song.fft_data:
             continue
         try:
-            task = Task(
-                id=str(uuid.uuid4()),
-                type=TASK_TYPE_FFT,
-                status=TASK_STATUS_PENDING,
-                song_id=song.id,
-            )
-            db.add(task)
-            db.commit()
+            task = TaskService.create_task(db, TASK_TYPE_FFT, TASK_STATUS_PENDING, song_id=song.id)
             job_id = await enqueue_job(JOB_NAME_COMPUTE_FFT, song.id, _job_id=task.id)
             if job_id:
                 enqueued += 1

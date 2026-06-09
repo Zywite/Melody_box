@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.models import User, UserRole
 from app.routes.dependencies import invalidate_user_cache, require_admin
 from app.schemas import SongResponse, UserResponse, UserUpdate
+from app.services.favorite_service import FavoriteService
 from app.services.playlist_service import PlaylistService
 from app.services.song_service import SongService
 from app.services.user_service import UserService
@@ -121,10 +122,10 @@ def user_stats(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    from app.models import Favorite, Playlist
+    from app.models import Playlist
 
     playlists_count = db.query(Playlist).filter(Playlist.user_id == user_id).count()
-    favorites_count = db.query(Favorite).filter(Favorite.user_id == user_id).count()
+    favorites_count = FavoriteService.get_user_favorite_count(db, user_id)
 
     return {
         "user_id": user.id,
