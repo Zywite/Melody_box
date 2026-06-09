@@ -24,6 +24,7 @@ def test_e2e_auth_full_flow(client):
     assert resp.status_code == 200
     token_data = resp.json()
     assert "access_token" in token_data
+    assert "refresh_token" in token_data
     assert token_data["token_type"] == "bearer"
     assert token_data["username"] == "e2euser"
     token = token_data["access_token"]

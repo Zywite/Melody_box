@@ -16,7 +16,15 @@ from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.rate_limit import limiter
 from app.core.selective_gzip import SelectiveGZipMiddleware
-from app.models import Favorite, Playlist, PlaylistSong, Song, User, UserRole  # noqa: F401 - needed for Base.metadata
+from app.models import (  # noqa: F401 - needed for Base.metadata
+    Favorite,
+    Playlist,
+    PlaylistSong,
+    RefreshToken,
+    Song,
+    User,
+    UserRole,
+)
 from app.routes import admin, auth, favorites, playlists, songs, tasks, youtube
 
 logger = logging.getLogger(__name__)

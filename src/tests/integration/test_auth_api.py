@@ -44,6 +44,7 @@ def test_login_success(client, test_user):
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
+    assert "refresh_token" in data
     assert data["token_type"] == "bearer"
     assert data["username"] == "testuser"
     assert "user_id" in data
@@ -88,3 +89,40 @@ def test_access_protected_endpoint_with_expired_token(client):
     token = create_access_token(data={"sub": "anyuser"}, expires_delta=timedelta(days=-1))
     response = client.get("/playlists", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
+
+
+def test_refresh_token_success(client, test_user):
+    login_resp = client.post("/auth/login", json={
+        "email": "test@example.com",
+        "password": TEST_PASSWORD,
+    })
+    refresh_token = login_resp.json()["refresh_token"]
+
+    resp = client.post("/auth/refresh", json={"refresh_token": refresh_token})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["refresh_token"] != refresh_token  # rotated
+    assert data["username"] == "testuser"
+
+
+def test_refresh_token_invalid(client):
+    resp = client.post("/auth/refresh", json={"refresh_token": "garbage-token"})
+    assert resp.status_code == 401
+
+
+def test_refresh_token_revoked_after_use(client, test_user):
+    login_resp = client.post("/auth/login", json={
+        "email": "test@example.com",
+        "password": TEST_PASSWORD,
+    })
+    refresh_token = login_resp.json()["refresh_token"]
+
+    # First use — succeeds
+    resp1 = client.post("/auth/refresh", json={"refresh_token": refresh_token})
+    assert resp1.status_code == 200
+
+    # Second use with same token — revoked, should fail
+    resp2 = client.post("/auth/refresh", json={"refresh_token": refresh_token})
+    assert resp2.status_code == 401
