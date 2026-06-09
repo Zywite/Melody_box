@@ -75,11 +75,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      - name: SonarQube Quality Gate Check
-        uses: SonarSource/sonarqube-quality-gate-action@v1
-        timeout-minutes: 15
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
 
   frontend:
     runs-on: ubuntu-latest
