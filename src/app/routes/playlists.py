@@ -45,7 +45,11 @@ def create_playlist(
     return new_playlist
 
 
-@router.get("/{playlist_id}", response_model=PlaylistResponse, responses={403: {"description": "Acceso denegado"}, 404: {"description": "Playlist no encontrada"}})
+@router.get(
+    "/{playlist_id}",
+    response_model=PlaylistResponse,
+    responses={403: {"description": "Acceso denegado"}, 404: {"description": "Playlist no encontrada"}},
+)
 def get_playlist(
     playlist_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -61,7 +65,10 @@ def get_playlist(
     return playlist
 
 
-@router.post("/{playlist_id}/songs", responses={403: {"description": "Acceso denegado"}, 404: {"description": "Playlist o canción no encontrada"}})
+@router.post(
+    "/{playlist_id}/songs",
+    responses={403: {"description": "Acceso denegado"}, 404: {"description": "Playlist o canción no encontrada"}},
+)
 def add_song_to_playlist(
     playlist_id: str,
     song_data: SongAddRequest,
@@ -83,7 +90,10 @@ def add_song_to_playlist(
     return {"message": "Canción agregada a la playlist"}
 
 
-@router.delete("/{playlist_id}/songs/{song_id}", responses={403: {"description": "Acceso denegado"}, 404: {"description": "Playlist no encontrada"}})
+@router.delete(
+    "/{playlist_id}/songs/{song_id}",
+    responses={403: {"description": "Acceso denegado"}, 404: {"description": "Playlist no encontrada"}},
+)
 def remove_song_from_playlist(
     playlist_id: str,
     song_id: str,
@@ -101,7 +111,10 @@ def remove_song_from_playlist(
     return {"message": "Canción eliminada de la playlist"}
 
 
-@router.delete("/{playlist_id}", responses={403: {"description": "Acceso denegado"}, 404: {"description": "Playlist no encontrada"}})
+@router.delete(
+    "/{playlist_id}",
+    responses={403: {"description": "Acceso denegado"}, 404: {"description": "Playlist no encontrada"}},
+)
 def delete_playlist(
     playlist_id: str,
     current_user: Annotated[User, Depends(get_current_user)],

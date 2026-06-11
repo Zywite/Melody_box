@@ -45,7 +45,11 @@ def get_favorites(
     return [_format_favorite(f) for f in favorites]
 
 
-@router.post("", response_model=FavoriteResponse, responses={400: {"description": "Canción ya favorita"}, 404: {"description": "Canción no encontrada"}})
+@router.post(
+    "",
+    response_model=FavoriteResponse,
+    responses={400: {"description": "Canción ya favorita"}, 404: {"description": "Canción no encontrada"}},
+)
 def add_favorite(
     favorite: FavoriteCreate,
     current_user: Annotated[User, Depends(get_current_user)],

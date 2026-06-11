@@ -19,6 +19,7 @@ USER_NOT_FOUND = "Usuario no encontrado"
 
 # ── Users ──────────────────────────────────────────────────────────────────
 
+
 @router.get("/users", response_model=list[UserResponse])
 def list_users(
     current_user: Annotated[User, Depends(require_admin)],
@@ -41,7 +42,11 @@ def count_users(
     return {"count": UserService.count_users(db)}
 
 
-@router.patch("/users/{user_id}", response_model=UserResponse, responses={400: {"description": "Bad request"}, 404: {"description": "Not found"}})
+@router.patch(
+    "/users/{user_id}",
+    response_model=UserResponse,
+    responses={400: {"description": "Bad request"}, 404: {"description": "Not found"}},
+)
 def update_user(
     user_id: str,
     data: UserUpdate,
@@ -88,7 +93,9 @@ def delete_user(
     return {"message": "Usuario eliminado"}
 
 
-@router.patch("/users/{user_id}/toggle-active", responses={400: {"description": "Bad request"}, 404: {"description": "Not found"}})
+@router.patch(
+    "/users/{user_id}/toggle-active", responses={400: {"description": "Bad request"}, 404: {"description": "Not found"}}
+)
 def toggle_user_active(
     user_id: str,
     current_user: Annotated[User, Depends(require_admin)],
