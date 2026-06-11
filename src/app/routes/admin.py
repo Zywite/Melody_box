@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -12,17 +14,18 @@ from app.services.user_service import UserService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+USER_NOT_FOUND = "Usuario no encontrado"
+
 
 # ── Users ──────────────────────────────────────────────────────────────────
 
-
 @router.get("/users", response_model=list[UserResponse])
 def list_users(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-    search: str | None = Query(None),
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    search: Annotated[str | None, Query()] = None,
 ):
     """List all users with optional search and pagination."""
     users = UserService.get_all_users(db, skip=skip, limit=limit, search=search)
@@ -31,19 +34,19 @@ def list_users(
 
 @router.get("/users/count")
 def count_users(
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Return total number of registered users."""
     return {"count": UserService.count_users(db)}
 
 
-@router.patch("/users/{user_id}", response_model=UserResponse)
+@router.patch("/users/{user_id}", response_model=UserResponse, responses={400: {"description": "Bad request"}, 404: {"description": "Not found"}})
 def update_user(
     user_id: str,
     data: UserUpdate,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Update user fields (username, email, role)."""
     if user_id == current_user.id and data.role is not None and data.role != UserRole.admin.value:
@@ -57,17 +60,17 @@ def update_user(
         role=UserRole(data.role) if data.role else None,
     )
     if not updated:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
 
     invalidate_user_cache(user_id)
     return updated
 
 
-@router.delete("/users/{user_id}")
+@router.delete("/users/{user_id}", responses={400: {"description": "Bad request"}, 404: {"description": "Not found"}})
 def delete_user(
     user_id: str,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Delete a user and all their associated data."""
     if user_id == current_user.id:
@@ -75,7 +78,7 @@ def delete_user(
 
     user = UserService.get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
 
     if user.role == UserRole.admin:
         raise HTTPException(status_code=400, detail="No puedes eliminar a otro administrador")
@@ -85,11 +88,11 @@ def delete_user(
     return {"message": "Usuario eliminado"}
 
 
-@router.patch("/users/{user_id}/toggle-active")
+@router.patch("/users/{user_id}/toggle-active", responses={400: {"description": "Bad request"}, 404: {"description": "Not found"}})
 def toggle_user_active(
     user_id: str,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Activate or deactivate a user account."""
     if user_id == current_user.id:
@@ -97,7 +100,7 @@ def toggle_user_active(
 
     user = UserService.get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
 
     user.is_active = not user.is_active
     db.commit()
@@ -111,16 +114,16 @@ def toggle_user_active(
     }
 
 
-@router.get("/users/{user_id}/stats")
+@router.get("/users/{user_id}/stats", responses={404: {"description": "Not found"}})
 def user_stats(
     user_id: str,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Get statistics for a specific user."""
     user = UserService.get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
 
     from app.models import Playlist
 
@@ -146,21 +149,21 @@ def user_stats(
 
 @router.get("/songs", response_model=list[SongResponse])
 def list_all_songs(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ):
     """List all songs from all users."""
     songs = SongService.get_all_songs(db, skip=skip, limit=limit)
     return [SongResponse.from_orm(s) for s in songs]
 
 
-@router.delete("/songs/{song_id}")
+@router.delete("/songs/{song_id}", responses={404: {"description": "Not found"}})
 def admin_delete_song(
     song_id: str,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Delete any song by any user."""
     song = SongService.get_song(db, song_id)
@@ -173,10 +176,10 @@ def admin_delete_song(
 
 @router.get("/playlists")
 def list_all_playlists(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ):
     """List all playlists from all users."""
     from app.models import Playlist
@@ -199,11 +202,11 @@ def list_all_playlists(
     return result
 
 
-@router.delete("/playlists/{playlist_id}")
+@router.delete("/playlists/{playlist_id}", responses={404: {"description": "Not found"}})
 def admin_delete_playlist(
     playlist_id: str,
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Delete any playlist by any user."""
     playlist = PlaylistService.get_playlist(db, playlist_id)
