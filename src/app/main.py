@@ -40,66 +40,50 @@ class CachedStaticFiles(StaticFiles):
         return response
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """FastAPI lifespan: create schema, run lightweight migrations, log start/stop."""
-    # Retry create_all with a brief delay for PostgreSQL readiness
-    for attempt in range(3):
-        try:
-            Base.metadata.create_all(bind=engine)
-            break
-        except Exception as e:
-            print(f"Database connection attempt {attempt + 1}/3 failed: {e}")
-            if attempt < 2:
-                await asyncio.sleep(2)
-            else:
-                print("All database connection attempts failed. Continuing without DB.")
-
-    # Migrations: Add new columns if they don't exist
+def _run_migrations_sqlite() -> None:
+    """Fallback migrations for SQLite."""
     try:
         with engine.connect() as conn:
-            # Check if fft_data column exists in songs table (PostgreSQL)
+            result = conn.execute(text("PRAGMA table_info(users)"))
+            columns = [row[1] for row in result]
+            if "role" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user' NOT NULL"))
+                print("Added role column to users table (SQLite)")
+            conn.commit()
+    except Exception as e:
+        print(f"Migration error (non-fatal): {e}")
+
+
+def _run_migrations() -> None:
+    """Run lightweight schema migrations."""
+    try:
+        with engine.connect() as conn:
             result = conn.execute(
                 text(
                     "SELECT column_name FROM information_schema.columns "
                     "WHERE table_name = 'songs' AND column_name = 'fft_data'"
                 )
             )
-            columns = [row[0] for row in result]
-
-            if "fft_data" not in columns:
+            if "fft_data" not in [row[0] for row in result]:
                 conn.execute(text("ALTER TABLE songs ADD COLUMN fft_data TEXT"))
                 print("Added fft_data column to songs table")
 
-            # Check if role column exists in users table
             result = conn.execute(
                 text(
                     "SELECT column_name FROM information_schema.columns "
                     "WHERE table_name = 'users' AND column_name = 'role'"
                 )
             )
-            role_columns = [row[0] for row in result]
-
-            if "role" not in role_columns:
+            if "role" not in [row[0] for row in result]:
                 conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user' NOT NULL"))
                 print("Added role column to users table")
-
             conn.commit()
     except Exception:
-        # SQLite fallback for migrations
-        try:
-            with engine.connect() as conn:
-                # Check if role column exists via PRAGMA
-                result = conn.execute(text("PRAGMA table_info(users)"))
-                columns = [row[1] for row in result]
-                if "role" not in columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user' NOT NULL"))
-                    print("Added role column to users table (SQLite)")
-                conn.commit()
-        except Exception as e:
-            print(f"Migration error (non-fatal): {e}")
+        _run_migrations_sqlite()
 
-    # Create default admin if none exists
+
+def _create_default_admin() -> None:
+    """Create default admin user if none exists."""
     try:
         db = SessionLocal()
         from app.core.security import get_password_hash
@@ -126,6 +110,24 @@ async def lifespan(app: FastAPI):
         db.close()
     except Exception as e:
         print(f"Admin creation error (non-fatal): {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan: create schema, run lightweight migrations, log start/stop."""
+    for attempt in range(3):
+        try:
+            Base.metadata.create_all(bind=engine)
+            break
+        except Exception as e:
+            print(f"Database connection attempt {attempt + 1}/3 failed: {e}")
+            if attempt < 2:
+                await asyncio.sleep(2)
+            else:
+                print("All database connection attempts failed. Continuing without DB.")
+
+    _run_migrations()
+    _create_default_admin()
 
     print("MelodyBox iniciando...")
     yield

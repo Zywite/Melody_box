@@ -10,7 +10,7 @@ from app.services.task_service import TaskService
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.get("/{task_id}")
+@router.get("/{task_id}", responses={404: {"description": "Task not found"}})
 def get_task(task_id: str, db: Annotated[Session, Depends(get_db)]):
     """Return the current status and result of an arq task by id."""
     task = TaskService.get_task(db, task_id)

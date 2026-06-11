@@ -47,7 +47,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/youtube", tags=["youtube"])
 
 
-@router.get("/search", response_model=list[YouTubeSearchResult])
+@router.get(
+    "/search", response_model=list[YouTubeSearchResult], responses={500: {"description": "YouTube search error"}}
+)
 @limiter.limit(RATE_LIMIT_YT_SEARCH)
 async def search_youtube(request: Request, q: str, limit: int = DEFAULT_YOUTUBE_SEARCH_RESULTS):
     """Search for videos on YouTube."""
@@ -87,7 +89,9 @@ async def search_youtube(request: Request, q: str, limit: int = DEFAULT_YOUTUBE_
         raise HTTPException(status_code=500, detail=f"Error searching YouTube: {str(e)}") from e
 
 
-@router.post("/download")
+@router.post(
+    "/download", responses={400: {"description": "Format not supported"}, 500: {"description": "Download error"}}
+)
 @limiter.limit(RATE_LIMIT_YT_DOWNLOAD)
 async def download_youtube(
     fastapi_request: Request, request: YouTubeDownloadRequest, db: Annotated[Session, Depends(get_db)]

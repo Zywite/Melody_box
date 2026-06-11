@@ -209,7 +209,7 @@ def search_songs(
     return [SongResponse.from_orm(song) for song in songs]
 
 
-@router.get("/{song_id}", response_model=SongResponse)
+@router.get("/{song_id}", response_model=SongResponse, responses={404: {"description": "Song not found"}})
 def get_song(song_id: str, db: Annotated[Session, Depends(get_db)]):
     """Fetch a single song by id."""
     song = SongService.get_song(db, song_id)
@@ -218,7 +218,7 @@ def get_song(song_id: str, db: Annotated[Session, Depends(get_db)]):
     return SongResponse.from_orm(song)
 
 
-@router.get("/{song_id}/stream")
+@router.get("/{song_id}/stream", responses={404: {"description": "Song or file not found"}})
 def stream_song(song_id: str, db: Annotated[Session, Depends(get_db)]):
     """Stream the audio/video bytes of a song with range support and 1h cache."""
     song = SongService.get_song(db, song_id)
@@ -239,7 +239,9 @@ def stream_song(song_id: str, db: Annotated[Session, Depends(get_db)]):
     )
 
 
-@router.post("/upload")
+@router.post(
+    "/upload", responses={400: {"description": "Invalid file"}, 500: {"description": "Upload processing error"}}
+)
 @limiter.limit(RATE_LIMIT_UPLOAD)
 async def upload_song(
     request: Request,
@@ -258,7 +260,13 @@ async def upload_song(
     return result
 
 
-@router.post("/upload-multiple")
+@router.post(
+    "/upload-multiple",
+    responses={
+        400: {"description": "Invalid file or metadata mismatch"},
+        500: {"description": "Upload processing error"},
+    },
+)
 @limiter.limit(RATE_LIMIT_UPLOAD_MULTIPLE)
 async def upload_multiple(
     request: Request,
@@ -299,7 +307,7 @@ async def upload_multiple(
     }
 
 
-@router.delete("/{song_id}")
+@router.delete("/{song_id}", responses={404: {"description": "Song not found"}})
 def delete_song(
     song_id: str, current_user: Annotated[User, Depends(get_current_user)], db: Annotated[Session, Depends(get_db)]
 ):
@@ -312,7 +320,9 @@ def delete_song(
     return {"message": "Canción eliminada"}
 
 
-@router.get("/{song_id}/fft")
+@router.get(
+    "/{song_id}/fft", responses={404: {"description": "Song not found"}, 500: {"description": "FFT computation error"}}
+)
 @limiter.limit(RATE_LIMIT_FFT_READ)
 async def get_song_fft(request: Request, song_id: str, db: Annotated[Session, Depends(get_db)]):
     """Get FFT analysis for a song. Enqueues computation if not available."""

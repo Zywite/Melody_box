@@ -18,7 +18,7 @@ class SongService:
         artist: str,
         file_path: str,
         duration: float,
-        album: str = None,
+        album: str | None = None,
         media_type: str = "audio",
     ) -> tuple[Song, bool]:
         """Create and persist a new song row.
