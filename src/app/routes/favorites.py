@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -34,15 +36,20 @@ def _format_favorite(fav, song=None):
 
 
 @router.get("", response_model=list[FavoriteResponse])
-def get_favorites(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_favorites(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
     """Obtener canciones favoritas del usuario"""
     favorites = FavoriteService.get_user_favorites(db, current_user.id)
     return [_format_favorite(f) for f in favorites]
 
 
-@router.post("", response_model=FavoriteResponse)
+@router.post("", response_model=FavoriteResponse, responses={400: {"description": "Canción ya favorita"}, 404: {"description": "Canción no encontrada"}})
 def add_favorite(
-    favorite: FavoriteCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    favorite: FavoriteCreate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Agregar canción a favoritos"""
     song = FavoriteService.get_song(db, favorite.song_id)
@@ -57,8 +64,12 @@ def add_favorite(
     return _format_favorite(db_favorite, song)
 
 
-@router.delete("/{song_id}")
-def remove_favorite(song_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@router.delete("/{song_id}", responses={404: {"description": "Canción no encontrada en favoritos"}})
+def remove_favorite(
+    song_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
     """Eliminar canción de favoritos"""
     favorite = FavoriteService.remove_favorite(db, current_user.id, song_id)
     if not favorite:
