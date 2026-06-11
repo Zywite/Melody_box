@@ -1,4 +1,5 @@
 """Standalone rate limit test - runs in a fresh Python process."""
+
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -7,19 +8,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core import redis_helper
+
 redis_helper.enqueue_job = AsyncMock(return_value=None)
 redis_helper.cache_get_fft = AsyncMock(return_value=None)
 redis_helper.cache_set_fft = AsyncMock(return_value=None)
 redis_helper.get_redis = AsyncMock(return_value=None)
 
-from app.core import database
-from app.core.database import Base, get_db
-from app.models import User
-from app.services.user_service import UserService
+from app.core import database  # noqa: E402
+from app.core.database import Base, get_db  # noqa: E402
+from app.services.user_service import UserService  # noqa: E402
 
 _test_engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 database.engine = _test_engine
@@ -36,7 +36,8 @@ def override_get_db():
 
 
 TEST_PASSWORD = "TestPass123!"  # NOSONAR
-from app.main import app
+from app.main import app  # noqa: E402
+
 app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
@@ -45,14 +46,14 @@ failed = 0
 
 # Test A4: Register rate-limited to 3/min
 for i in range(3):
-    resp = client.post("/auth/register", json={
-        "username": f"rluser{i}", "email": f"rluser{i}@test.com", "password": TEST_PASSWORD
-    })
+    resp = client.post(
+        "/auth/register", json={"username": f"rluser{i}", "email": f"rluser{i}@test.com", "password": TEST_PASSWORD}
+    )
     assert resp.status_code == 200, f"Register {i}: {resp.status_code}"
 
-resp = client.post("/auth/register", json={
-    "username": "rlextra", "email": "rlextra@test.com", "password": TEST_PASSWORD
-})
+resp = client.post(
+    "/auth/register", json={"username": "rlextra", "email": "rlextra@test.com", "password": TEST_PASSWORD}
+)
 if resp.status_code != 429:
     print(f"FAIL: Register rate limit (expected 429, got {resp.status_code})")
     failed += 1
@@ -65,14 +66,10 @@ UserService.create_user(db_session, "loginuser", "login@test.com", TEST_PASSWORD
 db_session.close()
 
 for i in range(5):
-    resp = client.post("/auth/login", json={
-        "email": "login@test.com", "password": TEST_PASSWORD
-    })
+    resp = client.post("/auth/login", json={"email": "login@test.com", "password": TEST_PASSWORD})
     assert resp.status_code == 200, f"Login {i}: {resp.status_code}"
 
-resp = client.post("/auth/login", json={
-    "email": "login@test.com", "password": TEST_PASSWORD
-})
+resp = client.post("/auth/login", json={"email": "login@test.com", "password": TEST_PASSWORD})
 if resp.status_code != 429:
     print(f"FAIL: Login rate limit (expected 429, got {resp.status_code})")
     failed += 1
@@ -84,9 +81,11 @@ db_session = database.SessionLocal()
 user = UserService.create_user(db_session, "uploaduser", "upload@test.com", TEST_PASSWORD)
 db_session.close()
 
-from app.core.security import create_access_token
-from datetime import timedelta
-from unittest.mock import patch
+from datetime import timedelta  # noqa: E402
+from unittest.mock import patch  # noqa: E402
+
+from app.core.security import create_access_token  # noqa: E402
+
 token = create_access_token(data={"sub": user.id}, expires_delta=timedelta(hours=1))
 headers = {"Authorization": f"Bearer {token}"}
 
@@ -96,7 +95,7 @@ with patch("app.routes.songs._extract_duration", return_value=30.0):
             "/songs/upload",
             headers=headers,
             files={"file": (f"rate{i}.mp3", b"x", "audio/mpeg")},
-            data={"title": f"Rate{i}", "artist": "A"}
+            data={"title": f"Rate{i}", "artist": "A"},
         )
         assert resp.status_code == 200, f"Upload {i}: {resp.status_code}"
 
@@ -104,7 +103,7 @@ with patch("app.routes.songs._extract_duration", return_value=30.0):
         "/songs/upload",
         headers=headers,
         files={"file": ("overflow.mp3", b"x", "audio/mpeg")},
-        data={"title": "Overflow", "artist": "A"}
+        data={"title": "Overflow", "artist": "A"},
     )
 if resp.status_code != 429:
     print(f"FAIL: Upload rate limit (expected 429, got {resp.status_code})")

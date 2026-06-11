@@ -1,7 +1,5 @@
 def test_add_favorite(client, auth_headers, test_song):
-    response = client.post("/favorites", headers=auth_headers, json={
-        "song_id": test_song.id
-    })
+    response = client.post("/favorites", headers=auth_headers, json={"song_id": test_song.id})
     assert response.status_code == 200
     data = response.json()
     assert data["song_id"] == test_song.id
@@ -15,9 +13,7 @@ def test_add_favorite_without_auth(client, test_song):
 
 
 def test_add_favorite_nonexistent_song(client, auth_headers):
-    response = client.post("/favorites", headers=auth_headers, json={
-        "song_id": "nonexistent-id"
-    })
+    response = client.post("/favorites", headers=auth_headers, json={"song_id": "nonexistent-id"})
     assert response.status_code == 404
 
 

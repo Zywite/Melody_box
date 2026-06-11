@@ -17,15 +17,11 @@ def test_get_task_not_found(client):
 
 
 def test_get_task_with_pending_status(client, db, test_song):
-    from app.models.task import Task
     import uuid
-    task = Task(
-        id=str(uuid.uuid4()),
-        type="youtube_download",
-        status="pending",
-        song_id=test_song.id,
-        progress=0
-    )
+
+    from app.models.task import Task
+
+    task = Task(id=str(uuid.uuid4()), type="youtube_download", status="pending", song_id=test_song.id, progress=0)
     db.add(task)
     db.commit()
 
@@ -37,15 +33,17 @@ def test_get_task_with_pending_status(client, db, test_song):
 
 
 def test_get_task_with_error(client, db, test_song):
-    from app.models.task import Task
     import uuid
+
+    from app.models.task import Task
+
     task = Task(
         id=str(uuid.uuid4()),
         type="fft",
         status="failed",
         song_id=test_song.id,
         progress=50,
-        error="Something went wrong"
+        error="Something went wrong",
     )
     db.add(task)
     db.commit()

@@ -1,8 +1,4 @@
-import os
-from pathlib import Path
 from unittest.mock import patch
-
-from app.routes.songs import _extract_duration
 
 
 def test_e2e_upload_stream_delete_wav(client, auth_headers, tone_wav_bytes, tmp_path):
@@ -10,14 +6,16 @@ def test_e2e_upload_stream_delete_wav(client, auth_headers, tone_wav_bytes, tmp_
     storage = tmp_path / "music"
     storage.mkdir()
 
-    with patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)):
-        with patch("app.routes.songs._extract_duration", return_value=0.3):
-            resp = client.post(
-                "/songs/upload",
-                headers=auth_headers,
-                files={"file": ("sine440.wav", tone_wav_bytes, "audio/wav")},
-                data={"title": "Sine 440Hz", "artist": "E2E Tester", "album": "E2E Album"},
-            )
+    with (
+        patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)),
+        patch("app.routes.songs._extract_duration", return_value=0.3),
+    ):
+        resp = client.post(
+            "/songs/upload",
+            headers=auth_headers,
+            files={"file": ("sine440.wav", tone_wav_bytes, "audio/wav")},
+            data={"title": "Sine 440Hz", "artist": "E2E Tester", "album": "E2E Album"},
+        )
     assert resp.status_code == 200
     song = resp.json()
     assert song["title"] == "Sine 440Hz"
@@ -52,19 +50,23 @@ def test_e2e_upload_multiple_wav_files(client, auth_headers, tone_wav_bytes, ton
         ("files", ("tone1.wav", tone_wav_bytes, "audio/wav")),
         ("files", ("tone2.wav", tone_wav_bytes2, "audio/wav")),
     ]
-    metadata = json.dumps([
-        {"title": "Tone 1", "artist": "E2E", "album": "Multi"},
-        {"title": "Tone 2", "artist": "E2E", "album": "Multi"},
-    ])
+    metadata = json.dumps(
+        [
+            {"title": "Tone 1", "artist": "E2E", "album": "Multi"},
+            {"title": "Tone 2", "artist": "E2E", "album": "Multi"},
+        ]
+    )
 
-    with patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)):
-        with patch("app.routes.songs._extract_duration", return_value=0.3):
-            resp = client.post(
-                "/songs/upload-multiple",
-                headers=auth_headers,
-                files=files,
-                data={"metadata": metadata},
-            )
+    with (
+        patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)),
+        patch("app.routes.songs._extract_duration", return_value=0.3),
+    ):
+        resp = client.post(
+            "/songs/upload-multiple",
+            headers=auth_headers,
+            files=files,
+            data={"metadata": metadata},
+        )
     assert resp.status_code == 200
     data = resp.json()
     assert data["success_count"] == 2

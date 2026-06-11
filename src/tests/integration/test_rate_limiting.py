@@ -8,12 +8,13 @@ def test_rate_limits_standalone():
     script = Path(__file__).parent.parent / "scripts" / "rate_limit_standalone.py"
     result = subprocess.run(
         [sys.executable, str(script)],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     if result.returncode != 0:
         print(result.stdout)
         print(result.stderr, file=sys.stderr)
     assert result.returncode == 0, (
-        f"Rate limit tests failed (exit={result.returncode})\n"
-        f"{result.stdout}\n{result.stderr}"
+        f"Rate limit tests failed (exit={result.returncode})\n{result.stdout}\n{result.stderr}"
     )

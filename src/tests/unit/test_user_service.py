@@ -1,6 +1,7 @@
 import pytest
-from app.services.user_service import UserService
+
 from app.core.security import verify_password
+from app.services.user_service import UserService
 from tests.conftest import TEST_PASSWORD
 
 
@@ -63,11 +64,11 @@ def test_verify_user_password_email_not_found(db):
 
 def test_create_user_unique_email(db):
     UserService.create_user(db, username="user1", email="same@example.com", password=TEST_PASSWORD)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         UserService.create_user(db, username="user2", email="same@example.com", password=TEST_PASSWORD)
 
 
 def test_create_user_unique_username(db):
     UserService.create_user(db, username="sameuser", email="user1@example.com", password=TEST_PASSWORD)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         UserService.create_user(db, username="sameuser", email="user2@example.com", password=TEST_PASSWORD)

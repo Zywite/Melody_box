@@ -1,9 +1,9 @@
 import json
-import numpy as np
+
 import pytest
-from pathlib import Path
-from app.services.fft_service import FFTService
+
 from app.core.config import BASE_DIR
+from app.services.fft_service import FFTService
 
 
 def test_to_json_and_get_fft_data_json_roundtrip():
@@ -19,7 +19,7 @@ def test_to_json_and_get_fft_data_json_roundtrip():
         "fft_size": 2048,
         "hop_size": 512,
         "nyquist": 11025,
-        "bin_count": 3
+        "bin_count": 3,
     }
     json_str = FFTService.to_json(result)
     parsed = json.loads(json_str)
@@ -61,9 +61,18 @@ def test_fft_result_contains_all_expected_keys(test_song):
     result = FFTService.compute_fft_from_file(file_path)
     if result is not None:
         expected_keys = {
-            "duration", "sample_rate", "channels", "bins",
-            "spectrogram", "bass_power", "mid_power", "treble_power",
-            "fft_size", "hop_size", "nyquist", "bin_count"
+            "duration",
+            "sample_rate",
+            "channels",
+            "bins",
+            "spectrogram",
+            "bass_power",
+            "mid_power",
+            "treble_power",
+            "fft_size",
+            "hop_size",
+            "nyquist",
+            "bin_count",
         }
         assert expected_keys.issubset(result.keys())
 

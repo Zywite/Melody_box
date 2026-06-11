@@ -1,7 +1,7 @@
+import io
 import math
 import struct
 import wave
-import io
 from pathlib import Path
 
 import pytest

@@ -1,14 +1,15 @@
-import os
-from pathlib import Path
-from app.services.song_service import SongService
 from app.core.config import BASE_DIR
+from app.services.song_service import SongService
 
 
 def test_create_song(db):
     song, is_new = SongService.create_song(
-        db, title="New Song", artist="New Artist",
+        db,
+        title="New Song",
+        artist="New Artist",
         file_path=str(BASE_DIR / "data" / "music" / "new_song.mp3"),
-        duration=200.0, album="New Album"
+        duration=200.0,
+        album="New Album",
     )
     assert song.title == "New Song"
     assert song.artist == "New Artist"
@@ -20,18 +21,23 @@ def test_create_song(db):
 
 def test_create_song_without_album(db):
     song, _ = SongService.create_song(
-        db, title="No Album", artist="Artist",
+        db,
+        title="No Album",
+        artist="Artist",
         file_path=str(BASE_DIR / "data" / "music" / "no_album.mp3"),
-        duration=100.0
+        duration=100.0,
     )
     assert song.album is None
 
 
 def test_create_song_video_type(db):
     song, _ = SongService.create_song(
-        db, title="Video", artist="Artist",
+        db,
+        title="Video",
+        artist="Artist",
         file_path=str(BASE_DIR / "data" / "music" / "video.mp4"),
-        duration=300.0, media_type="video"
+        duration=300.0,
+        media_type="video",
     )
     assert song.media_type == "video"
 

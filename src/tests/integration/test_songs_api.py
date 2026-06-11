@@ -1,7 +1,6 @@
 import io
 import json
 from unittest.mock import patch
-from app.core.config import BASE_DIR
 
 
 def test_get_all_songs(client, test_song, test_song2):
@@ -65,13 +64,15 @@ def test_upload_song_success(client, auth_headers, tmp_path):
     fake_file = io.BytesIO(b"fake audio content")
     fake_file.name = "test_audio.mp3"
 
-    with patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(music_dir)), \
-         patch("app.routes.songs._extract_duration", return_value=180.0):
+    with (
+        patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(music_dir)),
+        patch("app.routes.songs._extract_duration", return_value=180.0),
+    ):
         response = client.post(
             "/songs/upload",
             headers=auth_headers,
             files={"file": ("test_audio.mp3", fake_file, "audio/mpeg")},
-            data={"title": "Uploaded Song", "artist": "Uploaded Artist", "album": "Uploaded Album"}
+            data={"title": "Uploaded Song", "artist": "Uploaded Artist", "album": "Uploaded Album"},
         )
     assert response.status_code == 200
     data = response.json()
@@ -87,7 +88,7 @@ def test_upload_song_invalid_extension(client, auth_headers):
         "/songs/upload",
         headers=auth_headers,
         files={"file": ("test.exe", fake_file, "application/octet-stream")},
-        data={"title": "Bad", "artist": "Bad"}
+        data={"title": "Bad", "artist": "Bad"},
     )
     assert response.status_code == 400
     assert "formato" in response.json()["detail"].lower() or "not allowed" in response.json()["detail"].lower()
@@ -100,7 +101,7 @@ def test_upload_song_without_auth(client, tmp_path):
         response = client.post(
             "/songs/upload",
             files={"file": ("test.mp3", fake_file, "audio/mpeg")},
-            data={"title": "No Auth", "artist": "No Auth"}
+            data={"title": "No Auth", "artist": "No Auth"},
         )
     assert response.status_code == 401
 
@@ -128,18 +129,17 @@ def test_upload_multiple_success(client, auth_headers, tmp_path):
         ("files", ("song1.mp3", io.BytesIO(b"content1"), "audio/mpeg")),
         ("files", ("song2.mp3", io.BytesIO(b"content2"), "audio/mpeg")),
     ]
-    metadata = json.dumps([
-        {"title": "Multi 1", "artist": "Artist 1", "album": "Album 1"},
-        {"title": "Multi 2", "artist": "Artist 2", "album": "Album 2"},
-    ])
-    with patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(music_dir)), \
-         patch("app.routes.songs._extract_duration", return_value=180.0):
-        response = client.post(
-            "/songs/upload-multiple",
-            headers=auth_headers,
-            files=files,
-            data={"metadata": metadata}
-        )
+    metadata = json.dumps(
+        [
+            {"title": "Multi 1", "artist": "Artist 1", "album": "Album 1"},
+            {"title": "Multi 2", "artist": "Artist 2", "album": "Album 2"},
+        ]
+    )
+    with (
+        patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(music_dir)),
+        patch("app.routes.songs._extract_duration", return_value=180.0),
+    ):
+        response = client.post("/songs/upload-multiple", headers=auth_headers, files=files, data={"metadata": metadata})
     assert response.status_code == 200
     data = response.json()
     assert data["success_count"] == 2
@@ -149,16 +149,13 @@ def test_upload_multiple_success(client, auth_headers, tmp_path):
 
 def test_upload_multiple_mismatch(client, auth_headers):
     files = [("files", ("song.mp3", io.BytesIO(b"content"), "audio/mpeg"))]
-    metadata = json.dumps([
-        {"title": "A", "artist": "B", "album": "C"},
-        {"title": "D", "artist": "E", "album": "F"},
-    ])
-    response = client.post(
-        "/songs/upload-multiple",
-        headers=auth_headers,
-        files=files,
-        data={"metadata": metadata}
+    metadata = json.dumps(
+        [
+            {"title": "A", "artist": "B", "album": "C"},
+            {"title": "D", "artist": "E", "album": "F"},
+        ]
     )
+    response = client.post("/songs/upload-multiple", headers=auth_headers, files=files, data={"metadata": metadata})
     assert response.status_code == 400
 
 
@@ -170,10 +167,18 @@ def test_get_song_fft_not_found(client, auth_headers):
 def test_get_song_fft_no_data(client, auth_headers, test_song):
     with patch("app.routes.songs.FFTService.compute_fft_from_file") as mock_fft:
         mock_fft.return_value = {
-            "duration": 10.0, "sample_rate": 22050, "channels": 1,
-            "bins": [0, 128], "spectrogram": [[0]], "bass_power": 33.0,
-            "mid_power": 33.0, "treble_power": 34.0,
-            "fft_size": 2048, "hop_size": 512, "nyquist": 11025, "bin_count": 2
+            "duration": 10.0,
+            "sample_rate": 22050,
+            "channels": 1,
+            "bins": [0, 128],
+            "spectrogram": [[0]],
+            "bass_power": 33.0,
+            "mid_power": 33.0,
+            "treble_power": 34.0,
+            "fft_size": 2048,
+            "hop_size": 512,
+            "nyquist": 11025,
+            "bin_count": 2,
         }
         response = client.get(f"/songs/{test_song.id}/fft", headers=auth_headers)
     assert response.status_code == 200
@@ -182,10 +187,18 @@ def test_get_song_fft_no_data(client, auth_headers, test_song):
 def test_analyze_all_songs(client, auth_headers, test_song):
     with patch("app.routes.songs.FFTService.compute_fft_from_file") as mock_fft:
         mock_fft.return_value = {
-            "duration": 10.0, "sample_rate": 22050, "channels": 1,
-            "bins": [0, 128], "spectrogram": [[0]], "bass_power": 33.0,
-            "mid_power": 33.0, "treble_power": 34.0,
-            "fft_size": 2048, "hop_size": 512, "nyquist": 11025, "bin_count": 2
+            "duration": 10.0,
+            "sample_rate": 22050,
+            "channels": 1,
+            "bins": [0, 128],
+            "spectrogram": [[0]],
+            "bass_power": 33.0,
+            "mid_power": 33.0,
+            "treble_power": 34.0,
+            "fft_size": 2048,
+            "hop_size": 512,
+            "nyquist": 11025,
+            "bin_count": 2,
         }
         response = client.post("/songs/analyze-all", headers=auth_headers)
     assert response.status_code == 200
@@ -208,12 +221,12 @@ def test_get_songs_response_format(client, test_song):
 def test_stream_song_success(client, db, tmp_path):
     music_file = tmp_path / "real_song.mp3"
     music_file.write_bytes(b"fake audio content")
-    import app.models as models
     import uuid
-    from app.core.config import BASE_DIR
+
+    import app.models as models
+
     song = models.Song(
-        id=str(uuid.uuid4()), title="Stream Real", artist="Artist",
-        file_path=str(music_file), duration=30.0
+        id=str(uuid.uuid4()), title="Stream Real", artist="Artist", file_path=str(music_file), duration=30.0
     )
     db.add(song)
     db.commit()
@@ -225,11 +238,12 @@ def test_stream_song_success(client, db, tmp_path):
 def test_delete_song_file_removed_from_disk(client, db, auth_headers, tmp_path):
     music_file = tmp_path / "delete_test.mp3"
     music_file.write_bytes(b"content")
-    import app.models as models
     import uuid
+
+    import app.models as models
+
     song = models.Song(
-        id=str(uuid.uuid4()), title="Delete Real", artist="Artist",
-        file_path=str(music_file), duration=10.0
+        id=str(uuid.uuid4()), title="Delete Real", artist="Artist", file_path=str(music_file), duration=10.0
     )
     db.add(song)
     db.commit()
@@ -241,23 +255,27 @@ def test_upload_multiple_partial_error(client, auth_headers, tmp_path):
     music_dir = tmp_path / "music"
     music_dir.mkdir()
     import json
-    import app.routes.songs as songs_route
+
     files = [
         ("files", ("ok.mp3", io.BytesIO(b"valid content"), "audio/mpeg")),
         ("files", ("bad.exe", io.BytesIO(b"bad"), "application/octet-stream")),
     ]
-    metadata = json.dumps([
-        {"title": "Valid", "artist": "V", "album": ""},
-        {"title": "Invalid", "artist": "I", "album": ""},
-    ])
-    with patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(music_dir)):
-        with patch("app.routes.songs._extract_duration", return_value=30.0):
-            response = client.post(
-                "/songs/upload-multiple",
-                headers=auth_headers,
-                files=files,
-                data={"metadata": metadata},
-            )
+    metadata = json.dumps(
+        [
+            {"title": "Valid", "artist": "V", "album": ""},
+            {"title": "Invalid", "artist": "I", "album": ""},
+        ]
+    )
+    with (
+        patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(music_dir)),
+        patch("app.routes.songs._extract_duration", return_value=30.0),
+    ):
+        response = client.post(
+            "/songs/upload-multiple",
+            headers=auth_headers,
+            files=files,
+            data={"metadata": metadata},
+        )
     assert response.status_code == 200
     data = response.json()
     assert data["success_count"] == 1

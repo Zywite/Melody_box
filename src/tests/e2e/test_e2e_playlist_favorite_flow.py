@@ -9,31 +9,39 @@ def test_e2e_full_user_journey(client, auth_headers, tone_wav_bytes, tone_wav_by
     storage = tmp_path / "music"
     storage.mkdir()
 
-    with patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)):
-        with patch("app.routes.songs._extract_duration", return_value=0.3):
-            # Upload song 1
-            r1 = client.post(
-                "/songs/upload", headers=auth_headers,
-                files={"file": ("song1.wav", tone_wav_bytes, "audio/wav")},
-                data={"title": "Song One", "artist": "Artist A", "album": "Album X"},
-            )
-            assert r1.status_code == 200
-            song1_id = r1.json()["id"]
+    with (
+        patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)),
+        patch("app.routes.songs._extract_duration", return_value=0.3),
+    ):
+        # Upload song 1
+        r1 = client.post(
+            "/songs/upload",
+            headers=auth_headers,
+            files={"file": ("song1.wav", tone_wav_bytes, "audio/wav")},
+            data={"title": "Song One", "artist": "Artist A", "album": "Album X"},
+        )
+        assert r1.status_code == 200
+        song1_id = r1.json()["id"]
 
-            # Upload song 2
-            r2 = client.post(
-                "/songs/upload", headers=auth_headers,
-                files={"file": ("song2.wav", tone_wav_bytes2, "audio/wav")},
-                data={"title": "Song Two", "artist": "Artist A", "album": "Album X"},
-            )
-            assert r2.status_code == 200
-            song2_id = r2.json()["id"]
+        # Upload song 2
+        r2 = client.post(
+            "/songs/upload",
+            headers=auth_headers,
+            files={"file": ("song2.wav", tone_wav_bytes2, "audio/wav")},
+            data={"title": "Song Two", "artist": "Artist A", "album": "Album X"},
+        )
+        assert r2.status_code == 200
+        song2_id = r2.json()["id"]
 
     # Create playlist
-    resp = client.post("/playlists", headers=auth_headers, json={
-        "name": "E2E Playlist",
-        "description": "Created by e2e test",
-    })
+    resp = client.post(
+        "/playlists",
+        headers=auth_headers,
+        json={
+            "name": "E2E Playlist",
+            "description": "Created by e2e test",
+        },
+    )
     assert resp.status_code == 200
     playlist = resp.json()
     playlist_id = playlist["id"]
@@ -115,19 +123,26 @@ def test_e2e_other_user_cannot_access_playlist(client, auth_headers, other_auth_
     storage = tmp_path / "music"
     storage.mkdir()
 
-    with patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)):
-        with patch("app.routes.songs._extract_duration", return_value=0.3):
-            resp = client.post(
-                "/songs/upload", headers=auth_headers,
-                files={"file": ("song.wav", tone_wav_bytes, "audio/wav")},
-                data={"title": "My Song", "artist": "Me", "album": "Mine"},
-            )
-            song_id = resp.json()["id"]
+    with (
+        patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)),
+        patch("app.routes.songs._extract_duration", return_value=0.3),
+    ):
+        resp = client.post(
+            "/songs/upload",
+            headers=auth_headers,
+            files={"file": ("song.wav", tone_wav_bytes, "audio/wav")},
+            data={"title": "My Song", "artist": "Me", "album": "Mine"},
+        )
+        song_id = resp.json()["id"]
 
     # Owner creates playlist
-    resp = client.post("/playlists", headers=auth_headers, json={
-        "name": "My Playlist",
-    })
+    resp = client.post(
+        "/playlists",
+        headers=auth_headers,
+        json={
+            "name": "My Playlist",
+        },
+    )
     playlist_id = resp.json()["id"]
 
     # Other user tries to get playlist

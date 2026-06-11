@@ -1,8 +1,5 @@
-import uuid
-import pytest
 from app.services.playlist_service import PlaylistService
 from app.services.song_service import SongService
-from app.models import PlaylistSong
 
 
 def test_create_playlist(db, test_user):
@@ -63,8 +60,7 @@ def test_add_song_auto_increments_position(db, test_playlist, test_song2):
 def test_add_song_position_with_new_song(db, test_playlist, test_song2):
     _ = PlaylistService.add_song_to_playlist(db, test_playlist.id, test_song2.id)
     song3, _ = SongService.create_song(
-        db, title="Third Song", artist="Third Artist",
-        file_path="/tmp/third.mp3", duration=100.0
+        db, title="Third Song", artist="Third Artist", file_path="/tmp/third.mp3", duration=100.0
     )
     third = PlaylistService.add_song_to_playlist(db, test_playlist.id, song3.id)
     assert third.position == 3

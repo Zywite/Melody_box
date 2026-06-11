@@ -1,4 +1,5 @@
 import jwt
+
 from app.core.config import settings
 from tests.conftest import TEST_PASSWORD
 
@@ -6,21 +7,27 @@ from tests.conftest import TEST_PASSWORD
 def test_e2e_auth_full_flow(client):
     """Register → Login → Access protected endpoint → Verify JWT claims."""
     # 1. Register
-    resp = client.post("/auth/register", json={
-        "username": "e2euser",
-        "email": "e2e@test.com",
-        "password": TEST_PASSWORD,
-    })
+    resp = client.post(
+        "/auth/register",
+        json={
+            "username": "e2euser",
+            "email": "e2e@test.com",
+            "password": TEST_PASSWORD,
+        },
+    )
     assert resp.status_code == 200
     user = resp.json()
     assert user["username"] == "e2euser"
     assert user["email"] == "e2e@test.com"
 
     # 2. Login
-    resp = client.post("/auth/login", json={
-        "email": "e2e@test.com",
-        "password": TEST_PASSWORD,
-    })
+    resp = client.post(
+        "/auth/login",
+        json={
+            "email": "e2e@test.com",
+            "password": TEST_PASSWORD,
+        },
+    )
     assert resp.status_code == 200
     token_data = resp.json()
     assert "access_token" in token_data
@@ -39,10 +46,13 @@ def test_e2e_auth_full_flow(client):
     assert "exp" in payload
 
     # 5. Wrong password → 401
-    resp = client.post("/auth/login", json={
-        "email": "e2e@test.com",
-        "password": "wrong_credential",  # NOSONAR
-    })
+    resp = client.post(
+        "/auth/login",
+        json={
+            "email": "e2e@test.com",
+            "password": "wrong_credential",  # NOSONAR
+        },
+    )
     assert resp.status_code == 401
 
     # 6. No token → 401
@@ -54,32 +64,44 @@ def test_e2e_auth_full_flow(client):
     assert resp.status_code == 401
 
     # 8. Duplicate email → 400
-    resp = client.post("/auth/register", json={
-        "username": "e2euser2",
-        "email": "e2e@test.com",
-        "password": TEST_PASSWORD,
-    })
+    resp = client.post(
+        "/auth/register",
+        json={
+            "username": "e2euser2",
+            "email": "e2e@test.com",
+            "password": TEST_PASSWORD,
+        },
+    )
     assert resp.status_code == 400
 
     # 9. Duplicate username → 400
-    resp = client.post("/auth/register", json={
-        "username": "e2euser",
-        "email": "e2e2@test.com",
-        "password": TEST_PASSWORD,
-    })
+    resp = client.post(
+        "/auth/register",
+        json={
+            "username": "e2euser",
+            "email": "e2e2@test.com",
+            "password": TEST_PASSWORD,
+        },
+    )
     assert resp.status_code == 400
 
 
 def test_e2e_auth_login_then_register_same_credentials(client):
     """Register, logout (no-op), re-register with same email fails."""
-    client.post("/auth/register", json={
-        "username": "uniqueuser",
-        "email": "unique@test.com",
-        "password": TEST_PASSWORD,
-    })
-    resp = client.post("/auth/register", json={
-        "username": "uniqueuser",
-        "email": "unique@test.com",
-        "password": TEST_PASSWORD,
-    })
+    client.post(
+        "/auth/register",
+        json={
+            "username": "uniqueuser",
+            "email": "unique@test.com",
+            "password": TEST_PASSWORD,
+        },
+    )
+    resp = client.post(
+        "/auth/register",
+        json={
+            "username": "uniqueuser",
+            "email": "unique@test.com",
+            "password": TEST_PASSWORD,
+        },
+    )
     assert resp.status_code == 400

@@ -1,8 +1,7 @@
 def test_create_playlist(client, auth_headers):
-    response = client.post("/playlists", headers=auth_headers, json={
-        "name": "New Playlist",
-        "description": "A brand new playlist"
-    })
+    response = client.post(
+        "/playlists", headers=auth_headers, json={"name": "New Playlist", "description": "A brand new playlist"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "New Playlist"
@@ -12,9 +11,7 @@ def test_create_playlist(client, auth_headers):
 
 
 def test_create_playlist_without_auth(client):
-    response = client.post("/playlists", json={
-        "name": "No Auth Playlist"
-    })
+    response = client.post("/playlists", json={"name": "No Auth Playlist"})
     assert response.status_code == 401
 
 
@@ -51,9 +48,7 @@ def test_get_playlist_without_auth(client, test_playlist):
 
 def test_add_song_to_playlist(client, auth_headers, test_playlist, test_song2):
     response = client.post(
-        f"/playlists/{test_playlist.id}/songs",
-        headers=auth_headers,
-        json={"song_id": test_song2.id}
+        f"/playlists/{test_playlist.id}/songs", headers=auth_headers, json={"song_id": test_song2.id}
     )
     assert response.status_code == 200
     assert "agregada" in response.json()["message"].lower()
@@ -61,45 +56,31 @@ def test_add_song_to_playlist(client, auth_headers, test_playlist, test_song2):
 
 def test_add_song_to_playlist_not_owner(client, other_auth_headers, test_playlist, test_song2):
     response = client.post(
-        f"/playlists/{test_playlist.id}/songs",
-        headers=other_auth_headers,
-        json={"song_id": test_song2.id}
+        f"/playlists/{test_playlist.id}/songs", headers=other_auth_headers, json={"song_id": test_song2.id}
     )
     assert response.status_code == 403
 
 
 def test_add_song_to_nonexistent_playlist(client, auth_headers, test_song):
-    response = client.post(
-        "/playlists/nonexistent-id/songs",
-        headers=auth_headers,
-        json={"song_id": test_song.id}
-    )
+    response = client.post("/playlists/nonexistent-id/songs", headers=auth_headers, json={"song_id": test_song.id})
     assert response.status_code == 404
 
 
 def test_add_nonexistent_song_to_playlist(client, auth_headers, test_playlist):
     response = client.post(
-        f"/playlists/{test_playlist.id}/songs",
-        headers=auth_headers,
-        json={"song_id": "nonexistent-song"}
+        f"/playlists/{test_playlist.id}/songs", headers=auth_headers, json={"song_id": "nonexistent-song"}
     )
     assert response.status_code == 404
 
 
 def test_remove_song_from_playlist(client, auth_headers, test_playlist, test_song):
-    response = client.delete(
-        f"/playlists/{test_playlist.id}/songs/{test_song.id}",
-        headers=auth_headers
-    )
+    response = client.delete(f"/playlists/{test_playlist.id}/songs/{test_song.id}", headers=auth_headers)
     assert response.status_code == 200
     assert "eliminada" in response.json()["message"].lower()
 
 
 def test_remove_song_from_playlist_not_owner(client, other_auth_headers, test_playlist, test_song):
-    response = client.delete(
-        f"/playlists/{test_playlist.id}/songs/{test_song.id}",
-        headers=other_auth_headers
-    )
+    response = client.delete(f"/playlists/{test_playlist.id}/songs/{test_song.id}", headers=other_auth_headers)
     assert response.status_code == 403
 
 

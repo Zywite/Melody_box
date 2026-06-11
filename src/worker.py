@@ -1,36 +1,40 @@
-import os
 import asyncio
+import os
 import uuid
 from pathlib import Path
+
 from arq.connections import RedisSettings
 
-from app.core.database import SessionLocal
 from app.core.config import settings
 from app.core.constants import (
+    ERROR_DOWNLOADED_FILE_NOT_FOUND,
+    TASK_PROGRESS_COMPLETE,
     TASK_STATUS_DONE,
     TASK_STATUS_FAILED,
     TASK_STATUS_PROCESSING,
-    TASK_PROGRESS_COMPLETE,
-    YOUTUBE_WATCH_URL_TEMPLATE,
     YOUTUBE_OUTPUT_TEMPLATE_PATTERN,
-    YT_FALLBACK_TITLE,
+    YOUTUBE_WATCH_URL_TEMPLATE,
     YT_FALLBACK_ARTIST,
+    YT_FALLBACK_TITLE,
     YT_FALLBACK_VIDEO_TITLE,
-    ERROR_DOWNLOADED_FILE_NOT_FOUND,
 )
+from app.core.database import SessionLocal
+from app.models.music import Song
+from app.models.task import Task
 from app.services.fft_service import FFTService
 from app.services.youtube_service import (
-    build_ydl_opts, resolve_downloaded_file, compute_expected_path,
-    EXT_MAP, create_song_from_info,
+    EXT_MAP,
+    build_ydl_opts,
+    compute_expected_path,
+    create_song_from_info,
+    resolve_downloaded_file,
 )
-from app.models.task import Task
-from app.models.music import Song
 
 
 async def compute_fft(ctx, song_id: str):
     db = SessionLocal()
     try:
-        task = db.query(Task).filter(Task.id == ctx['job_id']).first()
+        task = db.query(Task).filter(Task.id == ctx["job_id"]).first()
         if task:
             task.status = TASK_STATUS_PROCESSING
             db.commit()
@@ -58,7 +62,7 @@ async def download_youtube(ctx, video_id: str, fmt: str, quality: str, title: st
 
     db = SessionLocal()
     try:
-        task = db.query(Task).filter(Task.id == ctx['job_id']).first()
+        task = db.query(Task).filter(Task.id == ctx["job_id"]).first()
         if task:
             task.status = TASK_STATUS_PROCESSING
             db.commit()
@@ -78,11 +82,13 @@ async def download_youtube(ctx, video_id: str, fmt: str, quality: str, title: st
                 return ydl.extract_info(video_url, download=True)
 
         info = await asyncio.to_thread(_do_download)
-        actual_title = title or info.get('title', YT_FALLBACK_TITLE)
-        actual_artist = artist or info.get('uploader', YT_FALLBACK_ARTIST)
+        actual_title = title or info.get("title", YT_FALLBACK_TITLE)
+        actual_artist = artist or info.get("uploader", YT_FALLBACK_ARTIST)
 
         actual_ext = EXT_MAP[fmt]
-        expected_file = compute_expected_path(output_dir, file_id, actual_ext, info.get('title', YT_FALLBACK_VIDEO_TITLE))
+        expected_file = compute_expected_path(
+            output_dir, file_id, actual_ext, info.get("title", YT_FALLBACK_VIDEO_TITLE)
+        )
         downloaded_file = resolve_downloaded_file(output_dir, file_id, expected_file)
 
         if not downloaded_file:

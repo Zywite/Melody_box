@@ -1,33 +1,31 @@
-import os
 import sys
 import uuid
-import asyncio
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock
-from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core import redis_helper
+
 redis_helper.enqueue_job = AsyncMock(return_value=None)
 redis_helper.cache_get_fft = AsyncMock(return_value=None)
 redis_helper.cache_set_fft = AsyncMock(return_value=None)
 redis_helper.get_redis = AsyncMock(return_value=None)
 
-from app.core import database
-from app.core.database import Base, get_db
-from app.core.config import BASE_DIR
-from app.core.security import create_access_token
-from app.models import User, UserRole, Song, Playlist, PlaylistSong, Favorite, Task
-from app.services.user_service import UserService
-from app.services.song_service import SongService
-from app.services.playlist_service import PlaylistService
+from app.core import database  # noqa: E402
+from app.core.config import BASE_DIR  # noqa: E402
+from app.core.database import Base, get_db  # noqa: E402
+from app.core.security import create_access_token  # noqa: E402
+from app.models import Favorite, Task, UserRole  # noqa: E402
+from app.services.playlist_service import PlaylistService  # noqa: E402
+from app.services.song_service import SongService  # noqa: E402
+from app.services.user_service import UserService  # noqa: E402
 
 TEST_PASSWORD = "TestPass123!"  # NOSONAR
 ADMIN_PASSWORD = "AdminPass123!"  # NOSONAR
@@ -66,7 +64,7 @@ def db():
         session.close()
 
 
-from app.core.rate_limit import limiter as _limiter
+from app.core.rate_limit import limiter as _limiter  # noqa: E402
 
 
 def _restore_limiter():
@@ -84,6 +82,7 @@ def client():
         if mod == "app.routes" or mod.startswith("app.routes.") or mod in ("app.main",):
             del sys.modules[mod]
     from app.main import app
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:
         yield c
@@ -100,13 +99,19 @@ def test_user(db):
 def other_user(db):
     return UserService.create_user(db, username="otheruser", email="other@example.com", password=TEST_PASSWORD)
 
+
 @pytest.fixture
 def admin_user(db):
-    return UserService.create_user(db, username="adminuser", email="admin@test.com", password=ADMIN_PASSWORD, role=UserRole.admin)
+    return UserService.create_user(
+        db, username="adminuser", email="admin@test.com", password=ADMIN_PASSWORD, role=UserRole.admin
+    )
+
 
 @pytest.fixture
 def other_admin_user(db):
-    return UserService.create_user(db, username="otheradmin", email="otheradmin@test.com", password=ADMIN_PASSWORD, role=UserRole.admin)
+    return UserService.create_user(
+        db, username="otheradmin", email="otheradmin@test.com", password=ADMIN_PASSWORD, role=UserRole.admin
+    )
 
 
 @pytest.fixture
@@ -124,9 +129,12 @@ def other_auth_headers(other_user):
 @pytest.fixture
 def test_song(db):
     song, _ = SongService.create_song(
-        db, title="Test Song", artist="Test Artist",
+        db,
+        title="Test Song",
+        artist="Test Artist",
         file_path=str(BASE_DIR / "data" / "music" / "test_song.mp3"),
-        duration=180.0, album="Test Album"
+        duration=180.0,
+        album="Test Album",
     )
     return song
 
@@ -134,9 +142,12 @@ def test_song(db):
 @pytest.fixture
 def test_song2(db):
     song, _ = SongService.create_song(
-        db, title="Another Song", artist="Another Artist",
+        db,
+        title="Another Song",
+        artist="Another Artist",
         file_path=str(BASE_DIR / "data" / "music" / "test_song2.mp3"),
-        duration=240.0, album="Another Album"
+        duration=240.0,
+        album="Another Album",
     )
     return song
 
@@ -150,12 +161,7 @@ def test_playlist(db, test_user, test_song):
 
 @pytest.fixture
 def test_favorite(db, test_user, test_song):
-    fav = Favorite(
-        id=str(uuid.uuid4()),
-        user_id=test_user.id,
-        song_id=test_song.id,
-        added_at=datetime.now(timezone.utc)
-    )
+    fav = Favorite(id=str(uuid.uuid4()), user_id=test_user.id, song_id=test_song.id, added_at=datetime.now(UTC))
     db.add(fav)
     db.commit()
     db.refresh(fav)
@@ -170,7 +176,7 @@ def test_task(db, test_song):
         status="done",
         song_id=test_song.id,
         progress=100,
-        result={"bass": 30.0, "mid": 40.0, "treble": 30.0}
+        result={"bass": 30.0, "mid": 40.0, "treble": 30.0},
     )
     db.add(task)
     db.commit()

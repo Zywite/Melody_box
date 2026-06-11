@@ -3,11 +3,9 @@ from tests.conftest import TEST_PASSWORD
 
 
 def test_register_success(client):
-    response = client.post("/auth/register", json={
-        "username": "newuser",
-        "email": "new@example.com",
-        "password": TEST_PASSWORD
-    })
+    response = client.post(
+        "/auth/register", json={"username": "newuser", "email": "new@example.com", "password": TEST_PASSWORD}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["username"] == "newuser"
@@ -17,30 +15,23 @@ def test_register_success(client):
 
 
 def test_register_duplicate_email(client, test_user):
-    response = client.post("/auth/register", json={
-        "username": "another",
-        "email": "test@example.com",
-        "password": TEST_PASSWORD
-    })
+    response = client.post(
+        "/auth/register", json={"username": "another", "email": "test@example.com", "password": TEST_PASSWORD}
+    )
     assert response.status_code == 400
     assert "email" in response.json()["detail"].lower() or "registrado" in response.json()["detail"].lower()
 
 
 def test_register_duplicate_username(client, test_user):
-    response = client.post("/auth/register", json={
-        "username": "testuser",
-        "email": "other@example.com",
-        "password": TEST_PASSWORD
-    })
+    response = client.post(
+        "/auth/register", json={"username": "testuser", "email": "other@example.com", "password": TEST_PASSWORD}
+    )
     assert response.status_code == 400
     assert "usuario" in response.json()["detail"].lower() or "exists" in response.json()["detail"].lower()
 
 
 def test_login_success(client, test_user):
-    response = client.post("/auth/login", json={
-        "email": "test@example.com",
-        "password": TEST_PASSWORD
-    })
+    response = client.post("/auth/login", json={"email": "test@example.com", "password": TEST_PASSWORD})
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
@@ -52,19 +43,19 @@ def test_login_success(client, test_user):
 
 
 def test_login_wrong_password(client, test_user):
-    response = client.post("/auth/login", json={
-        "email": "test@example.com",
-        "password": "wrong_credential",  # NOSONAR
-    })
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "test@example.com",
+            "password": "wrong_credential",  # NOSONAR
+        },
+    )
     assert response.status_code == 401
     assert "incorrectos" in response.json()["detail"].lower() or "invalid" in response.json()["detail"].lower()
 
 
 def test_login_nonexistent_email(client):
-    response = client.post("/auth/login", json={
-        "email": "noone@example.com",
-        "password": TEST_PASSWORD
-    })
+    response = client.post("/auth/login", json={"email": "noone@example.com", "password": TEST_PASSWORD})
     assert response.status_code == 401
 
 
@@ -86,16 +77,20 @@ def test_access_protected_endpoint_with_invalid_token(client):
 
 def test_access_protected_endpoint_with_expired_token(client):
     from datetime import timedelta
+
     token = create_access_token(data={"sub": "anyuser"}, expires_delta=timedelta(days=-1))
     response = client.get("/playlists", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
 
 
 def test_refresh_token_success(client, test_user):
-    login_resp = client.post("/auth/login", json={
-        "email": "test@example.com",
-        "password": TEST_PASSWORD,
-    })
+    login_resp = client.post(
+        "/auth/login",
+        json={
+            "email": "test@example.com",
+            "password": TEST_PASSWORD,
+        },
+    )
     refresh_token = login_resp.json()["refresh_token"]
 
     resp = client.post("/auth/refresh", json={"refresh_token": refresh_token})
@@ -113,10 +108,13 @@ def test_refresh_token_invalid(client):
 
 
 def test_refresh_token_revoked_after_use(client, test_user):
-    login_resp = client.post("/auth/login", json={
-        "email": "test@example.com",
-        "password": TEST_PASSWORD,
-    })
+    login_resp = client.post(
+        "/auth/login",
+        json={
+            "email": "test@example.com",
+            "password": TEST_PASSWORD,
+        },
+    )
     refresh_token = login_resp.json()["refresh_token"]
 
     # First use — succeeds

@@ -4,10 +4,10 @@ Script de validación pre-inicio
 Verifica que todo esté correctamente instalado y configurado
 """
 
-import sys
 import os
-import json
+import sys
 from pathlib import Path
+
 
 class ValidationReport:
     def __init__(self):
@@ -27,10 +27,7 @@ class ValidationReport:
 
     def check_packages(self):
         """Verificar paquetes instalados"""
-        required = [
-            "fastapi", "uvicorn", "sqlalchemy", "pydantic",
-            "jose", "passlib", "yt_dlp"
-        ]
+        required = ["fastapi", "uvicorn", "sqlalchemy", "pydantic", "jose", "passlib", "yt_dlp"]
 
         missing = []
         for package in required:
@@ -54,7 +51,7 @@ class ValidationReport:
             "src/app/routes",
             "src/app/services",
             "frontend/src",
-            "data/music"
+            "data/music",
         ]
 
         for dir_path in required_dirs:
@@ -73,7 +70,7 @@ class ValidationReport:
             "src/app/core/config.py",
             "src/app/core/database.py",
             ".env",
-            "requirements.txt"
+            "requirements.txt",
         ]
 
         for file_path in required_files:
@@ -90,7 +87,7 @@ class ValidationReport:
         """Verificar configuración"""
         env_file = Path(".env")
         if env_file.is_file():
-            with open(env_file, "r") as f:
+            with open(env_file) as f:
                 env_content = f.read()
                 if "DATABASE_URL" in env_content and "SECRET_KEY" in env_content:
                     self.checks.append("[OK] Archivo .env configurado")
@@ -114,49 +111,50 @@ class ValidationReport:
 
     def run_all_checks(self):
         """Ejecutar todas las validaciones"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Validacion Pre-Inicio - MelodyBox")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         print("Verificando configuración...\n")
 
-        results = [
+        [
             ("Python", self.check_python()),
             ("Paquetes", self.check_packages()),
             ("Directorios", self.check_directories()),
             ("Archivos", self.check_files()),
             ("Configuración", self.check_config()),
-            ("Frontend", self.check_frontend())
+            ("Frontend", self.check_frontend()),
         ]
 
         print("\nResumen de verificaciones:")
         print("-" * 60)
         for check in self.checks:
             print(check)
-        
+
         if self.warnings:
             print("\nAdvertencias:")
             for warning in self.warnings:
                 print(warning)
-        
+
         if self.issues:
             print("\nProblemas encontrados:")
             for issue in self.issues:
                 print(issue)
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("Validacion FALLIDA")
-            print("="*60 + "\n")
+            print("=" * 60 + "\n")
             return False
         else:
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("Validacion EXITOSA - Listo para iniciar!")
-            print("="*60 + "\n")
+            print("=" * 60 + "\n")
             print("Próximos pasos:")
             print("1. Ejecuta: python scripts/start_server.py")
             print("2. Abre: http://localhost:8001/docs")
             print("3. Registra un usuario")
             print("4. Disfruta de MelodyBox!\n")
             return True
+
 
 if __name__ == "__main__":
     validator = ValidationReport()

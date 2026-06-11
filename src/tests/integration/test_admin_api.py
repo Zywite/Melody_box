@@ -1,10 +1,12 @@
 from datetime import timedelta
+
 from app.core.security import create_access_token
-from app.models import UserRole
 
 
 def _admin_token(admin_user):
-    return {"Authorization": f"Bearer {create_access_token(data={'sub': admin_user.id, 'role': 'admin'}, expires_delta=timedelta(hours=1))}"}
+    return {
+        "Authorization": f"Bearer {create_access_token(data={'sub': admin_user.id, 'role': 'admin'}, expires_delta=timedelta(hours=1))}"
+    }
 
 
 def test_admin_list_users(client, admin_user):
@@ -17,7 +19,9 @@ def test_admin_list_users(client, admin_user):
 
 
 def test_admin_list_users_requires_admin(client, test_user):
-    headers = {"Authorization": f"Bearer {create_access_token(data={'sub': test_user.id}, expires_delta=timedelta(hours=1))}"}
+    headers = {
+        "Authorization": f"Bearer {create_access_token(data={'sub': test_user.id}, expires_delta=timedelta(hours=1))}"
+    }
     response = client.get("/admin/users", headers=headers)
     assert response.status_code == 403
 
@@ -104,17 +108,13 @@ def test_admin_delete_playlist(client, admin_user, test_playlist):
 
 def test_admin_update_user(client, admin_user, test_user):
     headers = _admin_token(admin_user)
-    response = client.patch(f"/admin/users/{test_user.id}", headers=headers, json={
-        "username": "updateduser"
-    })
+    response = client.patch(f"/admin/users/{test_user.id}", headers=headers, json={"username": "updateduser"})
     assert response.status_code == 200
     assert response.json()["username"] == "updateduser"
 
 
 def test_admin_update_user_role(client, admin_user, test_user):
     headers = _admin_token(admin_user)
-    response = client.patch(f"/admin/users/{test_user.id}", headers=headers, json={
-        "role": "admin"
-    })
+    response = client.patch(f"/admin/users/{test_user.id}", headers=headers, json={"role": "admin"})
     assert response.status_code == 200
     assert response.json()["role"] == "admin"
