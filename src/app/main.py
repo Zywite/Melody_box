@@ -90,7 +90,7 @@ def _create_default_admin() -> None:
         from app.services.user_service import UserService
 
         admin_email = os.getenv("ADMIN_EMAIL", "admin@melodybox.com")
-        admin_password = os.getenv("ADMIN_PASSWORD")
+        admin_password = settings.ADMIN_PASSWORD or os.getenv("ADMIN_PASSWORD")
         admin_username = os.getenv("ADMIN_USERNAME", "Admin")
 
         if admin_password:
