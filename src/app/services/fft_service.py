@@ -78,10 +78,10 @@ class FFTService:
 
             # Compute full FFT for the entire file (average spectrum)
             D = np.abs(librosa.stft(y, n_fft=fft_size, hop_length=hop_size))
-            D_db = librosa.amplitude_to_db(D, ref=np.max)
+            d_db = librosa.amplitude_to_db(D, ref=np.max)
 
             # Average spectrogram to get single spectrum
-            avg_spectrum = np.mean(D_db, axis=1)
+            avg_spectrum = np.mean(d_db, axis=1)
 
             # Normalize to 0-255 range for storage
             avg_spectrum_norm = np.clip(
@@ -93,9 +93,9 @@ class FFTService:
             ).astype(int)
 
             # Compute spectrogram for visualization (reduce frames for storage)
-            num_frames = min(D_db.shape[1], MAX_SPECTROGRAM_FRAMES)
-            frame_indices = np.linspace(0, D_db.shape[1] - 1, num_frames).astype(int)
-            spectrogram_data = D_db[:, frame_indices]
+            num_frames = min(d_db.shape[1], MAX_SPECTROGRAM_FRAMES)
+            frame_indices = np.linspace(0, d_db.shape[1] - 1, num_frames).astype(int)
+            spectrogram_data = d_db[:, frame_indices]
 
             # Normalize spectrogram
             spec_min, spec_max = spectrogram_data.min(), spectrogram_data.max()
