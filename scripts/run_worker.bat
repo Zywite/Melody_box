@@ -12,5 +12,5 @@ if not exist ".venv\" (
 )
 echo Starting ARQ worker...
 echo.
-"%CD%\.venv\Scripts\python.exe" -m arq worker.WorkerSettings
+.venv\Scripts\python.exe -m arq worker.WorkerSettings
 pause

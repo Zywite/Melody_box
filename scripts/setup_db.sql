@@ -1,19 +1,8 @@
--- Script de configuración para PostgreSQL
--- Ejecutar como superusuario (postgres)
+-- PostgreSQL setup script (local development)
+-- Run as superuser (postgres)
+-- Local credentials in .env: postgres:saki7089@localhost:5432/Spotofy
+-- Docker uses credentials from docker-compose.yml
 
--- Crear usuario
-CREATE USER spotify_user WITH PASSWORD 'spotify_password';
-
--- Crear base de datos
-CREATE DATABASE spotify_local OWNER spotify_user;
-
--- Conectar a la base de datos
-\c spotify_local
-
--- Dar permisos
-GRANT ALL PRIVILEGES ON DATABASE spotify_local TO spotify_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO spotify_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO spotify_user;
-
--- Verificar
-SELECT * FROM information_schema.tables WHERE table_schema = 'public';
+-- Create the database if it does not exist (psql)
+SELECT 'CREATE DATABASE "Spotofy"'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'Spotofy')\gexec

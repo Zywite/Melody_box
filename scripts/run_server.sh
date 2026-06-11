@@ -22,5 +22,6 @@ if [ ! -d ".venv" ]; then
     exit 1
 fi
 
-source .venv/bin/activate
+cd "$PROJECT_DIR/src" || exit 1
+source "$PROJECT_DIR/.venv/bin/activate"
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
