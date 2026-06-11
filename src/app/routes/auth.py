@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse)
 @limiter.limit(RATE_LIMIT_REGISTER)
-def register(request: Request, user: UserRegister, db: Session = Depends(get_db)):
+def register(request: Request, user: UserRegister, db: Annotated[Session, Depends(get_db)]):
     """Create a new user account. Rate limited to 3 requests per minute."""
     existing_user = UserService.get_user_by_email(db, user.email)
     if existing_user:
@@ -32,7 +33,7 @@ def register(request: Request, user: UserRegister, db: Session = Depends(get_db)
 
 @router.post("/login", response_model=Token)
 @limiter.limit(RATE_LIMIT_LOGIN)
-def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
+def login(request: Request, user: UserLogin, db: Annotated[Session, Depends(get_db)]):
     """Authenticate by email+password and return a JWT + refresh token. Rate limited to 5/minute."""
     db_user = UserService.verify_user_password(db, user.email, user.password)
     if not db_user:
@@ -55,7 +56,7 @@ def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=Token)
-def refresh(body: RefreshRequest, db: Session = Depends(get_db)):
+def refresh(body: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     """Issue a new access token + refresh token using a valid refresh token (rotation)."""
     payload = verify_refresh_token(db, body.refresh_token)
     if not payload:

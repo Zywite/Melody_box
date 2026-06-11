@@ -1,6 +1,7 @@
 import logging
 import uuid
 from pathlib import Path
+from typing import Annotated
 
 import yt_dlp
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -88,7 +89,9 @@ async def search_youtube(request: Request, q: str, limit: int = DEFAULT_YOUTUBE_
 
 @router.post("/download")
 @limiter.limit(RATE_LIMIT_YT_DOWNLOAD)
-async def download_youtube(fastapi_request: Request, request: YouTubeDownloadRequest, db: Session = Depends(get_db)):
+async def download_youtube(
+    fastapi_request: Request, request: YouTubeDownloadRequest, db: Annotated[Session, Depends(get_db)]
+):
     """Download and convert a YouTube video (async via worker)."""
     if request.format not in YTDLP_FORMAT_MAP:
         raise HTTPException(

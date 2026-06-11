@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
@@ -187,7 +188,9 @@ async def _process_upload_file(
 
 @router.get("", response_model=list[SongResponse])
 def get_all_songs(
-    skip: int = DEFAULT_SONGS_PAGE_SKIP, limit: int = DEFAULT_SONGS_PAGE_SIZE, db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    skip: int = DEFAULT_SONGS_PAGE_SKIP,
+    limit: int = DEFAULT_SONGS_PAGE_SIZE,
 ):
     """List songs with pagination."""
     songs = SongService.get_all_songs(db, skip, limit)
@@ -196,10 +199,10 @@ def get_all_songs(
 
 @router.get("/search", response_model=list[SongResponse])
 def search_songs(
-    q: str = Query(..., min_length=MIN_SEARCH_QUERY_LENGTH),
-    skip: int = Query(DEFAULT_SONGS_PAGE_SKIP, ge=0),
-    limit: int = Query(DEFAULT_SONGS_PAGE_SIZE, ge=1, le=200),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
+    q: Annotated[str, Query(min_length=MIN_SEARCH_QUERY_LENGTH)],
+    skip: Annotated[int, Query(ge=0)] = DEFAULT_SONGS_PAGE_SKIP,
+    limit: Annotated[int, Query(ge=1, le=200)] = DEFAULT_SONGS_PAGE_SIZE,
 ):
     """Case-insensitive search over title, artist, and album."""
     songs = SongService.search_songs(db, q, skip=skip, limit=limit)
@@ -207,7 +210,7 @@ def search_songs(
 
 
 @router.get("/{song_id}", response_model=SongResponse)
-def get_song(song_id: str, db: Session = Depends(get_db)):
+def get_song(song_id: str, db: Annotated[Session, Depends(get_db)]):
     """Fetch a single song by id."""
     song = SongService.get_song(db, song_id)
     if not song:
@@ -216,7 +219,7 @@ def get_song(song_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{song_id}/stream")
-def stream_song(song_id: str, db: Session = Depends(get_db)):
+def stream_song(song_id: str, db: Annotated[Session, Depends(get_db)]):
     """Stream the audio/video bytes of a song with range support and 1h cache."""
     song = SongService.get_song(db, song_id)
     if not song:
@@ -240,12 +243,12 @@ def stream_song(song_id: str, db: Session = Depends(get_db)):
 @limiter.limit(RATE_LIMIT_UPLOAD)
 async def upload_song(
     request: Request,
-    file: UploadFile = File(...),
-    title: str = Form(...),
-    artist: str = Form(...),
-    album: str = Form(""),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    file: Annotated[UploadFile, File(...)],
+    title: Annotated[str, Form(...)],
+    artist: Annotated[str, Form(...)],
+    album: Annotated[str, Form()] = "",
 ):
     """Upload a single song. Rate limited to 10/minute."""
     result = await _process_upload_file(db, file, title, artist, album)
@@ -259,10 +262,10 @@ async def upload_song(
 @limiter.limit(RATE_LIMIT_UPLOAD_MULTIPLE)
 async def upload_multiple(
     request: Request,
-    files: list[UploadFile] = File(...),
-    metadata: str = Form(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    files: Annotated[list[UploadFile], File(...)],
+    metadata: Annotated[str, Form(...)],
 ):
     """Upload many songs in one request. Rate limited to 5/minute.
 
@@ -297,7 +300,9 @@ async def upload_multiple(
 
 
 @router.delete("/{song_id}")
-def delete_song(song_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_song(
+    song_id: str, current_user: Annotated[User, Depends(get_current_user)], db: Annotated[Session, Depends(get_db)]
+):
     """Delete a song row and its underlying file on disk."""
     song = SongService.get_song(db, song_id)
     if not song:
@@ -309,7 +314,7 @@ def delete_song(song_id: str, current_user: User = Depends(get_current_user), db
 
 @router.get("/{song_id}/fft")
 @limiter.limit(RATE_LIMIT_FFT_READ)
-async def get_song_fft(request: Request, song_id: str, db: Session = Depends(get_db)):
+async def get_song_fft(request: Request, song_id: str, db: Annotated[Session, Depends(get_db)]):
     """Get FFT analysis for a song. Enqueues computation if not available."""
     song = SongService.get_song(db, song_id)
     if not song:
@@ -368,7 +373,7 @@ async def get_song_fft(request: Request, song_id: str, db: Session = Depends(get
 @router.post("/analyze-all")
 @limiter.limit(RATE_LIMIT_ANALYZE_ALL)
 async def analyze_all_songs_fft(
-    request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    request: Request, current_user: Annotated[User, Depends(get_current_user)], db: Annotated[Session, Depends(get_db)]
 ):
     """Enqueue an FFT job for every song that still lacks analysis.
 
