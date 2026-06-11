@@ -22,6 +22,9 @@ COMPRESSIBLE_PREFIXES: tuple[str, ...] = (
     "image/svg+xml",
 )
 
+RESPONSE_START = "http.response.start"
+RESPONSE_BODY = "http.response.body"
+
 
 def _is_compressible(content_type: str | None) -> bool:
     if not content_type:
@@ -50,10 +53,30 @@ def _make_compressed_start(start: Message, body: bytes) -> Message:
     if not any(k.lower() == b"vary" for k, _ in out):
         out.append((b"vary", b"Accept-Encoding"))
     return {
-        "type": "http.response.start",
+        "type": RESPONSE_START,
         "status": start.get("status", 200),
         "headers": out,
     }
+
+
+def _should_compress(start_message: Message) -> tuple[bool, Message]:
+    raw_headers = list(start_message.get("headers", []))
+    ct = _header_value(raw_headers, b"content-type")
+    ce = _header_value(raw_headers, b"content-encoding")
+    if ce or not _is_compressible(ct):
+        return False, start_message
+    return True, start_message
+
+
+async def _send_body(start: Message, body: bytes, minimum_size: int, send: Send) -> None:
+    if len(body) >= minimum_size:
+        compressed = gzip.compress(body, compresslevel=5)
+        if len(compressed) < len(body):
+            await send(_make_compressed_start(start, compressed))
+            await send({"type": RESPONSE_BODY, "body": compressed, "more_body": False})
+            return
+    await send(start)
+    await send({"type": RESPONSE_BODY, "body": body, "more_body": False})
 
 
 class SelectiveGZipMiddleware:
@@ -92,53 +115,27 @@ class SelectiveGZipMiddleware:
         async def send_wrapper(message: Message) -> None:
             nonlocal start_captured, compressible
 
-            if message["type"] == "http.response.start":
-                raw_headers = list(message.get("headers", []))
-                ct = _header_value(raw_headers, b"content-type")
-                ce = _header_value(raw_headers, b"content-encoding")
-                if ce or not _is_compressible(ct):
-                    compressible = False
+            if message["type"] == RESPONSE_START:
+                compressible, start_captured = _should_compress(message)
+                if not compressible:
                     await send(message)
-                else:
-                    compressible = True
-                    start_captured = message
                 return
 
-            if message["type"] != "http.response.body":
+            if message["type"] != RESPONSE_BODY:
                 await send(message)
                 return
 
-            body = message.get("body", b"") or b""
-            more_body = message.get("more_body", False)
-
-            if compressible is False:
+            if compressible is not True:
                 await send(message)
                 return
 
-            if compressible is None:
-                await send(message)
-                return
-
-            body_chunks.append(body)
-            if more_body:
+            body_chunks.append(message.get("body", b"") or b"")
+            if message.get("more_body", False):
                 return
 
             full_body = b"".join(body_chunks)
-            assert start_captured is not None
-            if len(full_body) >= self.minimum_size:
-                compressed = gzip.compress(full_body, compresslevel=5)
-                if len(compressed) < len(full_body):
-                    await send(_make_compressed_start(start_captured, compressed))
-                    await send({"type": "http.response.body", "body": compressed, "more_body": False})
-                else:
-                    await send(start_captured)
-                    await send({"type": "http.response.body", "body": full_body, "more_body": False})
-            else:
-                await send(start_captured)
-                await send({"type": "http.response.body", "body": full_body, "more_body": False})
-
+            await _send_body(start_captured, full_body, self.minimum_size, send)
             start_captured = None
-            compressible = None
             body_chunks.clear()
 
         await self.app(scope, receive, send_wrapper)

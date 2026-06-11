@@ -1,3 +1,4 @@
+import secrets
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     API_DESCRIPTION: str = "API para reproductor de música local en red"
 
     # Security
-    SECRET_KEY: str = "tu-clave-secreta-cambiar-en-produccion"
+    SECRET_KEY: str = secrets.token_urlsafe(32)  # NOSONAR - safe default, override via .env
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

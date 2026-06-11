@@ -104,6 +104,11 @@ def _extract_duration(file_path: str, is_video: bool) -> float:
     return 0.0
 
 
+def _write_upload_to_disk(file_path: str, source_file) -> None:
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(source_file, f)
+
+
 async def _process_upload_file(
     db: Session,
     file: UploadFile,
@@ -139,8 +144,7 @@ async def _process_upload_file(
     file_path = os.path.join(settings.MUSIC_STORAGE_PATH, safe_filename)
 
     try:
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
+        await asyncio.to_thread(_write_upload_to_disk, file_path, file.file)
 
         duration = _extract_duration(file_path, is_video)
 

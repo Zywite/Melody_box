@@ -1,6 +1,6 @@
+import asyncio
 import logging
 import os
-import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"Database connection attempt {attempt + 1}/3 failed: {e}")
             if attempt < 2:
-                time.sleep(2)
+                await asyncio.sleep(2)
             else:
                 print("All database connection attempts failed. Continuing without DB.")
 
@@ -216,4 +216,4 @@ async def serve_spa(path: str):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="127.0.0.1", port=8001)
