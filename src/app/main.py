@@ -136,6 +136,8 @@ app = FastAPI(
     title=settings.API_TITLE, version=settings.API_VERSION, description=settings.API_DESCRIPTION, lifespan=lifespan
 )
 
+app.add_middleware(SelectiveGZipMiddleware, minimum_size=1000)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_allowed_origins(),
@@ -143,8 +145,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(SelectiveGZipMiddleware, minimum_size=1000)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]

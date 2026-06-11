@@ -49,7 +49,7 @@ class SongResponse(BaseModel):
     id: str
     title: str
     artist: str
-    album: str | None
+    album: str | None = None
     duration: float
     media_type: str | None = "audio"
     file: str | None = None
@@ -86,8 +86,8 @@ class PlaylistCreate(BaseModel):
 class PlaylistSongResponse(BaseModel):
     id: str
     song_id: str
-    position: int | None
-    added_at: datetime | None
+    position: int | None = None
+    added_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -95,9 +95,9 @@ class PlaylistSongResponse(BaseModel):
 class PlaylistResponse(BaseModel):
     id: str
     name: str
-    description: str | None
+    description: str | None = None
     created_at: datetime
-    updated_at: datetime | None
+    updated_at: datetime | None = None
     songs: list[PlaylistSongResponse] | None = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -111,7 +111,7 @@ class FavoriteResponse(BaseModel):
     id: str
     user_id: str
     song_id: str
-    added_at: datetime | None
+    added_at: datetime | None = None
     song: dict | None = None
 
     model_config = ConfigDict(from_attributes=True)
