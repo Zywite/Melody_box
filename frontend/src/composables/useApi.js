@@ -21,22 +21,12 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response.data,
   error => {
-    const originalRequest = error.config
-    
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      
-      const storedToken = localStorage.getItem('token')
-      if (storedToken) {
-        return api(originalRequest).catch(err => {
-          if (err.response?.status === 401) {
-            localStorage.removeItem('token')
-            localStorage.removeItem('username')
-            localStorage.removeItem('userId')
-          }
-          return Promise.reject(err)
-        })
-      }
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('username')
+      localStorage.removeItem('userId')
+      localStorage.removeItem('role')
+      window.location.href = '/'
     }
     
     const message = error.response?.data?.detail || error.message || 'Error de conexión'
