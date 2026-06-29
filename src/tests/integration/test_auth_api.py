@@ -14,6 +14,25 @@ def test_register_success(client):
     assert "id" in data
 
 
+def test_register_password_too_short(client):
+    response = client.post("/auth/register", json={"username": "user1", "email": "u1@example.com", "password": "Ab1"})
+    assert response.status_code == 422
+
+
+def test_register_password_no_uppercase(client):
+    response = client.post(
+        "/auth/register", json={"username": "user2", "email": "u2@example.com", "password": "abcdef123"}
+    )
+    assert response.status_code == 422
+
+
+def test_register_password_no_digit(client):
+    response = client.post(
+        "/auth/register", json={"username": "user3", "email": "u3@example.com", "password": "Abcdefgh"}
+    )
+    assert response.status_code == 422
+
+
 def test_register_duplicate_email(client, test_user):
     response = client.post(
         "/auth/register", json={"username": "another", "email": "test@example.com", "password": TEST_PASSWORD}

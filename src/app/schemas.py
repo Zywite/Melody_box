@@ -1,13 +1,25 @@
+import re
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
 class UserRegister(BaseModel):
     username: str
     email: EmailStr
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La contraseña debe tener al menos 8 caracteres")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("La contraseña debe contener al menos una letra mayúscula")
+        if not re.search(r"\d", v):
+            raise ValueError("La contraseña debe contener al menos un número")
+        return v
 
 
 class UserLogin(BaseModel):

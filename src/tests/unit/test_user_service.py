@@ -72,3 +72,27 @@ def test_create_user_unique_username(db):
     UserService.create_user(db, username="sameuser", email="user1@example.com", password=TEST_PASSWORD)
     with pytest.raises(Exception):  # noqa: B017
         UserService.create_user(db, username="sameuser", email="user2@example.com", password=TEST_PASSWORD)
+
+
+def test_create_user_password_too_short(db):
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        UserService.create_user(db, username="user1", email="u1@example.com", password="Ab1")
+    assert "8 caracteres" in exc_info.value.detail
+
+
+def test_create_user_password_no_uppercase(db):
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        UserService.create_user(db, username="user2", email="u2@example.com", password="abcdef123")
+    assert "mayúscula" in exc_info.value.detail
+
+
+def test_create_user_password_no_digit(db):
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        UserService.create_user(db, username="user3", email="u3@example.com", password="Abcdefgh")
+    assert "número" in exc_info.value.detail

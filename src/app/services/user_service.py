@@ -1,7 +1,9 @@
 """User service: persistence operations for User entities."""
 
+import re
 import uuid
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash, verify_password
@@ -14,6 +16,11 @@ class UserService:
     @staticmethod
     def create_user(db: Session, username: str, email: str, password: str, role: UserRole = UserRole.user) -> User:
         """Create and persist a new user with a hashed password."""
+        if len(password) < 8 or not re.search(r"[A-Z]", password) or not re.search(r"\d", password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La contraseña debe tener al menos 8 caracteres, una mayúscula y un número",
+            )
         db_user = User(
             id=str(uuid.uuid4()),
             username=username,

@@ -118,3 +118,11 @@ GZIP_MINIMUM_SIZE_BYTES: int = 1000
 # ---------------------------------------------------------------------------
 USER_LOOKUP_CACHE_TTL_SECONDS: int = 30
 USER_LOOKUP_CACHE_MAXSIZE: int = 1024
+
+# ---------------------------------------------------------------------------
+# Business rules (from SRS)
+# ---------------------------------------------------------------------------
+MAX_PLAYLISTS_PER_USER: int = 50
+MAX_SONGS_PER_PLAYLIST: int = 500
+MAX_FILE_SIZE_BYTES: int = 104857600  # 100 MB
+MAX_STORAGE_PER_USER_BYTES: int = 10737418240  # 10 GB

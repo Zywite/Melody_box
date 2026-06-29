@@ -100,3 +100,15 @@ def test_delete_playlist_not_owner(client, other_auth_headers, test_playlist):
 def test_delete_nonexistent_playlist(client, auth_headers):
     response = client.delete("/playlists/nonexistent-id", headers=auth_headers)
     assert response.status_code == 404
+
+
+def test_create_playlist_duplicate_name(client, auth_headers):
+    client.post("/playlists", headers=auth_headers, json={"name": "Duplicate Name"})
+    response = client.post("/playlists", headers=auth_headers, json={"name": "Duplicate Name"})
+    assert response.status_code == 400
+
+
+def test_create_playlist_same_name_different_user(client, auth_headers, other_auth_headers):
+    client.post("/playlists", headers=auth_headers, json={"name": "Shared Name"})
+    response = client.post("/playlists", headers=other_auth_headers, json={"name": "Shared Name"})
+    assert response.status_code == 200

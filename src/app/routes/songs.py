@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,7 @@ from app.core.constants import (
     FFPROBE_TIMEOUT_SECONDS,
     JOB_NAME_COMPUTE_FFT,
     MAX_BULK_ANALYZE_BATCH,
+    MAX_FILE_SIZE_BYTES,
     MESSAGE_BULK_ANALYZE_RESULT,
     MIN_SEARCH_QUERY_LENGTH,
     RATE_LIMIT_ANALYZE_ALL,
@@ -140,6 +141,15 @@ async def _process_upload_file(
 
     is_video = settings.is_video(file_ext)
     media_type = "video" if is_video else "audio"
+
+    file.file.seek(0, 2)
+    file_size = file.file.tell()
+    file.file.seek(0)
+    if file_size > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Archivo demasiado grande. Máximo permitido: {MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB",
+        )
 
     os.makedirs(settings.MUSIC_STORAGE_PATH, exist_ok=True)
     file_path = os.path.join(settings.MUSIC_STORAGE_PATH, safe_filename)

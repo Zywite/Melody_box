@@ -2,8 +2,10 @@
 
 import uuid
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.constants import MAX_PLAYLISTS_PER_USER, MAX_SONGS_PER_PLAYLIST
 from app.models import Playlist, PlaylistSong
 
 
@@ -13,6 +15,20 @@ class PlaylistService:
     @staticmethod
     def create_playlist(db: Session, user_id: str, name: str, description: str = None) -> Playlist:
         """Create and persist a new empty playlist owned by ``user_id``."""
+        existing = db.query(Playlist).filter(Playlist.user_id == user_id, Playlist.name == name).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ya existe una playlist con ese nombre",
+            )
+
+        playlist_count = db.query(Playlist).filter(Playlist.user_id == user_id).count()
+        if playlist_count >= MAX_PLAYLISTS_PER_USER:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Límite de {MAX_PLAYLISTS_PER_USER} playlists alcanzado",
+            )
+
         db_playlist = Playlist(id=str(uuid.uuid4()), user_id=user_id, name=name, description=description)
         db.add(db_playlist)
         db.commit()
@@ -63,7 +79,14 @@ class PlaylistService:
         if existing:
             return existing
 
-        max_position = db.query(PlaylistSong).filter(PlaylistSong.playlist_id == playlist_id).count()
+        song_count = db.query(PlaylistSong).filter(PlaylistSong.playlist_id == playlist_id).count()
+        if song_count >= MAX_SONGS_PER_PLAYLIST:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Límite de {MAX_SONGS_PER_PLAYLIST} canciones por playlist alcanzado",
+            )
+
+        max_position = song_count
 
         db_playlist_song = PlaylistSong(
             id=str(uuid.uuid4()), playlist_id=playlist_id, song_id=song_id, position=max_position + 1

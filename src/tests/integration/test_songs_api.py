@@ -284,3 +284,18 @@ def test_upload_multiple_partial_error(client, auth_headers, tmp_path):
     assert len(data["errors"]) == 1
     assert data["errors"][0]["filename"] == "bad.exe"
     assert "formato" in data["errors"][0]["error"].lower() or "not allowed" in data["errors"][0]["error"].lower()
+
+
+def test_upload_file_too_large(client, auth_headers, tmp_path):
+    with (
+        patch("app.routes.songs.MAX_FILE_SIZE_BYTES", 1),
+        patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(tmp_path)),
+        patch("app.routes.songs._extract_duration", return_value=10.0),
+    ):
+        response = client.post(
+            "/songs/upload",
+            headers=auth_headers,
+            files={"file": ("test.mp3", b"a" * 100, "audio/mpeg")},
+            data={"title": "Large File", "artist": "Artist"},
+        )
+    assert response.status_code == 413

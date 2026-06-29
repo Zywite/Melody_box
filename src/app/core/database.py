@@ -8,10 +8,10 @@ DB_CONNECT_TIMEOUT_SECONDS = 3
 
 def _create_engine_with_fallback():
     """Create engine, testing connection. Falls back to SQLite on failure."""
-    pool_kwargs = {"pool_size": 20, "max_overflow": 10, "pool_pre_ping": True}
-
     if "sqlite" in settings.DATABASE_URL:
-        return create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False}, **pool_kwargs)
+        return create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
+
+    pool_kwargs = {"pool_size": 20, "max_overflow": 10, "pool_pre_ping": True}
 
     # 3s connect timeout prevents startup from hanging when the DB host
     # is unreachable. libpq accepts ``connect_timeout`` in the URL.
