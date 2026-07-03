@@ -1,8 +1,11 @@
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::DeprecationWarning:fastapi.testclient",
+    "ignore::DeprecationWarning:httpx._client",
     "ignore::DeprecationWarning:sqlalchemy.sql.schema",
     "ignore::DeprecationWarning:audioread.rawread",
+    'ignore::FutureWarning:librosa',
+    'ignore::UserWarning:librosa',
 ]
 addopts = [
     "--cov=app",

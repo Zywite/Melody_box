@@ -1,5 +1,6 @@
 import json
 import logging
+import warnings
 from pathlib import Path
 
 import librosa
@@ -70,12 +71,14 @@ class FFTService:
             # Load audio file. Downsample and clip duration to keep memory
             # bounded for very long tracks (raw float32 at 44.1kHz mono is
             # ~176KB/s; a 10-minute track would be ~100MB).
-            y, sr = librosa.load(
-                file_path,
-                sr=FFT_TARGET_SAMPLE_RATE,
-                mono=True,
-                duration=MAX_FFT_INPUT_DURATION_SECONDS,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="PySoundFile failed")
+                y, sr = librosa.load(
+                    file_path,
+                    sr=FFT_TARGET_SAMPLE_RATE,
+                    mono=True,
+                    duration=MAX_FFT_INPUT_DURATION_SECONDS,
+                )
 
             duration = len(y) / sr
 

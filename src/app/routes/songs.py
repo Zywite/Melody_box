@@ -149,7 +149,7 @@ async def _process_upload_file(
     file.file.seek(0)
     if file_size > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"Archivo demasiado grande. Máximo permitido: {MAX_FILE_SIZE_BYTES // MB}MB",
         )
 
