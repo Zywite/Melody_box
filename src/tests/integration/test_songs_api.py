@@ -26,7 +26,7 @@ def test_get_song_by_id(client, test_song):
 def test_get_song_not_found(client):
     response = client.get("/songs/nonexistent-id")
     assert response.status_code == 404
-    assert "no encontrada" in response.json()["detail"].lower() or "not found" in response.json()["detail"].lower()
+    assert "no encontrada" in response.json()["detail"].lower()
 
 
 def test_search_songs(client, test_song, test_song2):

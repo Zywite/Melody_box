@@ -59,7 +59,7 @@ class UserService:
         return user
 
     @staticmethod
-    def get_all_users(db: Session, skip: int = 0, limit: int = 100, search: str | None = None):
+    def get_all_users(db: Session, skip: int = 0, limit: int = 100, search: str | None = None) -> list[User]:
         """Return paginated list of users, optionally filtered by search."""
         query = db.query(User)
         if search:

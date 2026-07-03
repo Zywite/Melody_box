@@ -7,6 +7,10 @@
 
     <div class="search-container">
       <SearchInput v-model="searchQuery" @search="handleSearch" placeholder="Buscar canciones, artistas o álbumes..." />
+      <span v-if="isSearching" class="searching-indicator">
+        <div class="spinner-xs"></div>
+        Buscando...
+      </span>
     </div>
 
     <div v-if="isLoading" class="loading-state">
@@ -34,6 +38,11 @@
       <h3 class="text-xl font-semibold mt-4">Busca tu música</h3>
       <p class="text-[var(--text-secondary)]">Encuentra canciones por título, artista o álbum</p>
     </div>
+    <AddToPlaylistModal
+      v-if="addToPlaylistSong"
+      :song="addToPlaylistSong"
+      @close="addToPlaylistSong = null"
+    />
   </div>
 </template>
 
@@ -47,6 +56,7 @@ import { useFavorite } from '@/composables/useFavorite'
 import api from '@/composables/useApi'
 import SongCard from '@/components/common/SongCard.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
+import AddToPlaylistModal from '@/components/common/AddToPlaylistModal.vue'
 import { Search } from 'lucide-vue-next'
 
 const songsStore = useSongsStore()
@@ -58,13 +68,19 @@ const { isSongFavorite, toggleFavorite } = useFavorite()
 const searchQuery = ref('')
 const results = ref([])
 const isLoading = ref(false)
+const isSearching = ref(false)
+const addToPlaylistSong = ref(null)
 
 onMounted(async () => {
-  await Promise.all([
-    songsStore.fetchSongs(),
-    favoritesStore.fetchFavorites()
-  ])
-  results.value = songsStore.songs.slice(0, 20)
+  try {
+    await Promise.all([
+      songsStore.fetchSongs(),
+      favoritesStore.fetchFavorites()
+    ])
+    results.value = songsStore.songs.slice(0, 20)
+  } catch (e) {
+    toast.error('Error', 'No se pudieron cargar los datos')
+  }
 })
 
 async function handleSearch() {
@@ -74,12 +90,14 @@ async function handleSearch() {
   }
 
   isLoading.value = true
+  isSearching.value = true
   try {
     results.value = await api.searchSongs(searchQuery.value)
   } catch (e) {
     toast.error('Error en búsqueda', e.message)
   } finally {
     isLoading.value = false
+    isSearching.value = false
   }
 }
 
@@ -88,7 +106,7 @@ function playSong(song) {
 }
 
 function showAddToPlaylist(song) {
-  // TODO: Implement
+  addToPlaylistSong.value = song
 }
 
 </script>
@@ -174,5 +192,25 @@ function showAddToPlaylist(song) {
 
 .empty-state :deep(svg) {
   color: var(--accent-light);
+}
+
+.searching-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: 'Nunito', sans-serif;
+  justify-content: center;
+}
+
+.spinner-xs {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--bg-tertiary);
+  border-top: 2px solid var(--accent);
+  border-radius: 50%;
+  animation: spin-slow 0.8s linear infinite;
 }
 </style>

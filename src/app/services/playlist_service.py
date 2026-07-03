@@ -13,7 +13,7 @@ class PlaylistService:
     """Static methods for creating, querying, and mutating playlists."""
 
     @staticmethod
-    def create_playlist(db: Session, user_id: str, name: str, description: str = None) -> Playlist:
+    def create_playlist(db: Session, user_id: str, name: str, description: str | None = None) -> Playlist:
         """Create and persist a new empty playlist owned by ``user_id``."""
         existing = db.query(Playlist).filter(Playlist.user_id == user_id, Playlist.name == name).first()
         if existing:

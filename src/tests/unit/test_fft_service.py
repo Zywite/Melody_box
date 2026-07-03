@@ -5,6 +5,9 @@ import pytest
 from app.core.config import BASE_DIR
 from app.services.fft_service import FFTService
 
+_TEST_SONG_PATH = BASE_DIR / "data" / "music" / "test_song.mp3"
+_HAS_TEST_FILE = _TEST_SONG_PATH.exists()
+
 
 def test_to_json_and_get_fft_data_json_roundtrip():
     result = {
@@ -56,39 +59,42 @@ def test_compute_fft_from_file_returns_none_for_nonexistent():
     assert result is None
 
 
+@pytest.mark.skipif(not _HAS_TEST_FILE, reason="test_song.mp3 not found")
 def test_fft_result_contains_all_expected_keys(test_song):
-    file_path = str(BASE_DIR / "data" / "music" / "test_song.mp3")
+    file_path = str(_TEST_SONG_PATH)
     result = FFTService.compute_fft_from_file(file_path)
-    if result is not None:
-        expected_keys = {
-            "duration",
-            "sample_rate",
-            "channels",
-            "bins",
-            "spectrogram",
-            "bass_power",
-            "mid_power",
-            "treble_power",
-            "fft_size",
-            "hop_size",
-            "nyquist",
-            "bin_count",
-        }
-        assert expected_keys.issubset(result.keys())
+    assert result is not None
+    expected_keys = {
+        "duration",
+        "sample_rate",
+        "channels",
+        "bins",
+        "spectrogram",
+        "bass_power",
+        "mid_power",
+        "treble_power",
+        "fft_size",
+        "hop_size",
+        "nyquist",
+        "bin_count",
+    }
+    assert expected_keys.issubset(result.keys())
 
 
+@pytest.mark.skipif(not _HAS_TEST_FILE, reason="test_song.mp3 not found")
 def test_fft_powers_sum_to_approx_100(test_song):
-    file_path = str(BASE_DIR / "data" / "music" / "test_song.mp3")
+    file_path = str(_TEST_SONG_PATH)
     result = FFTService.compute_fft_from_file(file_path)
-    if result is not None:
-        total = result["bass_power"] + result["mid_power"] + result["treble_power"]
-        assert 95.0 <= total <= 105.0
+    assert result is not None
+    total = result["bass_power"] + result["mid_power"] + result["treble_power"]
+    assert 95.0 <= total <= 105.0
 
 
+@pytest.mark.skipif(not _HAS_TEST_FILE, reason="test_song.mp3 not found")
 def test_fft_bins_are_normalized_0_255(test_song):
-    file_path = str(BASE_DIR / "data" / "music" / "test_song.mp3")
+    file_path = str(_TEST_SONG_PATH)
     result = FFTService.compute_fft_from_file(file_path)
-    if result is not None:
-        bins = result["bins"]
-        assert all(0 <= b <= 255 for b in bins)
-        assert len(bins) == 1025
+    assert result is not None
+    bins = result["bins"]
+    assert all(0 <= b <= 255 for b in bins)
+    assert len(bins) == 1025

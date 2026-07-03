@@ -59,6 +59,14 @@
         </div>
       </Transition>
     </div>
+
+    <ConfirmModal
+      v-if="showConfirm"
+      title="Eliminar canción"
+      :message="`¿Eliminar «${song.title}»?`"
+      @confirm="confirmDelete"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>
 
@@ -69,6 +77,7 @@ import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
 import { formatTime } from '@/utils/format'
 import api from '@/composables/useApi'
+import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import { Music2, Video, Play, Heart, ListPlus, MoreHorizontal, Trash2 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -86,6 +95,7 @@ const libraryStore = useLibraryStore()
 const toast = useToast()
 
 const showMenu = ref(false)
+const showConfirm = ref(false)
 
 const isCurrentlyPlaying = computed(() => playerStore.currentSong?.id === props.song.id)
 const isPlaying = computed(() => isCurrentlyPlaying.value && playerStore.isPlaying)
@@ -100,8 +110,13 @@ function addToPlaylist() {
   showMenu.value = false
 }
 
-async function deleteSong() {
-  if (!confirm('¿Eliminar canción?')) return
+function deleteSong() {
+  showConfirm.value = true
+  showMenu.value = false
+}
+
+async function confirmDelete() {
+  showConfirm.value = false
   try {
     await api.deleteSong(props.song.id)
     toast.success('Canción eliminada')
@@ -109,7 +124,6 @@ async function deleteSong() {
   } catch (e) {
     toast.error('Error', e.message)
   }
-  showMenu.value = false
 }
 </script>
 

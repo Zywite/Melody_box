@@ -9,11 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from sqlalchemy import text
 from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
+from app.core.constants import DB_RETRY_BACKOFF_SECONDS, DB_RETRY_MAX_ATTEMPTS, GZIP_MINIMUM_SIZE_BYTES
 from app.core.database import Base, SessionLocal, engine
+from app.core.migrations import run_migrations
 from app.core.rate_limit import limiter
 from app.core.selective_gzip import SelectiveGZipMiddleware
 from app.models import (  # noqa: F401 - needed for Base.metadata
@@ -39,47 +40,6 @@ class CachedStaticFiles(StaticFiles):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
-
-def _run_migrations_sqlite() -> None:
-    """Fallback migrations for SQLite."""
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("PRAGMA table_info(users)"))
-            columns = [row[1] for row in result]
-            if "role" not in columns:
-                conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user' NOT NULL"))
-                print("Added role column to users table (SQLite)")
-            conn.commit()
-    except Exception as e:
-        print(f"Migration error (non-fatal): {e}")
-
-
-def _run_migrations() -> None:
-    """Run lightweight schema migrations."""
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(
-                text(
-                    "SELECT column_name FROM information_schema.columns "
-                    "WHERE table_name = 'songs' AND column_name = 'fft_data'"
-                )
-            )
-            if "fft_data" not in [row[0] for row in result]:
-                conn.execute(text("ALTER TABLE songs ADD COLUMN fft_data TEXT"))
-                print("Added fft_data column to songs table")
-
-            result = conn.execute(
-                text(
-                    "SELECT column_name FROM information_schema.columns "
-                    "WHERE table_name = 'users' AND column_name = 'role'"
-                )
-            )
-            if "role" not in [row[0] for row in result]:
-                conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user' NOT NULL"))
-                print("Added role column to users table")
-            conn.commit()
-    except Exception:
-        _run_migrations_sqlite()
 
 
 def _create_default_admin() -> None:
@@ -115,18 +75,18 @@ def _create_default_admin() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan: create schema, run lightweight migrations, log start/stop."""
-    for attempt in range(3):
+    for attempt in range(DB_RETRY_MAX_ATTEMPTS):
         try:
             Base.metadata.create_all(bind=engine)
             break
         except Exception as e:
-            print(f"Database connection attempt {attempt + 1}/3 failed: {e}")
-            if attempt < 2:
-                await asyncio.sleep(2)
+            print(f"Database connection attempt {attempt + 1}/{DB_RETRY_MAX_ATTEMPTS} failed: {e}")
+            if attempt < DB_RETRY_MAX_ATTEMPTS - 1:
+                await asyncio.sleep(DB_RETRY_BACKOFF_SECONDS)
             else:
                 print("All database connection attempts failed. Continuing without DB.")
 
-    _run_migrations()
+    run_migrations()
     _create_default_admin()
 
     print("MelodyBox iniciando...")
@@ -138,7 +98,7 @@ app = FastAPI(
     title=settings.API_TITLE, version=settings.API_VERSION, description=settings.API_DESCRIPTION, lifespan=lifespan
 )
 
-app.add_middleware(SelectiveGZipMiddleware, minimum_size=1000)
+app.add_middleware(SelectiveGZipMiddleware, minimum_size=GZIP_MINIMUM_SIZE_BYTES)
 
 app.add_middleware(
     CORSMiddleware,
@@ -207,12 +167,12 @@ async def serve_spa(path: str):
     """Serve index.html for any non-API route (SPA fallback)"""
     # Exclude static assets, media files, and API routes
     if path.startswith(("assets/", "static/", "music/", "favicon")):
-        return {"error": "Not found"}
+        return JSONResponse(content={"error": "Not found"}, status_code=404)
 
     index_path = FRONTEND_DIR / "index.html"
     if index_path.exists():
         return FileResponse(index_path)
-    return {"error": "Not found"}
+    return JSONResponse(content={"error": "Not found"}, status_code=404)
 
 
 if __name__ == "__main__":

@@ -49,45 +49,14 @@
     </div>
 
     <!-- Song List with FFT Status -->
-    <section class="song-list-section">
-      <h2 class="section-title">Canciones</h2>
-
-      <VirtualList
-        v-if="songs.length"
-        class="song-list"
-        :items="songs"
-        :item-height="60"
-        :key-field="'id'"
-      >
-        <template #default="{ item: song }">
-          <div
-            @click="selectSong(song)"
-            class="song-item"
-            :class="{ active: selectedSongId === song.id }"
-          >
-            <div class="song-status">
-              <CheckCircle v-if="song.has_fft" :size="18" class="status-done" />
-              <Clock v-else :size="18" class="status-pending" />
-            </div>
-            <div class="song-info">
-              <p class="song-title">{{ song.title }}</p>
-              <p class="song-artist">{{ song.artist }}</p>
-            </div>
-            <div class="song-actions">
-              <button
-                v-if="!song.has_fft"
-                @click.stop="analyzeSingleSong(song)"
-                :disabled="isAnalyzing"
-                class="btn-analyze-single"
-              >
-                {{ analyzingSongId === song.id ? '...' : '🔍' }}
-              </button>
-              <span v-else class="fft-badge">FFT ✓</span>
-            </div>
-          </div>
-        </template>
-      </VirtualList>
-    </section>
+    <FFTSongList
+      :songs="songs"
+      :selected-song-id="selectedSongId"
+      :is-analyzing="isAnalyzing"
+      :analyzing-song-id="analyzingSongId"
+      @select-song="selectSong"
+      @analyze-song="analyzeSingleSong"
+    />
 
     <!-- FFT Results -->
     <div v-if="result" class="results-section">
@@ -95,56 +64,7 @@
         <h2 class="section-title">Resultados: {{ selectedSongTitle }}</h2>
         <button @click="clearResults" class="btn-clear">✕</button>
       </div>
-      
-      <div class="stats-row">
-        <div class="stat-box">
-          <span class="stat-label">Duración</span>
-          <span class="stat-value">{{ formatTime(result.duration) }}</span>
-        </div>
-<div class="stat-box">
-          <span class="stat-label">Sample Rate</span>
-          <span class="stat-value">{{ result.sample_rate }} Hz</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-label">Canales</span>
-          <span class="stat-value">{{ result.channels }}</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-label">Bins FFT</span>
-          <span class="stat-value">{{ result.bins.length }}</span>
-        </div>
-      </div>
-      
-      <div class="canvas-container">
-        <h3 class="canvas-title">Espectro de Frecuencias</h3>
-        <canvas ref="canvas"></canvas>
-      </div>
-      
-      <div class="canvas-container spectrogram">
-        <h3 class="canvas-title">Espectrograma</h3>
-        <canvas ref="specCanvas"></canvas>
-      </div>
-      
-      <div class="info-cards">
-        <div class="info-card bass">
-          <div class="card-icon">🔊</div>
-          <h4>Graves (20-250 Hz)</h4>
-          <p class="info-value">{{ result.bass_power.toFixed(1) }}%</p>
-          <p class="info-desc">Bajos, bombo, bajo eléctrico</p>
-        </div>
-        <div class="info-card mid">
-          <div class="card-icon">🎸</div>
-          <h4>Medios (250-2k Hz)</h4>
-          <p class="info-value">{{ result.mid_power.toFixed(1) }}%</p>
-          <p class="info-desc">Voces, guitarras, sintetizadores</p>
-        </div>
-        <div class="info-card treble">
-          <div class="card-icon">✨</div>
-          <h4>Agudos (2k-20k Hz)</h4>
-          <p class="info-value">{{ result.treble_power.toFixed(1) }}%</p>
-          <p class="info-desc">Brillantes, platillos, aire</p>
-        </div>
-      </div>
+      <FFTCanvas :result="result" />
     </div>
     
     <!-- Loading State -->
@@ -176,16 +96,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
 import { usePolling } from '@/composables/usePolling'
 import { formatTime } from '@/utils/format'
-import { readThemeColors, drawSpectrumCanvas, drawSpectrogramCanvas } from '@/utils/fftCanvas'
 import api from '@/composables/useApi'
-import { Music, Activity, ListMusic, CheckCircle, Clock, RefreshCw } from 'lucide-vue-next'
-import VirtualList from '@/components/common/VirtualList.vue'
+import { Music, Activity, ListMusic, RefreshCw } from 'lucide-vue-next'
+import FFTCanvas from '@/components/fft/FFTCanvas.vue'
+import FFTSongList from '@/components/fft/FFTSongList.vue'
 
 const route = useRoute()
 const libraryStore = useLibraryStore()
@@ -196,8 +116,6 @@ const songs = computed(() => libraryStore.songs || [])
 const selectedSongId = ref('')
 const selectedSongTitle = ref('')
 const result = ref(null)
-const canvas = ref(null)
-const specCanvas = ref(null)
 const isLoading = ref(false)
 const isAnalyzing = ref(false)
 const isAnalyzingAll = ref(false)
@@ -207,13 +125,6 @@ const isAnalyzingFFT = ref(false)
 
 const analyzedCount = computed(() => songs.value.filter(s => s.has_fft).length)
 const pendingCount = computed(() => songs.value.filter(s => !s.has_fft).length)
-
-let themeColors = {}
-
-function redrawCanvases() {
-  drawSpectrumCanvas(canvas.value, result.value, themeColors)
-  drawSpectrogramCanvas(specCanvas.value, result.value, themeColors)
-}
 
 function selectSong(song) {
   selectedSongId.value = song.id
@@ -234,8 +145,6 @@ async function loadFFTData(songId) {
       return
     }
     result.value = response
-    await nextTick()
-    redrawCanvases()
   } catch (err) {
     toast.error('Error al cargar FFT', err.message)
   } finally {
@@ -255,8 +164,6 @@ async function waitForFFT(songId, maxAttempts = 60) {
       result.value = fftResponse
       const song = songs.value.find(s => s.id === songId)
       if (song) song.has_fft = true
-      await nextTick()
-      redrawCanvases()
       return
     }
   } catch (err) {
@@ -286,8 +193,6 @@ async function waitForFFT(songId, maxAttempts = 60) {
         }
       },
     })
-    await nextTick()
-    redrawCanvases()
   } catch {
     // handled by composable
   } finally {
@@ -329,7 +234,6 @@ function clearResults() {
 }
 
 onMounted(async () => {
-  themeColors = readThemeColors()
   if (!libraryStore.songs || libraryStore.songs.length === 0) {
     await libraryStore.fetchSongs()
   }
@@ -489,112 +393,7 @@ onMounted(async () => {
   to { transform: rotate(360deg); }
 }
 
-/* Song List Section */
-.song-list-section {
-  margin-bottom: 28px;
-}
-
-.section-title {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--accent);
-  font-family: 'Nunito', sans-serif;
-  margin-bottom: 16px;
-}
-
-.song-list {
-  height: 60vh;
-  min-height: 400px;
-}
-
-.song-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 18px;
-  height: 100%;
-  background: var(--bg-secondary);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  box-sizing: border-box;
-  margin-bottom: 8px;
-}
-
-.song-item:hover {
-  border-color: var(--accent-light);
-  transform: translateX(4px);
-  box-shadow: var(--shadow);
-}
-
-.song-item.active {
-  border-color: var(--accent);
-  background: var(--bg-tertiary);
-}
-
-.song-status {
-  flex-shrink: 0;
-}
-
-.status-done {
-  color: var(--success);
-}
-
-.status-pending {
-  color: var(--warning);
-}
-
-.song-info {
-  flex: 1;
-}
-
-.song-title {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-family: 'Nunito', sans-serif;
-  margin-bottom: 2px;
-}
-
-.song-artist {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  font-family: 'Nunito', sans-serif;
-}
-
-.song-actions {
-  flex-shrink: 0;
-}
-
-.btn-analyze-single {
-  background: var(--accent-gradient);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all var(--transition-fast);
-}
-
-.btn-analyze-single:hover:not(:disabled) {
-  transform: scale(1.1);
-}
-
-.fft-badge {
-  background: var(--success);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
 /* Results Section */
-.results-section {
-  animation: fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
 .results-header {
   display: flex;
   align-items: center;
@@ -616,116 +415,6 @@ onMounted(async () => {
 
 .btn-clear:hover {
   transform: scale(1.1);
-}
-
-.stats-row {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.stat-box {
-  background: var(--bg-secondary);
-  padding: 15px 25px;
-  border-radius: var(--radius);
-  text-align: center;
-  border: 2px solid var(--border);
-  min-width: 140px;
-}
-
-.stat-label {
-  display: block;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  font-family: 'Nunito', sans-serif;
-}
-
-.stat-value {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--accent);
-  font-family: 'Nunito', sans-serif;
-}
-
-.canvas-container {
-  background: var(--bg-secondary);
-  border-radius: var(--radius);
-  overflow: hidden;
-  margin-bottom: 20px;
-  border: 2px solid var(--border);
-  padding: 16px;
-}
-
-.canvas-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--accent);
-  font-family: 'Nunito', sans-serif;
-  margin-bottom: 12px;
-}
-
-.canvas-container canvas {
-  width: 100%;
-  height: 300px;
-  display: block;
-  border-radius: 12px;
-}
-
-.canvas-container.spectrogram canvas {
-  height: 200px;
-}
-
-.info-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.info-card {
-  background: var(--bg-secondary);
-  padding: 20px;
-  border-radius: var(--radius);
-  text-align: center;
-  border: 2px solid var(--border);
-  transition: all var(--transition-fast);
-}
-
-.info-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow);
-}
-
-.card-icon {
-  font-size: 2rem;
-  margin-bottom: 8px;
-}
-
-.info-card h4 {
-  margin-bottom: 10px;
-  font-size: 0.9rem;
-  color: var(--accent);
-  font-family: 'Nunito', sans-serif;
-}
-
-.info-card.bass h4 { color: var(--accent); }
-.info-card.mid h4 { color: var(--secondary); }
-.info-card.treble h4 { color: var(--blue-accent); }
-
-.info-value {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 5px;
-  color: var(--text-primary);
-  font-family: 'Nunito', sans-serif;
-}
-
-.info-desc {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  font-family: 'Nunito', sans-serif;
 }
 
 /* Loading State */

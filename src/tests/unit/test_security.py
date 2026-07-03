@@ -49,7 +49,7 @@ def test_decode_expired_token():
     assert payload is None
 
 
-def test_token_uses_correct_algorithm():
+def test_token_decodes_successfully():
     token = create_access_token(data={"sub": "user123"})
     payload = decode_token(token)
     assert payload is not None

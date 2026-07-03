@@ -7,6 +7,7 @@ import bcrypt
 import jwt
 from sqlalchemy.orm import Session
 
+from app.core.constants import ACCESS_TOKEN_EXPIRE_MINUTES
 from .config import settings
 
 
@@ -35,7 +36,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(UTC) + timedelta(minutes=15)
+        expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt

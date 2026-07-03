@@ -1,88 +1,28 @@
 <template>
   <div class="youtube-downloader">
-    <div class="search-section">
-      <div class="search-input-wrapper">
-        <Search :size="20" class="search-icon" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          class="search-field"
-          placeholder="Buscar videos en YouTube..."
-          @keyup.enter="searchYouTube"
-        />
-        <button v-if="searchQuery" @click="searchQuery = ''" class="clear-btn">
-          <X :size="18" />
-        </button>
-      </div>
-      <button @click="searchYouTube" class="btn-primary" :disabled="isSearching || !searchQuery.trim()">
-        <Search :size="18" />
-        Buscar
-      </button>
-    </div>
-
-    <!-- Filters Section -->
-    <div v-if="searchResults.length" class="filters-section">
-      <div class="filter-group">
-        <label>Duración:</label>
-        <select v-model="durationFilter" class="filter-select">
-          <option value="all">Todas</option>
-          <option value="short">Corto (&lt; 4 min)</option>
-          <option value="medium">Medio (4-10 min)</option>
-          <option value="long">Largo (&gt; 10 min)</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Ordenar:</label>
-        <select v-model="sortBy" class="filter-select">
-          <option value="relevance">Relevancia</option>
-          <option value="date">Fecha</option>
-          <option value="views">Vistas</option>
-        </select>
-      </div>
-      <div class="results-count">
-        {{ filteredResults.length }} de {{ searchResults.length }} resultados
-      </div>
-    </div>
-
-    <div v-if="isSearching" class="loading-state">
-      <div class="spinner"></div>
-      <p>Buscando en YouTube...</p>
-    </div>
-
-    <div v-else-if="searchResults.length" class="results-section">
-      <h3 class="section-label">Resultados ({{ filteredResults.length }})</h3>
+    <YouTubeSearch
+      :query="searchQuery"
+      :is-searching="isSearching"
+      :results="searchResults"
+      :filtered="filteredResults.length"
+      :duration="durationFilter"
+      :sort="sortBy"
+      :has-searched="hasSearched"
+      @search="searchYouTube"
+      @update:query="searchQuery = $event"
+      @update:duration="durationFilter = $event"
+      @update:sort="sortBy = $event"
+    >
       <div class="results-grid">
-        <div
+        <VideoCard
           v-for="video in filteredResults"
           :key="video.video_id"
-          class="video-card"
-          :class="{ selected: selectedVideo?.video_id === video.video_id }"
-          @click="selectVideo(video)"
-        >
-          <div class="video-thumbnail">
-            <img :src="video.thumbnail" :alt="video.title" loading="lazy" />
-            <span class="video-duration">{{ formatTime(video.duration) }}</span>
-            <div class="video-play-overlay">
-              <Play :size="24" fill="white" />
-            </div>
-          </div>
-          <div class="video-info">
-            <p class="video-title">{{ video.title }}</p>
-            <p class="video-channel">{{ video.channel }}</p>
-            <div class="video-meta">
-              <span v-if="video.views">{{ formatViews(video.views) }} vistas</span>
-              <span v-if="video.upload_date">• {{ video.upload_date }}</span>
-            </div>
-          </div>
-        </div>
+          :video="video"
+          :selected="selectedVideo?.video_id === video.video_id"
+          @select="selectVideo(video)"
+        />
       </div>
-    </div>
-
-    <div v-else-if="hasSearched && !searchResults.length" class="empty-state">
-      <Youtube :size="48" class="opacity-30" />
-      <h3>No se encontraron resultados</h3>
-      <p>Intenta con otras palabras clave</p>
-    </div>
+    </YouTubeSearch>
 
     <div v-if="selectedVideo" class="download-section">
       <div class="selected-info">
@@ -185,9 +125,10 @@ import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
 import { usePolling } from '@/composables/usePolling'
-import { formatTime } from '@/utils/format'
 import api from '@/composables/useApi'
-import { Search, X, Play, Youtube, Download, CheckCircle, AlertCircle } from 'lucide-vue-next'
+import YouTubeSearch from '@/components/common/YouTubeSearch.vue'
+import VideoCard from '@/components/common/VideoCard.vue'
+import { Download, CheckCircle, AlertCircle } from 'lucide-vue-next'
 
 const emit = defineEmits(['downloaded'])
 
@@ -280,13 +221,6 @@ function selectVideo(video) {
   customArtist.value = ''
 }
 
-function formatViews(views) {
-  if (!views) return ''
-  if (views >= 1000000) return (views / 1000000).toFixed(1) + 'M'
-  if (views >= 1000) return (views / 1000).toFixed(1) + 'K'
-  return views.toString()
-}
-
 async function downloadVideo() {
   if (!selectedVideo.value) return
 
@@ -366,188 +300,9 @@ function playDownloaded() {
   @apply flex flex-col gap-6;
 }
 
-.search-section {
-  @apply flex gap-3;
-}
-
-.filters-section {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  padding: 12px 0;
-  flex-wrap: wrap;
-}
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.filter-group label {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  font-family: 'Nunito', sans-serif;
-}
-
-.filter-select {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 2px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  font-family: 'Nunito', sans-serif;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.filter-select:hover {
-  border-color: var(--accent);
-}
-
-.results-count {
-  margin-left: auto;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  font-family: 'Nunito', sans-serif;
-}
-
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-
-.search-icon {
-  position: absolute;
-  left: 16px;
-  color: var(--text-secondary);
-  pointer-events: none;
-}
-
-.search-field {
-  width: 100%;
-  padding: 14px 44px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  font-family: 'DM Sans', sans-serif;
-  transition: all 0.3s ease;
-}
-
-.search-field:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-}
-
-.clear-btn {
-  position: absolute;
-  right: 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px;
-}
-
-.section-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 .results-grid {
   @apply grid gap-4;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-}
-
-.video-card {
-  @apply rounded-xl overflow-hidden cursor-pointer transition-all duration-200;
-  background: var(--bg-secondary);
-  border: 2px solid transparent;
-}
-
-.video-card:hover {
-  border-color: var(--border-hover);
-  transform: translateY(-4px);
-}
-
-.video-card.selected {
-  border-color: var(--accent-primary);
-}
-
-.video-thumbnail {
-  position: relative;
-  aspect-ratio: 16/9;
-  background: var(--bg-tertiary);
-}
-
-.video-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.video-duration {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.video-play-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.video-card:hover .video-play-overlay {
-  opacity: 1;
-}
-
-.video-info {
-  padding: 12px;
-}
-
-.video-title {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-primary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.video-channel {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-top: 4px;
-}
-
-.video-meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 4px;
-  display: flex;
-  gap: 8px;
 }
 
 .download-section {

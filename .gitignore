@@ -73,6 +73,12 @@ tmp/
 htmlcov/
 coverage.xml
 
+# Ruff
+.ruff_cache/
+
+# Frontend build output
+frontend/dist/
+
 # Node (si se usa)
 node_modules/
 yarn.lock

@@ -51,6 +51,14 @@
         <p class="text-[var(--text-secondary)]">Agrega canciones desde la biblioteca</p>
       </div>
     </div>
+
+    <ConfirmModal
+      v-if="showConfirm"
+      title="Eliminar playlist"
+      :message="`¿Eliminar la playlist «${playlist?.name}»?`"
+      @confirm="confirmDelete"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>
 
@@ -63,6 +71,7 @@ import { useToast } from '@/composables/useToast'
 import { useFavorite } from '@/composables/useFavorite'
 import api from '@/composables/useApi'
 import SongCard from '@/components/common/SongCard.vue'
+import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import { ListMusic, Play, Shuffle, Trash2, Music } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -74,6 +83,8 @@ const { isSongFavorite, toggleFavorite } = useFavorite()
 
 const playlist = ref(null)
 const allSongs = ref([])
+const songMap = ref(null)
+const showConfirm = ref(false)
 
 onMounted(async () => {
   const playlistId = route.params.id
@@ -81,6 +92,7 @@ onMounted(async () => {
     await favoritesStore.fetchFavorites()
     playlist.value = await api.getPlaylist(playlistId)
     allSongs.value = await api.getSongs()
+    songMap.value = new Map(allSongs.value.map(s => [s.id, s]))
   } catch (e) {
     toast.error('Error', e.message)
     router.push('/library')
@@ -88,7 +100,7 @@ onMounted(async () => {
 })
 
 function getSongData(songId) {
-  return allSongs.value.find(s => s.id === songId) || { id: songId, title: 'Unknown', artist: 'Unknown' }
+  return songMap.value?.get(songId) || { id: songId, title: 'Unknown', artist: 'Unknown' }
 }
 
 function playAll() {
@@ -125,8 +137,12 @@ async function removeSong(songId) {
   }
 }
 
-async function deletePlaylist() {
-  if (!confirm('¿Eliminar playlist?')) return
+function deletePlaylist() {
+  showConfirm.value = true
+}
+
+async function confirmDelete() {
+  showConfirm.value = false
   try {
     await api.deletePlaylist(playlist.value.id)
     toast.success('Playlist eliminada')

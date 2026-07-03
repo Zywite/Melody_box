@@ -59,11 +59,6 @@ function playAudio() {
   animation: fadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes fadeIn {
-  from { opacity:0; }
-  to { opacity:1; }
-}
-
 .mode-selector {
   background: var(--bg-secondary);
   border-radius: 32px;
@@ -78,11 +73,6 @@ function playAudio() {
 @keyframes slideUp {
   from { transform: translateY(30px); opacity:0; }
   to { transform: translateY(0); opacity:1; }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .mode-selector {

@@ -60,10 +60,7 @@ function playFromQueue(index) {
 }
 
 function removeFromQueue(index) {
-  if (index < playerStore.currentIndex) {
-    playerStore.currentIndex--
-  }
-  playerStore.playlist.splice(index, 1)
+  playerStore.removeFromQueue(index)
 }
 </script>
 
@@ -77,11 +74,6 @@ function removeFromQueue(index) {
   justify-content: flex-end;
   z-index:1000;
   animation: fadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes fadeIn {
-  from { opacity:0; }
-  to { opacity:1; }
 }
 
 .queue-panel {
@@ -99,11 +91,6 @@ function removeFromQueue(index) {
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .queue-panel {

@@ -5,6 +5,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
+from app.core.constants import DEFAULT_SONGS_PAGE_SIZE, SEARCH_DEFAULT_LIMIT
 from app.models import Song
 
 
@@ -55,7 +56,7 @@ class SongService:
         return db.query(Song).filter(Song.id == song_id).first()
 
     @staticmethod
-    def get_all_songs(db: Session, skip: int = 0, limit: int = 100) -> list[Song]:
+    def get_all_songs(db: Session, skip: int = 0, limit: int = DEFAULT_SONGS_PAGE_SIZE) -> list[Song]:
         """Return a slice of songs ordered by their insertion order.
 
         Args:
@@ -72,7 +73,7 @@ class SongService:
         db: Session,
         query: str,
         skip: int = 0,
-        limit: int = 50,
+        limit: int = SEARCH_DEFAULT_LIMIT,
     ) -> list[Song]:
         """Case-insensitive substring search over title, artist, and album.
 

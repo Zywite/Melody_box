@@ -60,11 +60,11 @@ function onEnded() {
 }
 
 function onTimeUpdate() {
-  playerStore.currentTime = audioRef.value?.currentTime || 0
+  playerStore.setCurrentTime(audioRef.value?.currentTime || 0)
 }
 
 function onLoadedMetadata() {
-  playerStore.duration = audioRef.value?.duration || 0
+  playerStore.setDuration(audioRef.value?.duration || 0)
 }
 </script>
 

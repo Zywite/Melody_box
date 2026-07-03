@@ -153,7 +153,7 @@ MelodyBox/
 │   ├── scripts/             # Scripts auxiliares (rate limit standalone)
 │   └── conftest.py          # Fixtures compartidas
 ├── docs/                    # Documentación
-├── scripts/                 # Scripts de utilidad (presentar, run_worker)
+├── scripts/                 # Scripts de utilidad (start_server, validate_setup)
 ├── nginx.conf               # Configuración Nginx
 ├── Dockerfile               # Imagen Docker multi-stage
 ├── docker-compose.yml       # Orquestación (4 servicios)

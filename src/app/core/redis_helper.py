@@ -1,11 +1,14 @@
 """Redis and arq helpers: connection pool, job enqueue, FFT cache."""
 
+import logging
 import os
 
 from arq import create_pool
 from arq.connections import RedisSettings
 
 from app.core.constants import FFT_CACHE_KEY_PREFIX, FFT_CACHE_TTL_SECONDS
+
+logger = logging.getLogger(__name__)
 
 _redis_pool = None
 
@@ -62,7 +65,7 @@ async def cache_set_fft(song_id: str, fft_json: str) -> None:
     try:
         await redis.setex(f"{FFT_CACHE_KEY_PREFIX}{song_id}", FFT_CACHE_TTL_SECONDS, fft_json)
     except Exception:
-        pass
+        logger.exception("Failed to cache FFT for song %s", song_id)
 
 
 async def cache_get_fft(song_id: str) -> str | None:

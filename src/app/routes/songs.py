@@ -27,6 +27,8 @@ from app.core.constants import (
     JOB_NAME_COMPUTE_FFT,
     MAX_BULK_ANALYZE_BATCH,
     MAX_FILE_SIZE_BYTES,
+    MAX_SEARCH_PAGE_SIZE,
+    MB,
     MESSAGE_BULK_ANALYZE_RESULT,
     MIN_SEARCH_QUERY_LENGTH,
     RATE_LIMIT_ANALYZE_ALL,
@@ -142,13 +144,13 @@ async def _process_upload_file(
     is_video = settings.is_video(file_ext)
     media_type = "video" if is_video else "audio"
 
-    file.file.seek(0, 2)
+    file.file.seek(0, os.SEEK_END)
     file_size = file.file.tell()
     file.file.seek(0)
     if file_size > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Archivo demasiado grande. Máximo permitido: {MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB",
+            detail=f"Archivo demasiado grande. Máximo permitido: {MAX_FILE_SIZE_BYTES // MB}MB",
         )
 
     os.makedirs(settings.MUSIC_STORAGE_PATH, exist_ok=True)
@@ -212,7 +214,7 @@ def search_songs(
     db: Annotated[Session, Depends(get_db)],
     q: Annotated[str, Query(min_length=MIN_SEARCH_QUERY_LENGTH)],
     skip: Annotated[int, Query(ge=0)] = DEFAULT_SONGS_PAGE_SKIP,
-    limit: Annotated[int, Query(ge=1, le=200)] = DEFAULT_SONGS_PAGE_SIZE,
+    limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_PAGE_SIZE)] = DEFAULT_SONGS_PAGE_SIZE,
 ):
     """Case-insensitive search over title, artist, and album."""
     songs = SongService.search_songs(db, q, skip=skip, limit=limit)

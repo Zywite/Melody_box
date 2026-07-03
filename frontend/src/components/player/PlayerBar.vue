@@ -1,34 +1,11 @@
 <template>
   <div class="player-bar">
     <div class="player-bar-content">
-      <!-- Info de canción -->
-      <div class="player-info">
-        <template v-if="playerStore.currentSong">
-          <div class="track-artwork">
-            <img 
-              v-if="playerStore.currentSong.cover_url" 
-              :src="playerStore.currentSong.cover_url" 
-              :alt="playerStore.currentSong.title"
-            />
-            <div v-else class="artwork-placeholder">
-              <Music2 :size="20" />
-            </div>
-            <div class="artwork-glow"></div>
-          </div>
-          <div class="track-meta">
-            <p class="track-title">{{ playerStore.currentSong.title }}</p>
-            <p class="track-artist">{{ playerStore.currentSong.artist }}</p>
-          </div>
-          <button @click="toggleFavorite" class="track-favorite" :class="{ active: isFavorite }">
-            <Heart :size="18" :fill="isFavorite ? 'currentColor' : 'none'" />
-          </button>
-        </template>
-        <template v-else>
-          <div class="no-track">
-            <p class="text-sm">Sin reproducir</p>
-          </div>
-        </template>
-      </div>
+      <PlayerTrackInfo
+        :song="playerStore.currentSong"
+        :is-favorite="isFavorite"
+        @toggle-favorite="toggleFavorite"
+      />
 
       <!-- Controles centrales -->
       <div class="player-controls">
@@ -78,51 +55,56 @@
         </div>
       </div>
 
-      <!-- Controles extra -->
       <div class="player-extra">
-        <button 
-          @click="playerStore.toggleQueue" 
-          class="extra-btn" 
+        <button
+          v-if="playerStore.currentSong"
+          @click="addToPlaylist"
+          class="extra-btn"
+          title="Agregar a playlist"
+        >
+          <ListPlus :size="18" />
+        </button>
+        <button
+          @click="playerStore.toggleQueue"
+          class="extra-btn"
           :class="{ active: playerStore.showQueue }"
           title="Cola"
         >
           <ListMusic :size="18" />
         </button>
-        <div class="volume-wrapper">
-          <button @click="playerStore.toggleMute" class="extra-btn">
-            <VolumeX v-if="playerStore.isMuted" :size="18" />
-            <Volume2 v-else-if="playerStore.volume > 0.5" :size="18" />
-            <Volume1 v-else-if="playerStore.volume > 0" :size="18" />
-            <VolumeX v-else :size="18" />
-          </button>
-          <div class="volume-bar">
-            <input
-              type="range"
-              min="0"
-              max="100"
-              :value="playerStore.volume * 100"
-              @input="handleVolume"
-              class="volume-slider"
-            />
-          </div>
-        </div>
+        <VolumeControl
+          :volume="playerStore.volume"
+          :is-muted="playerStore.isMuted"
+          @toggle-mute="playerStore.toggleMute"
+          @update:volume="handleVolume"
+        />
       </div>
     </div>
   </div>
+
+    <AddToPlaylistModal
+      v-if="addToPlaylistSong"
+      :song="addToPlaylistSong"
+      @close="addToPlaylistSong = null"
+    />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { useToast } from '@/composables/useToast'
 import { formatTime } from '@/utils/format'
 import api from '@/composables/useApi'
-import { SkipBack, Play, Pause, SkipForward, Heart, ListMusic, VolumeX, Volume2, Volume1, Music2, Shuffle, Repeat, Repeat1, Activity } from 'lucide-vue-next'
+import AddToPlaylistModal from '@/components/common/AddToPlaylistModal.vue'
+import PlayerTrackInfo from '@/components/player/PlayerTrackInfo.vue'
+import VolumeControl from '@/components/player/VolumeControl.vue'
+import { SkipBack, Play, Pause, SkipForward, ListMusic, ListPlus, Shuffle, Repeat, Repeat1 } from 'lucide-vue-next'
 
 const playerStore = usePlayerStore()
 const libraryStore = useLibraryStore()
 const toast = useToast()
+const addToPlaylistSong = ref(null)
 
 const favoriteMap = computed(() => {
   const map = new Map()
@@ -152,8 +134,7 @@ function handleSeek(event) {
   playerStore.seek(Math.max(0, Math.min(100, percent)))
 }
 
-function handleVolume(event) {
-  const value = parseInt(event.target.value) / 100
+function handleVolume(value) {
   playerStore.setVolume(value)
 }
 
@@ -173,7 +154,7 @@ async function toggleFavorite() {
 }
 
 function addToPlaylist() {
-  // TODO: Implement playlist modal
+  addToPlaylistSong.value = playerStore.currentSong
 }
 </script>
 
@@ -201,94 +182,6 @@ function addToPlaylist() {
   margin: 0 auto;
 }
 
-/* Player Info */
-.player-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.track-artwork {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
-  overflow: visible;
-  flex-shrink: 0;
-}
-
-.track-artwork img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 16px;
-  border: 2px solid var(--border);
-}
-
-.artwork-placeholder {
-  width: 100%;
-  height: 100%;
-  background: var(--bg-tertiary);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-  border: 2px solid var(--border);
-}
-
-.artwork-glow {
-  position: absolute;
-  inset: -6px;
-  border-radius: 20px;
-  background: var(--accent-glow);
-  filter: blur(15px);
-  opacity: 0;
-  transition: opacity var(--transition);
-}
-
-.track-meta {
-  min-width: 0;
-  flex: 1;
-}
-
-.track-title {
-  font-weight: 500;
-  font-size: 0.95rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-primary);
-}
-
-.track-artist {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.track-favorite {
-  padding: 8px;
-  border-radius: 50%;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.track-favorite:hover {
-  color: var(--text-primary);
-}
-
-.track-favorite.active {
-  color: var(--accent);
-}
-
-/* Player Controls */
 .player-controls {
   display: flex;
   flex-direction: column;
@@ -358,7 +251,6 @@ function addToPlaylist() {
   margin-left: 2px;
 }
 
-/* Progress */
 .progress-wrapper {
   display: flex;
   align-items: center;
@@ -421,7 +313,6 @@ function addToPlaylist() {
   height: 6px;
 }
 
-/* Player Extra */
 .player-extra {
   display: flex;
   align-items: center;
@@ -448,46 +339,6 @@ function addToPlaylist() {
   color: var(--accent-primary);
 }
 
-.volume-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.volume-bar {
-  width: 80px;
-}
-
-.volume-slider {
-  width: 100%;
-  height: 4px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: var(--bg-tertiary);
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.volume-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  background: var(--text-primary);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform var(--transition-fast);
-}
-
-.volume-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.no-track {
-  color: var(--text-muted);
-}
-
-/* Responsive */
 @media (max-width: 768px) {
   .player-bar-content {
     grid-template-columns: 1fr auto;
@@ -497,11 +348,6 @@ function addToPlaylist() {
   .player-extra,
   .progress-wrapper {
     display: none;
-  }
-
-  .track-artwork {
-    width: 48px;
-    height: 48px;
   }
 }
 </style>

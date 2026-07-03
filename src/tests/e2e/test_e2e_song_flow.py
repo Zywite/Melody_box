@@ -1,3 +1,5 @@
+import io
+import json
 from unittest.mock import patch
 
 
@@ -44,8 +46,6 @@ def test_e2e_upload_multiple_wav_files(client, auth_headers, tone_wav_bytes, ton
     """Upload multiple real .wav files and verify both stored on disk."""
     storage = tmp_path / "music"
     storage.mkdir()
-    import json
-
     files = [
         ("files", ("tone1.wav", tone_wav_bytes, "audio/wav")),
         ("files", ("tone2.wav", tone_wav_bytes2, "audio/wav")),
@@ -79,7 +79,7 @@ def test_e2e_upload_nonexistent_extension(client, auth_headers, tmp_path):
     """Upload with disallowed extension → 400, no file saved."""
     storage = tmp_path / "music"
     storage.mkdir()
-    fake = __import__("io").BytesIO(b"not a real audio")
+    fake = io.BytesIO(b"not a real audio")
 
     with patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(storage)):
         resp = client.post(

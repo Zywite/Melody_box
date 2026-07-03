@@ -1,7 +1,7 @@
 ---
 plan name: clean-code-refactor
 plan description: Full clean code refactor
-plan status: active
+plan status: done
 ---
 
 ## Idea

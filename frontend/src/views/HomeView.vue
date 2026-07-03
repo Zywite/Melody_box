@@ -7,7 +7,7 @@
       </div>
     </header>
 
-    <section class="stats-section">
+    <section v-if="!loadingError" class="stats-section">
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-icon">
@@ -76,7 +76,7 @@
       </div>
     </section>
 
-    <div v-if="!recentSongs.length && !playlistsStore.playlists.length" class="empty-state">
+    <div v-if="!loadingError && !recentSongs.length && !playlistsStore.playlists.length" class="empty-state">
       <Music2 :size="64" class="opacity-30" />
       <h3 class="text-xl font-semibold mt-4">Comienza a explorar</h3>
       <p class="text-[var(--text-secondary)]">Sube canciones o busca en la biblioteca</p>
@@ -85,6 +85,18 @@
         <router-link to="/search" class="btn-secondary">Buscar</router-link>
       </div>
     </div>
+    <div v-if="loadingError" class="error-state">
+      <AlertTriangle :size="48" />
+      <h3>Error al cargar</h3>
+      <p>No se pudieron cargar los datos. Reintenta más tarde.</p>
+      <button class="btn-secondary mt-4" @click="loadData">Reintentar</button>
+    </div>
+
+    <AddToPlaylistModal
+      v-if="addToPlaylistSong"
+      :song="addToPlaylistSong"
+      @close="addToPlaylistSong = null"
+    />
   </div>
 </template>
 
@@ -99,7 +111,9 @@ import { usePlayerStore } from '@/stores/player'
 import { useFavorite } from '@/composables/useFavorite'
 import SongCard from '@/components/common/SongCard.vue'
 import PlaylistCard from '@/components/common/PlaylistCard.vue'
-import { Music2, Music, Video, ListMusic, Heart } from 'lucide-vue-next'
+import AddToPlaylistModal from '@/components/common/AddToPlaylistModal.vue'
+import { Music2, Music, Video, ListMusic, Heart, AlertTriangle } from 'lucide-vue-next'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -107,22 +121,33 @@ const songsStore = useSongsStore()
 const playlistsStore = usePlaylistsStore()
 const favoritesStore = useFavoritesStore()
 const playerStore = usePlayerStore()
+const toast = useToast()
 const { isSongFavorite, toggleFavorite } = useFavorite()
 
 const recentSongs = ref([])
+const addToPlaylistSong = ref(null)
+const loadingError = ref(false)
 
 const videoCount = computed(() => {
   return songsStore.songs.filter(s => s.media_type === 'video').length
 })
 
-onMounted(async () => {
-  await Promise.all([
-    songsStore.fetchSongs(),
-    playlistsStore.fetchPlaylists(),
-    favoritesStore.fetchFavorites()
-  ])
-  recentSongs.value = songsStore.filteredSongs.slice(0, 8)
-})
+onMounted(loadData)
+
+async function loadData() {
+  loadingError.value = false
+  try {
+    await Promise.all([
+      songsStore.fetchSongs(),
+      playlistsStore.fetchPlaylists(),
+      favoritesStore.fetchFavorites()
+    ])
+    recentSongs.value = songsStore.filteredSongs.slice(0, 8)
+  } catch (e) {
+    loadingError.value = true
+    toast.error('Error', 'No se pudieron cargar los datos')
+  }
+}
 
 function playSong(song) {
   playerStore.playSong(song, songsStore.songs)
@@ -133,7 +158,7 @@ function goToPlaylist(id) {
 }
 
 function showAddToPlaylist(song) {
-  // TODO: Implement playlist modal
+  addToPlaylistSong.value = song
 }
 
 </script>
@@ -259,5 +284,26 @@ function showAddToPlaylist(song) {
 
 .empty-state :deep(svg) {
   color: var(--accent-light);
+}
+
+.error-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+
+.error-state h3 {
+  font-family: 'Mochiy Pop P One', 'Nunito', sans-serif;
+  color: var(--text-primary);
+  margin-top: 16px;
+}
+
+.error-state p {
+  font-family: 'Nunito', sans-serif;
+  margin-top: 8px;
+}
+
+.error-state :deep(svg) {
+  color: var(--accent);
 }
 </style>

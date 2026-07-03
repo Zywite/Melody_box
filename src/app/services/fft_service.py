@@ -17,7 +17,10 @@ from app.core.constants import (
     MAX_FFT_INPUT_DURATION_SECONDS,
     MAX_SPECTROGRAM_FRAMES,
     MID_FREQUENCY_CUTOFF_HZ,
+    MIN_PARENT_DEPTH,
+    NYQUIST_RATIO,
     POWER_PERCENT_MULTIPLIER,
+    ROOT_PARENT_INDEX,
     TASK_PROGRESS_COMPLETE,
     TASK_STATUS_DONE,
     TASK_STATUS_FAILED,
@@ -54,8 +57,8 @@ class FFTService:
             # Handle old paths (src/music_storage/) vs new paths (data/music/)
             filename = Path(file_path).name
             parents = Path(file_path).parents
-            if len(parents) >= 3:
-                base_dir = parents[2]  # Go up to project root
+            if len(parents) >= MIN_PARENT_DEPTH:
+                base_dir = parents[ROOT_PARENT_INDEX]  # Go up to project root
                 new_path = base_dir / "data" / "music" / filename
                 if new_path.exists():
                     file_path = str(new_path)
@@ -108,7 +111,7 @@ class FFTService:
             ).astype(int)
 
             # Compute frequency bands
-            nyquist = sr / 2
+            nyquist = sr / NYQUIST_RATIO
             bins = len(avg_spectrum_norm)
             bin_width = nyquist / bins
 

@@ -16,7 +16,7 @@ class TaskService:
         return db.query(Task).filter(Task.id == task_id).first()
 
     @staticmethod
-    def get_pending_fft_task(db: Session, song_id: str):
+    def get_pending_fft_task(db: Session, song_id: str) -> Task | None:
         """Return the first pending or processing FFT task for a song, or None."""
         return (
             db.query(Task)

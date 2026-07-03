@@ -1,17 +1,20 @@
-from sqlalchemy import create_engine, text
+from collections.abc import Generator
+
+from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+from app.core.constants import DB_MAX_OVERFLOW, DB_POOL_SIZE
 from .config import BASE_DIR, settings
 
 DB_CONNECT_TIMEOUT_SECONDS = 3
 
 
-def _create_engine_with_fallback():
+def _create_engine_with_fallback() -> Engine:
     """Create engine, testing connection. Falls back to SQLite on failure."""
     if "sqlite" in settings.DATABASE_URL:
         return create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
 
-    pool_kwargs = {"pool_size": 20, "max_overflow": 10, "pool_pre_ping": True}
+    pool_kwargs = {"pool_size": DB_POOL_SIZE, "max_overflow": DB_MAX_OVERFLOW, "pool_pre_ping": True}
 
     # 3s connect timeout prevents startup from hanging when the DB host
     # is unreachable. libpq accepts ``connect_timeout`` in the URL.
@@ -45,7 +48,7 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 
-def get_db():
+def get_db() -> Generator:
     """FastAPI dependency that yields a request-scoped DB session."""
     db = SessionLocal()
     try:

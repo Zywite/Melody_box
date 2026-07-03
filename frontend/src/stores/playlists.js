@@ -44,6 +44,16 @@ export const usePlaylistsStore = defineStore('playlists', () => {
     }
   }
 
+  async function addSongToPlaylist(playlistId, songId) {
+    try {
+      await api.addSongToPlaylist(playlistId, songId)
+      await fetchPlaylists()
+    } catch (e) {
+      error.value = e.message
+      throw e
+    }
+  }
+
   return {
     playlists,
     isLoading,
@@ -52,5 +62,6 @@ export const usePlaylistsStore = defineStore('playlists', () => {
     fetchPlaylists,
     createPlaylist,
     getPlaylist,
+    addSongToPlaylist,
   }
 })

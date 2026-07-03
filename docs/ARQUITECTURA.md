@@ -100,8 +100,8 @@ MelodyBox/
 │   ├── start_server.py          # Script de inicio local
 │   ├── presentar.bat            # Inicio rápido Windows
 │   ├── presentar.sh             # Inicio rápido Linux/Mac
-│   ├── run_worker.bat           # Lanzar worker Windows
-│   └── run_worker.sh            # Lanzar worker Linux/Mac
+│   ├── start_server.py          # Servidor uvicorn
+│   └── validate_setup.py        # Validar entorno
 ├── .gitignore
 ├── .env.example
 ├── requirements.txt

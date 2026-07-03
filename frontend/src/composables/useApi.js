@@ -19,14 +19,22 @@ api.interceptors.request.use(config => {
 })
 
 api.interceptors.response.use(
-  response => response.data,
+  response => {
+    response.config._retryCount = 0
+    return response.data
+  },
   error => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('username')
-      localStorage.removeItem('userId')
-      localStorage.removeItem('role')
-      window.location.href = '/'
+      const retryCount = error.config?._retryCount || 0
+      if (retryCount >= 1) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('username')
+        localStorage.removeItem('userId')
+        localStorage.removeItem('role')
+        window.location.href = '/'
+        return Promise.reject(new Error('Sesión expirada'))
+      }
+      error.config._retryCount = retryCount + 1
     }
     
     const message = error.response?.data?.detail || error.message || 'Error de conexión'
@@ -80,7 +88,9 @@ export default {
       formData.append('files', file)
     }
     formData.append('metadata', JSON.stringify(metadataArray))
-    return api.post('/songs/upload-multiple', formData)
+    return api.post('/songs/upload-multiple', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
   },
 
   async deleteSong(id) {

@@ -63,7 +63,6 @@ export const usePlayerStore = defineStore('player', () => {
       sourceNode.value.connect(analyser.value)
       analyser.value.connect(audioContext.value.destination)
       
-      console.log('FFT initialized fresh, audio.src:', audio.value.src)
       return true
     } catch (e) {
       console.error('FFT init error:', e)
@@ -72,7 +71,6 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function toggleFFT() {
-    console.log('toggleFFT called, showFFT:', showFFT.value, 'audio:', !!audio.value)
     
     if (!showFFT.value) {
       if (!audio.value) {
@@ -93,7 +91,6 @@ export const usePlayerStore = defineStore('player', () => {
       analyser.value = null
       sourceNode.value = null
     }
-    console.log('FFT toggle result:', showFFT.value)
   }
 
   function updateTime() {
@@ -296,6 +293,21 @@ export const usePlayerStore = defineStore('player', () => {
     isPlaying.value = !isPlaying.value
   }
 
+  function setCurrentTime(time) {
+    currentTime.value = time
+  }
+
+  function setDuration(val) {
+    duration.value = val
+  }
+
+  function removeFromQueue(index) {
+    if (index < currentIndex.value) {
+      currentIndex.value--
+    }
+    playlist.value.splice(index, 1)
+  }
+
   function pause() {
     audio.value?.pause()
     if (videoElement.value) videoElement.value.pause()
@@ -311,12 +323,13 @@ export const usePlayerStore = defineStore('player', () => {
 
   function toggleMute() {
     if (isMuted.value) {
+      isMuted.value = false
       setVolume(prevVolume.value || 0.7)
     } else {
       prevVolume.value = volume.value
+      isMuted.value = true
       setVolume(0)
     }
-    isMuted.value = !isMuted.value
   }
 
   function seek(percent) {
@@ -388,6 +401,9 @@ export const usePlayerStore = defineStore('player', () => {
     setVideoElement,
     closeModeSelector,
     toggleQueue,
-    toggleFFT
+    toggleFFT,
+    setCurrentTime,
+    setDuration,
+    removeFromQueue
   }
 })

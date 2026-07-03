@@ -5,7 +5,7 @@ from pathlib import Path
 
 def test_rate_limits_standalone():
     """Run rate limiting tests in a fresh Python process (avoids module caching issues)."""
-    script = Path(__file__).parent.parent / "scripts" / "rate_limit_standalone.py"
+    script = Path(__file__).parent.parent.parent.parent / "scripts" / "rate_limit_standalone.py"
     result = subprocess.run(
         [sys.executable, str(script)],
         capture_output=True,

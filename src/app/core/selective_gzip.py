@@ -13,6 +13,8 @@ from collections.abc import Iterable
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.core.constants import GZIP_COMPRESS_LEVEL
+
 COMPRESSIBLE_PREFIXES: tuple[str, ...] = (
     "text/",
     "application/json",
@@ -70,7 +72,7 @@ def _should_compress(start_message: Message) -> tuple[bool, Message]:
 
 async def _send_body(start: Message, body: bytes, minimum_size: int, send: Send) -> None:
     if len(body) >= minimum_size:
-        compressed = gzip.compress(body, compresslevel=5)
+        compressed = gzip.compress(body, compresslevel=GZIP_COMPRESS_LEVEL)
         if len(compressed) < len(body):
             await send(_make_compressed_start(start, compressed))
             await send({"type": RESPONSE_BODY, "body": compressed, "more_body": False})
