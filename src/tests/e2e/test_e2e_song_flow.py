@@ -3,7 +3,7 @@ import json
 from unittest.mock import patch
 
 
-def test_e2e_upload_stream_delete_wav(client, auth_headers, tone_wav_bytes, tmp_path):
+def test_e2e_upload_stream_delete_wav(client, auth_headers, admin_auth_headers, tone_wav_bytes, tmp_path):
     """Upload real .wav → stream → delete, all with real file I/O."""
     storage = tmp_path / "music"
     storage.mkdir()
@@ -25,9 +25,10 @@ def test_e2e_upload_stream_delete_wav(client, auth_headers, tone_wav_bytes, tmp_
     assert song["media_type"] == "audio"
     song_id = song["id"]
 
-    # File exists on disk
-    saved_path = storage / "sine440.wav"
-    assert saved_path.exists(), "File was not saved to storage directory"
+    # File exists on disk (stored under a generated name, not the client filename)
+    saved_files = sorted(storage.glob("*.wav"))
+    assert len(saved_files) == 1, "File was not saved to storage directory"
+    saved_path = saved_files[0]
     assert saved_path.stat().st_size > 0
 
     # Stream → 200 with correct Content-Type
@@ -37,7 +38,7 @@ def test_e2e_upload_stream_delete_wav(client, auth_headers, tone_wav_bytes, tmp_
     assert int(resp.headers.get("content-length", 0)) > 0
 
     # Delete → file removed from disk
-    resp = client.delete(f"/songs/{song_id}", headers=auth_headers)
+    resp = client.delete(f"/songs/{song_id}", headers=admin_auth_headers)
     assert resp.status_code == 200
     assert not saved_path.exists(), "File should be deleted from disk"
 
@@ -71,8 +72,7 @@ def test_e2e_upload_multiple_wav_files(client, auth_headers, tone_wav_bytes, ton
     data = resp.json()
     assert data["success_count"] == 2
     assert data["error_count"] == 0
-    assert (storage / "tone1.wav").exists()
-    assert (storage / "tone2.wav").exists()
+    assert len(sorted(storage.glob("*.wav"))) == 2
 
 
 def test_e2e_upload_nonexistent_extension(client, auth_headers, tmp_path):

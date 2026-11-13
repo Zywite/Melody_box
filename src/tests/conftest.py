@@ -127,6 +127,12 @@ def other_auth_headers(other_user):
 
 
 @pytest.fixture
+def admin_auth_headers(admin_user):
+    token = create_access_token(data={"sub": admin_user.id}, expires_delta=timedelta(hours=1))
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
 def test_song(db):
     song, _ = SongService.create_song(
         db,
