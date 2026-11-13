@@ -81,6 +81,33 @@ def test_upload_song_success(client, auth_headers, tmp_path):
     assert data["media_type"] == "audio"
 
 
+def test_upload_same_filename_twice_keeps_both_files(client, auth_headers, tmp_path):
+    """Two uploads of the same filename used to overwrite one another on disk."""
+    music_dir = tmp_path / "music"
+    music_dir.mkdir()
+
+    def _upload(title: str):
+        payload = io.BytesIO(b"fake audio content")
+        with (
+            patch("app.routes.songs.settings.MUSIC_STORAGE_PATH", str(music_dir)),
+            patch("app.routes.songs._extract_duration", return_value=180.0),
+        ):
+            return client.post(
+                "/songs/upload",
+                headers=auth_headers,
+                files={"file": ("duplicate.mp3", payload, "audio/mpeg")},
+                data={"title": title, "artist": "Artist"},
+            )
+
+    first, second = _upload("Primera"), _upload("Segunda")
+
+    assert (first.status_code, second.status_code) == (200, 200)
+    stored = sorted(p.name for p in music_dir.iterdir())
+    assert len(stored) == 2
+    assert all(name.endswith(".mp3") for name in stored)
+    assert "duplicate" not in stored
+
+
 def test_upload_song_invalid_extension(client, auth_headers):
     fake_file = io.BytesIO(b"fake content")
     fake_file.name = "test.exe"
@@ -106,20 +133,27 @@ def test_upload_song_without_auth(client, tmp_path):
     assert response.status_code == 401
 
 
-def test_delete_song(client, auth_headers, test_song):
-    response = client.delete(f"/songs/{test_song.id}", headers=auth_headers)
+def test_delete_song(client, admin_auth_headers, test_song):
+    response = client.delete(f"/songs/{test_song.id}", headers=admin_auth_headers)
     assert response.status_code == 200
     assert "eliminada" in response.json()["message"].lower()
 
 
-def test_delete_song_not_found(client, auth_headers):
-    response = client.delete("/songs/nonexistent-id", headers=auth_headers)
+def test_delete_song_not_found(client, admin_auth_headers):
+    response = client.delete("/songs/nonexistent-id", headers=admin_auth_headers)
     assert response.status_code == 404
 
 
 def test_delete_song_without_auth(client, test_song):
     response = client.delete(f"/songs/{test_song.id}")
     assert response.status_code == 401
+
+
+def test_delete_song_forbidden_for_regular_user(client, other_auth_headers, test_song, db):
+    response = client.delete(f"/songs/{test_song.id}", headers=other_auth_headers)
+    assert response.status_code == 403
+    # The song must still be there: a regular user cannot wipe the shared catalog.
+    assert db.get(type(test_song), test_song.id) is not None
 
 
 def test_upload_multiple_success(client, auth_headers, tmp_path):
@@ -235,7 +269,7 @@ def test_stream_song_success(client, db, tmp_path):
     assert response.headers.get("content-type") == "audio/mpeg"
 
 
-def test_delete_song_file_removed_from_disk(client, db, auth_headers, tmp_path):
+def test_delete_song_file_removed_from_disk(client, db, admin_auth_headers, tmp_path):
     music_file = tmp_path / "delete_test.mp3"
     music_file.write_bytes(b"content")
     import uuid
@@ -247,7 +281,7 @@ def test_delete_song_file_removed_from_disk(client, db, auth_headers, tmp_path):
     )
     db.add(song)
     db.commit()
-    client.delete(f"/songs/{song.id}", headers=auth_headers)
+    client.delete(f"/songs/{song.id}", headers=admin_auth_headers)
     assert not music_file.exists()
 
 

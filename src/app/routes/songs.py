@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import shutil
+import uuid
 from pathlib import Path
 from typing import Annotated
 
@@ -48,7 +49,7 @@ from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.redis_helper import cache_get_fft, cache_set_fft, enqueue_job
 from app.models import User
-from app.routes.dependencies import get_current_user
+from app.routes.dependencies import get_current_user, require_admin
 from app.schemas import SongResponse
 from app.services.fft_service import FFTService
 from app.services.song_service import SongService
@@ -154,10 +155,18 @@ async def _process_upload_file(
         )
 
     os.makedirs(settings.MUSIC_STORAGE_PATH, exist_ok=True)
-    file_path = os.path.join(settings.MUSIC_STORAGE_PATH, safe_filename)
+    # Store under a generated name. Using the client-supplied filename meant two
+    # uploads of "song.mp3" overwrote each other on disk and then tripped the
+    # unique constraint on Song.file_path.
+    stored_name = f"{uuid.uuid4().hex}{Path(safe_filename).suffix.lower()}"
+    file_path = os.path.join(settings.MUSIC_STORAGE_PATH, stored_name)
+    tmp_path = f"{file_path}.part"
 
     try:
-        await asyncio.to_thread(_write_upload_to_disk, file_path, file.file)
+        # Write to a sibling .part file and rename, so a crash mid-copy never
+        # leaves a truncated file under the final name.
+        await asyncio.to_thread(_write_upload_to_disk, tmp_path, file.file)
+        os.replace(tmp_path, file_path)
 
         duration = _extract_duration(file_path, is_video)
 
@@ -187,12 +196,14 @@ async def _process_upload_file(
             "fft_task_id": task_id,
         }
     except HTTPException:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        for leftover in (tmp_path, file_path):
+            if os.path.exists(leftover):
+                os.remove(leftover)
         raise
     except Exception as e:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        for leftover in (tmp_path, file_path):
+            if os.path.exists(leftover):
+                os.remove(leftover)
         raise HTTPException(
             status_code=500, detail=ERROR_UPLOAD_PROCESSING.format(filename=file.filename, error=str(e))
         ) from e
@@ -319,11 +330,15 @@ async def upload_multiple(
     }
 
 
-@router.delete("/{song_id}", responses={404: {"description": "Song not found"}})
+@router.delete("/{song_id}", responses={404: {"description": "Song not found"}, 403: {"description": "Admin role required"}})
 def delete_song(
-    song_id: str, current_user: Annotated[User, Depends(get_current_user)], db: Annotated[Session, Depends(get_db)]
+    song_id: str, current_user: Annotated[User, Depends(require_admin)], db: Annotated[Session, Depends(get_db)]
 ):
-    """Delete a song row and its underlying file on disk."""
+    """Delete a song row and its underlying file on disk.
+
+    Admin-only: the catalog is shared, so a single regular user must not be
+    able to empty the library for everyone else.
+    """
     song = SongService.get_song(db, song_id)
     if not song:
         raise HTTPException(status_code=404, detail=ERROR_SONG_NOT_FOUND)
