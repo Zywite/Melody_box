@@ -16,7 +16,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: melodybox
-      POSTGRES_PASSWORD: melodybox
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: melodybox
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -42,8 +42,9 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://melodybox:melodybox@db:5432/melodybox
-      SECRET_KEY: change-me-in-production
+      DATABASE_URL: postgresql+psycopg2://melodybox:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/melodybox
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (at least 32 characters)}
+      APP_ENV: production
       ALLOWED_ORIGINS: http://localhost:8001
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -60,14 +61,15 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://melodybox:melodybox@db:5432/melodybox
-      SECRET_KEY: change-me-in-production
+      DATABASE_URL: postgresql+psycopg2://melodybox:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/melodybox
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (at least 32 characters)}
+      APP_ENV: production
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       PYTHONPATH: /app/src
     volumes:
       - music_data:/app/data/music
-    command: arq worker.WorkerSettings
+    command: arq app.worker.WorkerSettings
     restart: unless-stopped
 
 volumes:

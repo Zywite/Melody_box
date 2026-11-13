@@ -25,7 +25,8 @@ COPY src/ ./src/
 COPY --from=frontend-build /app/frontend/dist/ ./frontend/dist/
 COPY public/ ./public/
 
-ENV DATABASE_URL=postgresql+psycopg2://melodybox:melodybox@db:5432/melodybox
+# Connection strings and secrets come from the environment (compose/.env);
+# baking them into the image leaks credentials into the layer history.
 ENV ALLOWED_ORIGINS=http://localhost:8001
 
 EXPOSE 8001
